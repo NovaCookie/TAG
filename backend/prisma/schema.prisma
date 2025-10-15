@@ -1,0 +1,90 @@
+// backend/prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Communes {
+  id            Int      @id @default(autoincrement())
+  nom           String
+  population    Int
+  actif         Boolean  @default(true)
+  date_creation DateTime @default(now())
+
+  utilisateurs    Utilisateurs[]
+  interventions   Interventions[]
+  
+  @@map("communes")
+}
+
+model Themes {
+  id            Int      @id @default(autoincrement())
+  designation   String
+  actif         Boolean  @default(true)
+  date_creation DateTime @default(now())
+
+  interventions Interventions[]
+  
+  @@map("themes")
+}
+
+model Utilisateurs {
+  id            Int      @id @default(autoincrement())
+  role          String   // 'commune', 'juriste', 'admin'
+  nom           String
+  prenom        String
+  email         String   @unique
+  mot_de_passe  String
+  actif         Boolean  @default(true)
+  date_creation DateTime @default(now())
+
+  commune_id    Int?
+  commune       Communes?    @relation(fields: [commune_id], references: [id], onDelete: SetNull)
+  
+  interventions_demandees Interventions[] @relation("InterventionDemandeur")
+  interventions_traitees  Interventions[] @relation("InterventionJuriste")
+  
+  @@map("utilisateurs")
+}
+
+model Interventions {
+  id              Int      @id @default(autoincrement())
+  question        String
+  date_question   DateTime @default(now())
+  reponse         String?
+  date_reponse    DateTime?
+  notes           String?
+  satisfaction    Int?     // 1-5
+  date_creation   DateTime @default(now())
+
+  commune_id      Int
+  demandeur_id    Int
+  juriste_id      Int?
+  theme_id        Int
+
+  commune         Communes    @relation(fields: [commune_id], references: [id], onDelete: Cascade)
+  demandeur       Utilisateurs @relation("InterventionDemandeur", fields: [demandeur_id], references: [id], onDelete: Cascade)
+  juriste         Utilisateurs? @relation("InterventionJuriste", fields: [juriste_id], references: [id], onDelete: SetNull)
+  theme           Themes      @relation(fields: [theme_id], references: [id], onDelete: SetNull)
+  pieces_jointes  PiecesJointes[]
+  
+  @@map("interventions")
+}
+
+model PiecesJointes {
+  id              Int      @id @default(autoincrement())
+  nom_original    String
+  nom_fichier     String
+  chemin          String
+  date_creation   DateTime @default(now())
+
+  intervention_id Int
+  
+  intervention    Interventions @relation(fields: [intervention_id], references: [id], onDelete: Cascade)
+  
+  @@map("pieces_jointes")
+}
