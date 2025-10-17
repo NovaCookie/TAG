@@ -17,8 +17,6 @@ model Communes {
 
   utilisateurs    Utilisateurs[]
   interventions   Interventions[]
-  
-  @@map("communes")
 }
 
 model Themes {
@@ -28,8 +26,6 @@ model Themes {
   date_creation DateTime @default(now())
 
   interventions Interventions[]
-  
-  @@map("themes")
 }
 
 model Utilisateurs {
@@ -43,12 +39,10 @@ model Utilisateurs {
   date_creation DateTime @default(now())
 
   commune_id    Int?
-  commune       Communes?    @relation(fields: [commune_id], references: [id], onDelete: SetNull)
+  commune       Communes? @relation(fields: [commune_id], references: [id], onDelete: SetNull)
   
   interventions_demandees Interventions[] @relation("InterventionDemandeur")
   interventions_traitees  Interventions[] @relation("InterventionJuriste")
-  
-  @@map("utilisateurs")
 }
 
 model Interventions {
@@ -66,13 +60,11 @@ model Interventions {
   juriste_id      Int?
   theme_id        Int
 
-  commune         Communes    @relation(fields: [commune_id], references: [id], onDelete: Cascade)
+  commune         Communes     @relation(fields: [commune_id], references: [id], onDelete: Cascade)
   demandeur       Utilisateurs @relation("InterventionDemandeur", fields: [demandeur_id], references: [id], onDelete: Cascade)
   juriste         Utilisateurs? @relation("InterventionJuriste", fields: [juriste_id], references: [id], onDelete: SetNull)
-  theme           Themes      @relation(fields: [theme_id], references: [id], onDelete: SetNull)
+  theme           Themes       @relation(fields: [theme_id], references: [id], onDelete: SetNull)
   pieces_jointes  PiecesJointes[]
-  
-  @@map("interventions")
 }
 
 model PiecesJointes {
@@ -83,8 +75,5 @@ model PiecesJointes {
   date_creation   DateTime @default(now())
 
   intervention_id Int
-  
   intervention    Interventions @relation(fields: [intervention_id], references: [id], onDelete: Cascade)
-  
-  @@map("pieces_jointes")
 }

@@ -1,0 +1,131 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Variables CSS globales */
+:root {
+  /* Light mode */
+  --color-primary: #2c5e92;
+  --color-primary-light: #4a7db0;
+  --color-secondary: #4a5568;
+  --color-secondary-light: #718096;
+  --color-light: #f8fafc;
+  --color-light-gray: #e2e8f0;
+  --color-white: #ffffff;
+}
+
+/* Dark mode */
+[data-theme="dark"] {
+  --color-primary: #4a7db0;
+  --color-primary-light: #63a0d4;
+  --color-secondary: #e2e8f0;
+  --color-secondary-light: #a0aec0;
+  --color-light: #1a202c;
+  --color-light-gray: #4a5568;
+  --color-white: #2d3748;
+}
+
+/* Classes utilitaires personnalisées */
+.card {
+  background-color: white;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  transition: background-color 0.3s, border-color 0.3s, color 0.3s;
+}
+
+.dark .card {
+  background-color: #2d3748;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+.card-light {
+  background-color: white;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  transition: background-color 0.3s, border-color 0.3s, color 0.3s;
+}
+
+.dark .card-light {
+  background-color: #374151;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+.text-primary {
+  color: #2c5e92;
+}
+
+.dark .text-primary {
+  color: #f7fafc;
+}
+
+.text-secondary {
+  color: #4a5568;
+}
+
+.dark .text-secondary {
+  color: #e2e8f0;
+}
+
+.text-tertiary {
+  color: #718096;
+}
+
+.dark .text-tertiary {
+  color: #a0aec0;
+}
+
+.bg-light {
+  background-color: #f8fafc;
+}
+
+.dark .bg-light {
+  background-color: #1a202c;
+}
+
+.bg-page {
+  background-color: #f8fafc;
+}
+
+.dark .bg-page {
+  background-color: #111827;
+}
+
+.border-light {
+  border-color: #e2e8f0;
+}
+
+.dark .border-light {
+  border-color: #4a5568;
+}
+
+/* Transition globale pour une expérience fluide */
+* {
+  transition: background-color 0.2s ease, border-color 0.2s ease,
+    color 0.2s ease;
+}
+
+/* Pour les éléments qui ne doivent pas avoir de transition */
+.no-transition,
+.no-transition * {
+  transition: none !important;
+}
+
+/* Scrollbar personnalisée pour dark mode */
+.dark ::-webkit-scrollbar {
+  width: 8px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #2d3748;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #4a5568;
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #718096;
+}
