@@ -30,14 +30,18 @@ model Themes {
 
 model Utilisateurs {
   id            Int      @id @default(autoincrement())
-  role          String   // 'commune', 'juriste', 'admin'
+  role          String  // 'commune', 'juriste', 'admin'
   nom           String
   prenom        String
   email         String   @unique
   mot_de_passe  String
   actif         Boolean  @default(true)
   date_creation DateTime @default(now())
-
+  
+  // Nouveaux champs pour reset password
+  reset_token        String?
+  reset_token_expiry DateTime?
+  
   commune_id    Int?
   commune       Communes? @relation(fields: [commune_id], references: [id], onDelete: SetNull)
   
