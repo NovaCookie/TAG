@@ -1,10 +1,7 @@
-// components/Support.js
-import React, { useState } from "react";
-// import { useAuth } from "../context/AuthContext";
+import { useState } from "react";
 import Layout from "./layout/Layout";
 
 const Support = () => {
-  // const { user } = useAuth();
   const [formData, setFormData] = useState({
     nomComplet: "",
     email: "",
@@ -56,7 +53,7 @@ const Support = () => {
       linkText: "Voir la documentation",
     },
     {
-      icon: "❓",
+      icon: "❔",
       title: "FAQ",
       description:
         "Trouvez des réponses aux questions fréquemment posées sur l'utilisation de l'application.",

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import Layout from "./layout/Layout";
@@ -55,14 +55,9 @@ const Interventions = () => {
       if (filters.search && filters.search.trim() !== "") {
         params.search = filters.search;
       }
-      console.log("🔍 Paramètres envoyés à l'API:", params);
       const response = await interventionsAPI.getAll(params);
       const data = response.data;
-      console.log(
-        "📦 Données reçues:",
-        data.interventions.length,
-        "interventions"
-      );
+
       setInterventions(data.interventions);
       setPagination((prev) => ({
         ...prev,

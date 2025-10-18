@@ -1,12 +1,13 @@
-import React, { useState } from "react";
+import { useContext} from "react";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
+import { SidebarContext } from "../../context/SidebarContext";
 
 const Layout = ({ children, activePage }) => {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const {isOpen, setIsOpen} = useContext(SidebarContext);
 
   const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen);
+    setIsOpen(!isOpen);
   };
 
   return (
@@ -15,14 +16,10 @@ const Layout = ({ children, activePage }) => {
       <div className="flex flex-1">
         <Sidebar
           activePage={activePage}
-          isOpen={sidebarOpen}
+          isOpen={isOpen}
           onToggle={toggleSidebar}
         />
-        <main
-          className={`flex-1 p-8 transition-all duration-300 ${
-            sidebarOpen ? "" : ""
-          }`}
-        >
+        <main className={`flex-1 p-8  ${isOpen ? "ml-0" : ""}`}>
           {children}
         </main>
       </div>

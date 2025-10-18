@@ -1,5 +1,4 @@
-// components/LoginForm.js
-import React, { useState } from "react";
+import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { Link } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
@@ -20,7 +19,7 @@ const LoginForm = () => {
     const result = await login(email, password);
 
     if (result.success) {
-      // ✅ Redirection vers le dashboard après connexion réussie
+      // Redirection vers le dashboard après connexion réussie
       navigate("/dashboard");
     } else {
       setError(result.error);

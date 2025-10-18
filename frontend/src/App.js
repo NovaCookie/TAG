@@ -17,6 +17,7 @@ import Support from "./components/Support";
 import PasswordForgot from "./components/auth/PasswordForgot";
 import PasswordReset from "./components/auth/PasswordReset";
 import NouvelleIntervention from "./components/NouvelleIntervention";
+import { SidebarProvider } from "./context/SidebarContext";
 
 // Composant pour protéger les routes
 const ProtectedRoute = ({ children }) => {
@@ -82,95 +83,97 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <Router>
-          <div className="App">
-            <Routes>
-              {/* Routes d'authentification (accessibles même si connecté) */}
-              <Route
-                path="/login"
-                element={
-                  <PublicRoute>
-                    <LoginForm />
-                  </PublicRoute>
-                }
-              />
-              <Route
-                path="/forgot-password"
-                element={
-                  <AuthRoute>
-                    <PasswordForgot />
-                  </AuthRoute>
-                }
-              />
-              <Route
-                path="/reset-password"
-                element={
-                  <AuthRoute>
-                    <PasswordReset />
-                  </AuthRoute>
-                }
-              />
+        <SidebarProvider>
+          <Router>
+            <div className="App">
+              <Routes>
+                {/* Routes d'authentification (accessibles même si connecté) */}
+                <Route
+                  path="/login"
+                  element={
+                    <PublicRoute>
+                      <LoginForm />
+                    </PublicRoute>
+                  }
+                />
+                <Route
+                  path="/forgot-password"
+                  element={
+                    <AuthRoute>
+                      <PasswordForgot />
+                    </AuthRoute>
+                  }
+                />
+                <Route
+                  path="/reset-password"
+                  element={
+                    <AuthRoute>
+                      <PasswordReset />
+                    </AuthRoute>
+                  }
+                />
 
-              {/* Routes protégées */}
-              <Route
-                path="/dashboard"
-                element={
-                  <ProtectedRoute>
-                    <Dashboard />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/interventions"
-                element={
-                  <ProtectedRoute>
-                    <Interventions />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/messaging"
-                element={
-                  <ProtectedRoute>
-                    <Messaging />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/users"
-                element={
-                  <ProtectedRoute>
-                    <Users />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/settings"
-                element={
-                  <ProtectedRoute>
-                    <Settings />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/support"
-                element={
-                  <ProtectedRoute>
-                    <Support />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/nouvelle-intervention"
-                element={<NouvelleIntervention />}
-              />
+                {/* Routes protégées */}
+                <Route
+                  path="/dashboard"
+                  element={
+                    <ProtectedRoute>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/interventions"
+                  element={
+                    <ProtectedRoute>
+                      <Interventions />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/messaging"
+                  element={
+                    <ProtectedRoute>
+                      <Messaging />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/users"
+                  element={
+                    <ProtectedRoute>
+                      <Users />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/settings"
+                  element={
+                    <ProtectedRoute>
+                      <Settings />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/support"
+                  element={
+                    <ProtectedRoute>
+                      <Support />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/nouvelle-intervention"
+                  element={<NouvelleIntervention />}
+                />
 
-              {/* Routes de navigation */}
-              <Route path="/" element={<Navigate to="/dashboard" />} />
-              <Route path="*" element={<Navigate to="/dashboard" />} />
-            </Routes>
-          </div>
-        </Router>
+                {/* Routes de navigation */}
+                <Route path="/" element={<Navigate to="/dashboard" />} />
+                <Route path="*" element={<Navigate to="/dashboard" />} />
+              </Routes>
+            </div>
+          </Router>
+        </SidebarProvider>
       </AuthProvider>
     </ThemeProvider>
   );

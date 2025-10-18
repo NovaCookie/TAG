@@ -1,78 +1,144 @@
-import React from "react";
-import { Link, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-// import { useTheme } from "../../context/ThemeContext";
+import SidebarLink from "../sidebar/SidebarLink";
+import SidebarSection from "../sidebar/SidebarSection";
 
-const Sidebar = ({ activePage }) => {
+const Sidebar = ({ isOpen, onToggle }) => {
   const { user } = useAuth();
-  // const { theme } = useTheme();
   const location = useLocation();
 
   const isActive = (path) => location.pathname === path;
-
   const canViewAll = () => ["admin", "juriste"].includes(user?.role);
   const canManageUsers = () => user?.role === "admin";
 
-  const getLinkClasses = (path) => {
-    const baseClasses =
-      "flex items-center px-4 py-3 rounded-lg mb-2 transition-colors duration-300";
-
-    if (isActive(path)) {
-      return `${baseClasses} bg-light text-primary font-medium dark:bg-gray-700 dark:text-white`;
-    }
-
-    return `${baseClasses} text-tertiary hover:bg-light-gray dark:hover:bg-gray-700 dark:hover:text-white`;
+  const ICONS = {
+    dashboard: "📊",
+    interventions: "📝",
+    messaging: "💬",
+    users: "👥",
+    communes: "🏠",
+    settings: "⚙️",
+    support: "❔",
   };
 
-  const getSectionTitleClasses = () =>
-    "text-sm font-medium uppercase px-3 mb-4 transition-colors duration-300 text-tertiary";
-
   return (
-    <nav className="card-light w-64 p-6">
-      {/* Navigation Principale */}
-      <div className={getSectionTitleClasses()}>Navigation</div>
-
-      <Link to="/dashboard" className={getLinkClasses("/dashboard")}>
-        Tableau de bord
-      </Link>
-
-      <Link to="/interventions" className={getLinkClasses("/interventions")}>
-        {user?.role === "commune" ? "Mes questions" : "Interventions"}
-      </Link>
-
-      <Link to="/messaging" className={getLinkClasses("/messaging")}>
-        Messagerie
-      </Link>
-
-      {/* Menu Gestion - Admin/Juriste seulement */}
-      {(canViewAll() || canManageUsers()) && (
-        <>
-          <div className={`${getSectionTitleClasses()} mt-6`}>Gestion</div>
-
-          {canManageUsers() && (
-            <Link to="/users" className={getLinkClasses("/users")}>
-              Utilisateurs
-            </Link>
+    <nav
+      className={`card-light shadow-card ${
+        isOpen ? "w-64" : "w-16"
+      } overflow-hidden transition-all duration-1000`}
+    >
+      <div className="p-4 ">
+        {/* Flèche et Navigation sur la même ligne */}
+        <div className="flex items-center justify-between mb-6">
+          {isOpen && (
+            <div className="font-medium uppercase text-lg text-tertiary">
+              Navigation
+            </div>
           )}
+          <button
+            onClick={onToggle}
+            className="p-2 hover:bg-light-gray transition-colors rounded flex-shrink-0"
+            title={isOpen ? "Réduire la sidebar" : "Étendre la sidebar"}
+          >
+            {isOpen ? (
+              <svg
+                className="w-5 h-5 text-secondary"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+            ) : (
+              <svg
+                className="w-5 h-5 text-secondary"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            )}
+          </button>
+        </div>
 
-          {canManageUsers() && (
-            <Link to="/communes" className={getLinkClasses("/communes")}>
-              Communes
-            </Link>
-          )}
-        </>
-      )}
+        {/* Navigation Principale */}
+        <SidebarSection isOpen={isOpen}>
+          <SidebarLink
+            to="/dashboard"
+            icon={ICONS.dashboard}
+            title="Tableau de bord"
+            isOpen={isOpen}
+            isActive={isActive("/dashboard")}
+          />
+          <SidebarLink
+            to="/interventions"
+            icon={ICONS.interventions}
+            title={user?.role === "commune" ? "Mes questions" : "Interventions"}
+            isOpen={isOpen}
+            isActive={isActive("/interventions")}
+          />
+          <SidebarLink
+            to="/messaging"
+            icon={ICONS.messaging}
+            title="Messagerie"
+            isOpen={isOpen}
+            isActive={isActive("/messaging")}
+          />
+        </SidebarSection>
 
-      {/* Menu Compte */}
-      <div className={`${getSectionTitleClasses()} mt-6`}>Compte</div>
+        {/* Menu Gestion - Admin/Juriste seulement */}
+        {(canViewAll() || canManageUsers()) && (
+          <SidebarSection title="Gestion" isOpen={isOpen}>
+            {canManageUsers() && (
+              <SidebarLink
+                to="/users"
+                icon={ICONS.users}
+                title="Utilisateurs"
+                isOpen={isOpen}
+                isActive={isActive("/users")}
+              />
+            )}
+            {canManageUsers() && (
+              <SidebarLink
+                to="/communes"
+                icon={ICONS.communes}
+                title="Communes"
+                isOpen={isOpen}
+                isActive={isActive("/communes")}
+              />
+            )}
+          </SidebarSection>
+        )}
 
-      <Link to="/settings" className={getLinkClasses("/settings")}>
-        Paramètres
-      </Link>
-
-      <Link to="/support" className={getLinkClasses("/support")}>
-        Support
-      </Link>
+        {/* Menu Compte */}
+        <SidebarSection title="Compte" isOpen={isOpen}>
+          <SidebarLink
+            to="/settings"
+            icon={ICONS.settings}
+            title="Paramètres"
+            isOpen={isOpen}
+            isActive={isActive("/settings")}
+          />
+          <SidebarLink
+            to="/support"
+            icon={ICONS.support}
+            title="Support"
+            isOpen={isOpen}
+            isActive={isActive("/support")}
+          />
+        </SidebarSection>
+      </div>
     </nav>
   );
 };

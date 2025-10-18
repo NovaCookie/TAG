@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import Layout from "./layout/Layout";
@@ -229,7 +229,7 @@ const Dashboard = () => {
 
   const getStatCardSubtitle = (index) => {
     const subtitles = {
-      commune: ["Total posées", "Réponse attendue", "Action requise"],
+      commune: ["Total posées", "Réponse attendue", " "],
       juriste: ["À traiter", "Réponses à fournir", "Action immédiate"],
       admin: ["Toutes communes", "Sans réponse", "Priorité haute"],
     };
