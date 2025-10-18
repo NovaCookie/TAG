@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
+import { authAPI } from "../../services/api";
 
 const PasswordForgot = () => {
   const [email, setEmail] = useState("");
@@ -19,10 +20,7 @@ const PasswordForgot = () => {
     setLoading(true);
 
     try {
-      // Simulation d'appel API
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      // await api.forgotPassword(email);
+      await authAPI.forgotPassword({ email });
 
       setSuccess(true);
     } catch (err) {

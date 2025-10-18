@@ -1,4 +1,6 @@
 import axios from "axios";
+import PasswordForgot from "../components/auth/PasswordForgot";
+import { data } from "react-router-dom";
 
 const API_URL = "http://localhost:5000/api";
 
@@ -19,6 +21,8 @@ api.interceptors.request.use((config) => {
 export const authAPI = {
   login: (credentials) => api.post("/auth/login", credentials),
   register: (userData) => api.post("/auth/register", userData),
+  PasswordForgot: (data) => api.post("/aut/forgot-password", data),
+  resetPassword: (data) => api.post("/auth/reset-password", data),
 };
 
 export const interventionsAPI = {

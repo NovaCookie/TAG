@@ -88,13 +88,6 @@ const Sidebar = ({ isOpen, onToggle }) => {
             isOpen={isOpen}
             isActive={isActive("/interventions")}
           />
-          <SidebarLink
-            to="/messaging"
-            icon={ICONS.messaging}
-            title="Messagerie"
-            isOpen={isOpen}
-            isActive={isActive("/messaging")}
-          />
         </SidebarSection>
 
         {/* Menu Gestion - Admin/Juriste seulement */}

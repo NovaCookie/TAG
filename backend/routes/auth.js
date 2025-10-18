@@ -101,4 +101,127 @@ router.post("/login", async (req, res) => {
   }
 });
 
+//POST /api/auth/forgot-password - Demande de réinitialisation
+router.post("/forgot-password", async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: "Email requis" });
+    }
+
+    // Vérifier si l'utilisateur existe
+    const user = await prisma.utilisateurs.findUnique({
+      where: { email },
+    });
+
+    // Pour la sécurité, on ne révèle pas si l'email existe ou non
+    if (!user) {
+      return res.json({
+        message:
+          "Si cet email existe, un lien de réinitialisation a été envoyé",
+      });
+    }
+
+    // Générer un token sécurisé
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    const resetTokenHash = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
+
+    // Date d'expiration (1 heure)
+    const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000);
+
+    // Stocker le token hashé dans la base
+    await prisma.utilisateurs.update({
+      where: { email },
+      data: {
+        reset_token: resetTokenHash,
+        reset_token_expiry: resetTokenExpiry,
+      },
+    });
+
+    // Envoyer l'email (simulation pour l'instant)
+    const resetUrl = `${
+      process.env.FRONTEND_URL
+    }/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`;
+
+    console.log("📧 Email de réinitialisation envoyé à:", email);
+    console.log("🔗 Lien de réinitialisation:", resetUrl);
+
+    // TODO: Intégrer un vrai service d'email (SendGrid, Mailjet, etc.)
+    // await sendResetEmail(email, resetUrl);
+
+    res.json({
+      message: "Si cet email existe, un lien de réinitialisation a été envoyé",
+    });
+  } catch (error) {
+    console.error("Erreur forgot-password:", error);
+    res
+      .status(500)
+      .json({ error: "Erreur lors de la demande de réinitialisation" });
+  }
+});
+
+// POST /api/auth/reset-password - Réinitialisation du mot de passe
+router.post("/reset-password", async (req, res) => {
+  try {
+    const { token, email, newPassword } = req.body;
+
+    if (!token || !email || !newPassword) {
+      return res
+        .status(400)
+        .json({ error: "Token, email et nouveau mot de passe requis" });
+    }
+
+    if (newPassword.length < 6) {
+      return res
+        .status(400)
+        .json({ error: "Le mot de passe doit faire au moins 6 caractères" });
+    }
+
+    // Hasher le token pour comparaison
+    const resetTokenHash = crypto
+      .createHash("sha256")
+      .update(token)
+      .digest("hex");
+
+    // Trouver l'utilisateur avec token valide
+    const user = await prisma.utilisateurs.findFirst({
+      where: {
+        email,
+        reset_token: resetTokenHash,
+        reset_token_expiry: { gt: new Date() },
+      },
+    });
+
+    if (!user) {
+      return res.status(400).json({ error: "Token invalide ou expiré" });
+    }
+
+    // Hasher le nouveau mot de passe
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+    // Mettre à jour le mot de passe et effacer le token
+    await prisma.utilisateurs.update({
+      where: { email },
+      data: {
+        mot_de_passe: hashedPassword,
+        reset_token: null,
+        reset_token_expiry: null,
+      },
+    });
+
+    console.log("✅ Mot de passe réinitialisé pour:", email);
+
+    res.json({ message: "Mot de passe réinitialisé avec succès" });
+  } catch (error) {
+    console.error("Erreur reset-password:", error);
+    res
+      .status(500)
+      .json({ error: "Erreur lors de la réinitialisation du mot de passe" });
+  }
+});
+
 module.exports = router;

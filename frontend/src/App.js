@@ -1,4 +1,3 @@
-import React from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -10,7 +9,6 @@ import { ThemeProvider } from "./context/ThemeContext"; // ← Nouvel import
 import LoginForm from "./components/LoginForm";
 import Dashboard from "./components/Dashboard";
 import Interventions from "./components/Interventions";
-import Messaging from "./components/Messaging";
 import Users from "./components/Users";
 import Settings from "./components/Settings";
 import Support from "./components/Support";
@@ -127,14 +125,6 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <Interventions />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/messaging"
-                  element={
-                    <ProtectedRoute>
-                      <Messaging />
                     </ProtectedRoute>
                   }
                 />
