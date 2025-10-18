@@ -110,7 +110,7 @@ const Support = () => {
   ];
 
   const SupportCard = ({ card }) => (
-    <div className="card p-6 transition-transform hover:-translate-y-1 flex flex-col items-center text-center">
+    <div className="card card-rounded p-6 transition-transform hover:-translate-y-1 flex flex-col items-center text-center">
       <div className="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xl mb-5">
         {card.icon}
       </div>
@@ -182,7 +182,7 @@ const Support = () => {
       </div>
 
       {/* FAQ Section */}
-      <section className="card p-6 mb-10">
+      <section className="card card-rounded p-6 mb-10">
         <h2 className="text-xl font-semibold text-primary mb-6 pb-4 border-b border-light">
           Questions fréquemment posées
         </h2>
@@ -194,7 +194,7 @@ const Support = () => {
       </section>
 
       {/* Contact Form */}
-      <section className="card p-6">
+      <section className="card card-rounded p-6">
         <h2 className="text-xl font-semibold text-primary mb-6 pb-4 border-b border-light">
           Contactez notre support
         </h2>

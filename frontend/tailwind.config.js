@@ -17,7 +17,7 @@ module.exports = {
         danger: "#e53e3e",
         white: "#ffffff",
 
-        // Nouvelles couleurs pour dark mode
+        // Couleurs dark mode
         dark: {
           bg: "#1a202c", // Background principal
           card: "#2d3748", // Cartes (moins blanc)
@@ -47,6 +47,10 @@ module.exports = {
       boxShadow: {
         card: "0 4px 6px rgba(0, 0, 0, 0.05)",
         "card-dark": "0 4px 6px rgba(0, 0, 0, 0.2)",
+      },
+      transitionProperty: {
+        width: "width",
+        margin: "margin",
       },
     },
   },

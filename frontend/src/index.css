@@ -30,11 +30,12 @@
 /* Classes utilitaires personnalisées */
 .card {
   background-color: white;
-  border-radius: 0.75rem;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   transition: background-color 0.3s, border-color 0.3s, color 0.3s;
 }
-
+.card-rounded {
+  border-radius: 0.75rem;
+}
 .dark .card {
   background-color: #2d3748;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
@@ -42,7 +43,6 @@
 
 .card-light {
   background-color: white;
-  border-radius: 0.75rem;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   transition: background-color 0.3s, border-color 0.3s, color 0.3s;
 }

@@ -16,6 +16,7 @@ import Settings from "./components/Settings";
 import Support from "./components/Support";
 import PasswordForgot from "./components/auth/PasswordForgot";
 import PasswordReset from "./components/auth/PasswordReset";
+import NouvelleIntervention from "./components/NouvelleIntervention";
 
 // Composant pour protéger les routes
 const ProtectedRoute = ({ children }) => {
@@ -158,6 +159,10 @@ function App() {
                     <Support />
                   </ProtectedRoute>
                 }
+              />
+              <Route
+                path="/nouvelle-intervention"
+                element={<NouvelleIntervention />}
               />
 
               {/* Routes de navigation */}

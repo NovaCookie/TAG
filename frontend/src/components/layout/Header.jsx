@@ -17,7 +17,7 @@ const Header = () => {
         {/* Toggle du thème */}
         {/* <button
           onClick={toggleTheme}
-          className="p-2 rounded-lg transition-all duration-300 bg-light text-secondary hover:bg-light-gray dark:bg-dark-card dark:text-dark-tertiary dark:hover:bg-gray-700"
+          className="p-2  transition-all duration-300 bg-light text-secondary hover:bg-light-gray dark:bg-dark-card dark:text-dark-tertiary dark:hover:bg-gray-700"
           title={theme === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre'}
         >
           {theme === 'dark' ? '☀️' : '🌙'}

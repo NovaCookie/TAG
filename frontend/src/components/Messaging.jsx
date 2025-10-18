@@ -192,7 +192,7 @@ const Messaging = () => {
         style={{ height: "calc(100vh - 200px)" }}
       >
         {/* Conversations Sidebar */}
-        <div className="card w-80 min-w-80 flex flex-col">
+        <div className="card card-rounded w-80 min-w-80 flex flex-col">
           {/* Conversations Header */}
           <div className="p-5 border-b border-light">
             <input
@@ -224,7 +224,7 @@ const Messaging = () => {
         </div>
 
         {/* Chat Area */}
-        <div className="card flex-1 flex flex-col min-w-96">
+        <div className="card card-rounded flex-1 flex flex-col min-w-96">
           {selectedConversation ? (
             <>
               {/* Chat Header */}

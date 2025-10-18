@@ -11,7 +11,6 @@ const Settings = () => {
   const { theme, setTheme } = useTheme();
   const [activeSection, setActiveSection] = useState("profil");
   const [formData, setFormData] = useState({
-    theme: theme,
     // Profil
     telephone: "",
     poste: "",
@@ -146,7 +145,7 @@ const Settings = () => {
   ];
 
   const SettingsSection = ({ title, description, children }) => (
-    <div className="card p-6 mb-6">
+    <div className="card card-rounded p-6 mb-6">
       <div className="mb-6">
         <h2 className="text-xl font-semibold text-primary mb-2">{title}</h2>
         <p className="text-tertiary text-sm">{description}</p>
@@ -259,7 +258,7 @@ const Settings = () => {
 
       <div className="flex gap-6 mb-8">
         {/* Settings Navigation */}
-        <nav className="card w-64 p-5 h-fit">
+        <nav className="card card-rounded w-64 p-5 h-fit">
           {sections.map((section) => (
             <div
               key={section.id}

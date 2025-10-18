@@ -1,4 +1,3 @@
-// backend/routes/interventions.js
 const express = require("express");
 const { PrismaClient } = require("@prisma/client");
 const { authMiddleware, requireRole } = require("../middleware/auth");
@@ -8,13 +7,13 @@ const router = express.Router();
 // GET /api/interventions - Lister les interventions (avec filtres)
 router.get("/", authMiddleware, async (req, res) => {
   try {
-    const { commune, theme, statut, page = 1, limit = 10 } = req.query;
+    const { commune, theme, statut, search, page = 1, limit = 10 } = req.query;
 
     const where = {};
 
     // Filtre par commune (pour les communes)
     if (req.user.role === "commune") {
-      where.commune_id = req.user.id;
+      where.demandeur_id = req.user.id;
     } else if (commune) {
       where.commune_id = parseInt(commune);
     }
@@ -25,10 +24,24 @@ router.get("/", authMiddleware, async (req, res) => {
     }
 
     // Filtre par statut (répondu/non répondu)
-    if (statut === "repondu") {
+    if (statut === "terminé") {
       where.NOT = { reponse: null };
     } else if (statut === "en_attente") {
       where.reponse = null;
+    }
+
+    // FILTRE RECHERCHE - NOUVEAU
+    if (search && search.trim() !== "") {
+      where.OR = [
+        { question: { contains: search, mode: "insensitive" } },
+        { reponse: { contains: search, mode: "insensitive" } },
+        { notes: { contains: search, mode: "insensitive" } },
+        {
+          commune: {
+            nom: { contains: search, mode: "insensitive" },
+          },
+        },
+      ];
     }
 
     const interventions = await prisma.interventions.findMany({
@@ -243,5 +256,120 @@ router.put(
     }
   }
 );
+
+// GET /api/interventions/stats/dashboard - Tableaux de bord
+router.get(
+  "/stats/dashboard",
+  authMiddleware,
+  requireRole(["admin", "juriste"]),
+  async (req, res) => {
+    try {
+      // Questions par commune
+      const questionsParCommune = await prisma.interventions.groupBy({
+        by: ["commune_id"],
+        _count: { id: true },
+        where: {
+          date_question: {
+            gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+          },
+        }, // 30 derniers jours
+        orderBy: { _count: { id: "desc" } },
+      });
+
+      // Questions par thème
+      const questionsParTheme = await prisma.interventions.groupBy({
+        by: ["theme_id"],
+        _count: { id: true },
+        orderBy: { _count: { id: "desc" } },
+      });
+
+      // Satisfaction par strate de commune
+      const satisfactionParStrate = await prisma.$queryRaw`
+     SELECT 
+    CASE 
+      WHEN c.population < 100 THEN '< 100 habitants'
+      WHEN c.population BETWEEN 100 AND 500 THEN '100-500 habitants' 
+      ELSE '> 500 habitants'
+    END as strate,
+    (AVG(COALESCE(i.satisfaction, 1)))::float as satisfaction_moyenne,
+    COUNT(i.id)::integer as nb_interventions
+  FROM "Interventions" i
+  JOIN "Communes" c ON i.commune_id = c.id
+  GROUP BY strate
+  `;
+
+      // Temps moyen de réponse
+      const interventionsAvecReponse = await prisma.interventions.findMany({
+        where: {
+          date_reponse: { not: null },
+          // Supprimé: date_question: { not: null } ← CAUSE UNE ERREUR
+        },
+        select: {
+          date_question: true,
+          date_reponse: true,
+        },
+      });
+
+      // Calcul manuel du temps moyen
+      let totalMs = 0;
+      interventionsAvecReponse.forEach((intervention) => {
+        const tempsReponse =
+          new Date(intervention.date_reponse) -
+          new Date(intervention.date_question);
+        totalMs += tempsReponse;
+      });
+
+      const tempsMoyenMs =
+        interventionsAvecReponse.length > 0
+          ? totalMs / interventionsAvecReponse.length
+          : 0;
+
+      res.json({
+        questionsParCommune,
+        questionsParTheme,
+        satisfactionParStrate,
+        tempsMoyenReponse: {
+          jours: Math.round(tempsMoyenMs / (1000 * 60 * 60 * 24)),
+          heures: Math.round(tempsMoyenMs / (1000 * 60 * 60)),
+        },
+        totalInterventions: await prisma.interventions.count(),
+        interventionsSansReponse: await prisma.interventions.count({
+          where: { reponse: null },
+        }),
+      });
+    } catch (error) {
+      console.error("Erreur stats dashboard:", error);
+      res.status(500).json({
+        error: "Erreur lors du calcul des statistiques",
+        details: error.message,
+      });
+    }
+  }
+);
+
+// GET /api/interventions/theme/:themeId/similaires - Questions similaires
+router.get("/theme/:themeId/similaires", authMiddleware, async (req, res) => {
+  try {
+    const { themeId } = req.params;
+    const { keywords } = req.query;
+
+    const interventions = await prisma.interventions.findMany({
+      where: {
+        theme_id: parseInt(themeId),
+        reponse: { not: null }, // Seulement celles avec réponse
+      },
+      include: {
+        commune: { select: { nom: true } },
+        theme: { select: { designation: true } },
+      },
+      orderBy: { date_question: "desc" },
+      take: 10,
+    });
+
+    res.json({ questionsSimilaires: interventions });
+  } catch (error) {
+    res.status(500).json({ error: "Erreur recherche questions similaires" });
+  }
+});
 
 module.exports = router;
