@@ -9,6 +9,7 @@ const interventionRoutes = require("./routes/interventions");
 const themeRoutes = require("./routes/themes");
 const userRoutes = require("./routes/users");
 
+
 // Middleware
 app.use(cors()); // Permet à React de communiquer avec Express
 app.use(express.json()); // Permet de recevoir du JSON dans les requêtes

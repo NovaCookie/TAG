@@ -2,6 +2,8 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { PrismaClient } = require("@prisma/client");
+const crypto = require("crypto");
+const emailService = require("../services/emailService");
 const prisma = new PrismaClient();
 const router = express.Router();
 
@@ -41,6 +43,8 @@ router.post("/register", async (req, res) => {
       { expiresIn: "24h" }
     );
 
+    await emailService.sendWelcomeEmail(user);
+
     res.status(201).json({
       message: "Utilisateur créé avec succès",
       token,
@@ -53,7 +57,11 @@ router.post("/register", async (req, res) => {
       },
     });
   } catch (error) {
+    console.error("Erreur envoi email bienvenue:", error);
     res.status(500).json({ error: "Erreur lors de l'inscription" });
+    res.status(201).json({
+      /* ... */
+    });
   }
 });
 
@@ -100,61 +108,53 @@ router.post("/login", async (req, res) => {
     res.status(500).json({ error: "Erreur lors de la connexion" });
   }
 });
-
-//POST /api/auth/forgot-password - Demande de réinitialisation
+// POST /api/auth/forgot-password - Demande de réinitialisation
 router.post("/forgot-password", async (req, res) => {
   try {
     const { email } = req.body;
 
     if (!email) {
-      return res.status(400).json({ error: "Email requis" });
+      return res.status(400).json({ error: "L'email est requis" });
     }
 
-    // Vérifier si l'utilisateur existe
+    // Trouver l'utilisateur
     const user = await prisma.utilisateurs.findUnique({
       where: { email },
     });
 
-    // Pour la sécurité, on ne révèle pas si l'email existe ou non
+    // Ne pas révéler si l'email existe ou non
     if (!user) {
       return res.json({
-        message:
-          "Si cet email existe, un lien de réinitialisation a été envoyé",
+        message: "Si l'email existe, un lien de réinitialisation a été envoyé",
       });
     }
 
     // Générer un token sécurisé
     const resetToken = crypto.randomBytes(32).toString("hex");
-    const resetTokenHash = crypto
-      .createHash("sha256")
-      .update(resetToken)
-      .digest("hex");
+    const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 heure
 
-    // Date d'expiration (1 heure)
-    const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000);
-
-    // Stocker le token hashé dans la base
+    // Sauvegarder le token dans la base
     await prisma.utilisateurs.update({
-      where: { email },
+      where: { id: user.id },
       data: {
-        reset_token: resetTokenHash,
+        reset_token: resetToken,
         reset_token_expiry: resetTokenExpiry,
       },
     });
 
-    // Envoyer l'email (simulation pour l'instant)
-    const resetUrl = `${
-      process.env.FRONTEND_URL
-    }/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`;
+    // envoie email avec resend
+    const emailResult = await emailService.sendPasswordResetEmail(
+      user,
+      resetToken
+    );
 
-    console.log("📧 Email de réinitialisation envoyé à:", email);
-    console.log("🔗 Lien de réinitialisation:", resetUrl);
-
-    // TODO: Intégrer un vrai service d'email (SendGrid, Mailjet, etc.)
-    // await sendResetEmail(email, resetUrl);
+    if (!emailResult.success) {
+      console.error("Erreur envoi email :", emailResult.error);
+      // On renvoie quand même le même message pour la sécurité
+    }
 
     res.json({
-      message: "Si cet email existe, un lien de réinitialisation a été envoyé",
+      message: "Si l'email existe, un lien de réinitialisation a été envoyé",
     });
   } catch (error) {
     console.error("Erreur forgot-password:", error);
@@ -167,37 +167,34 @@ router.post("/forgot-password", async (req, res) => {
 // POST /api/auth/reset-password - Réinitialisation du mot de passe
 router.post("/reset-password", async (req, res) => {
   try {
-    const { token, email, newPassword } = req.body;
+    const { token, newPassword } = req.body;
 
-    if (!token || !email || !newPassword) {
-      return res
-        .status(400)
-        .json({ error: "Token, email et nouveau mot de passe requis" });
+    if (!token || !newPassword) {
+      return res.status(400).json({
+        error: "Le token et le nouveau mot de passe sont requis",
+      });
     }
 
     if (newPassword.length < 6) {
-      return res
-        .status(400)
-        .json({ error: "Le mot de passe doit faire au moins 6 caractères" });
+      return res.status(400).json({
+        error: "Le mot de passe doit faire au moins 6 caractères",
+      });
     }
 
-    // Hasher le token pour comparaison
-    const resetTokenHash = crypto
-      .createHash("sha256")
-      .update(token)
-      .digest("hex");
-
-    // Trouver l'utilisateur avec token valide
+    // Trouver l'utilisateur avec un token valide
     const user = await prisma.utilisateurs.findFirst({
       where: {
-        email,
-        reset_token: resetTokenHash,
-        reset_token_expiry: { gt: new Date() },
+        reset_token: token,
+        reset_token_expiry: {
+          gt: new Date(), // Vérifier que le token n'a pas expiré
+        },
       },
     });
 
     if (!user) {
-      return res.status(400).json({ error: "Token invalide ou expiré" });
+      return res.status(400).json({
+        error: "Token invalide ou expiré",
+      });
     }
 
     // Hasher le nouveau mot de passe
@@ -205,7 +202,7 @@ router.post("/reset-password", async (req, res) => {
 
     // Mettre à jour le mot de passe et effacer le token
     await prisma.utilisateurs.update({
-      where: { email },
+      where: { id: user.id },
       data: {
         mot_de_passe: hashedPassword,
         reset_token: null,
@@ -213,14 +210,12 @@ router.post("/reset-password", async (req, res) => {
       },
     });
 
-    console.log("✅ Mot de passe réinitialisé pour:", email);
-
-    res.json({ message: "Mot de passe réinitialisé avec succès" });
+    res.json({
+      message: "Mot de passe réinitialisé avec succès",
+    });
   } catch (error) {
     console.error("Erreur reset-password:", error);
-    res
-      .status(500)
-      .json({ error: "Erreur lors de la réinitialisation du mot de passe" });
+    res.status(500).json({ error: "Erreur lors de la réinitialisation" });
   }
 });
 

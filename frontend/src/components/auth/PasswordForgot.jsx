@@ -20,7 +20,7 @@ const PasswordForgot = () => {
     setLoading(true);
 
     try {
-      await authAPI.forgotPassword({ email });
+      await authAPI.PasswordForgot({ email });
 
       setSuccess(true);
     } catch (err) {
@@ -41,8 +41,9 @@ const PasswordForgot = () => {
             Email envoyé !
           </h2>
           <p className="text-secondary-light mb-6 leading-relaxed">
-            Un lien de réinitialisation a été envoyé à <strong>{email}</strong>.
-            Vérifiez votre boîte de réception et suivez les instructions.
+            Si l'email <strong>{email}</strong> existe dans notre système, un
+            lien de réinitialisation a été envoyé. Vérifiez votre boîte de
+            réception et suivez les instructions.
           </p>
           <div className="space-y-3">
             <Link
