@@ -1,7 +1,11 @@
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { authAPI } from "../../services/api";
 
 const PasswordReset = () => {
+  const [searchParams] = useSearchParams();
+  const resetToken = searchParams.get("token");
+
   const [formData, setFormData] = useState({
     newPassword: "",
     confirmPassword: "",
@@ -44,13 +48,18 @@ const PasswordReset = () => {
 
     if (!validateForm()) return;
 
+    if (!resetToken) {
+      setError("Lien de réinitialisation invalide");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // Simulation d'appel API
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      // await api.resetPassword(formData.newPassword);
+      await authAPI.resetPassword({
+        token: resetToken,
+        newPassword: formData.newPassword,
+      });
 
       setSuccess(true);
       setFormData({ newPassword: "", confirmPassword: "" });

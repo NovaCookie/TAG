@@ -108,6 +108,7 @@ router.post("/login", async (req, res) => {
     res.status(500).json({ error: "Erreur lors de la connexion" });
   }
 });
+
 // POST /api/auth/forgot-password - Demande de réinitialisation
 router.post("/forgot-password", async (req, res) => {
   try {
@@ -181,7 +182,6 @@ router.post("/reset-password", async (req, res) => {
       });
     }
 
-    // Trouver l'utilisateur avec un token valide
     const user = await prisma.utilisateurs.findFirst({
       where: {
         reset_token: token,
