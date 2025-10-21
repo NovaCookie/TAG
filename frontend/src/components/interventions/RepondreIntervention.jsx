@@ -69,7 +69,7 @@ const RepondreIntervention = () => {
     setSubmitting(true);
 
     try {
-      await interventionsAPI.repondre(id, {
+      await interventionsAPI.addResponse(id, {
         reponse: formData.reponse,
         notes: formData.notes,
       });

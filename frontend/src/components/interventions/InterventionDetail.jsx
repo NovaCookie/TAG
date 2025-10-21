@@ -1,4 +1,3 @@
-// components/interventions/InterventionDetail.jsx
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
@@ -55,9 +54,6 @@ const InterventionDetail = () => {
       setLoading(false);
     }
   }, [id]);
-
-  // ✅ SUPPRIMÉ : La fonction canViewIntervention n'est plus nécessaire
-  // Le backend gère déjà les permissions
 
   const canReply = () => {
     return (
@@ -131,9 +127,6 @@ const InterventionDetail = () => {
     );
   }
 
-  // ✅ SUPPRIMÉ : Plus besoin de vérifier hasPermission
-  // Si on arrive ici, c'est que le backend a autorisé l'accès
-
   if (error || !intervention) {
     return (
       <Layout activePage="interventions">
@@ -159,8 +152,6 @@ const InterventionDetail = () => {
       </Layout>
     );
   }
-
-  // ✅ SUPPRIMÉ : La section complète de vérification de permission a été enlevée
 
   const status = intervention.reponse
     ? intervention.satisfaction
