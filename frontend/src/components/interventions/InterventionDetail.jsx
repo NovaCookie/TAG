@@ -9,11 +9,7 @@ import { interventionsAPI } from "../../services/api";
 
 const InterventionDetail = () => {
   const { id } = useParams();
-  //   const { user } = useAuth();
-  const { user, logout } = useAuth();
-  console.log("🔍 UTILISATEUR COMPLET:", user);
-  console.log("🔍 Commune ID:", user?.commune_id);
-  console.log("🔍 Commune object:", user?.commune);
+  const { user } = useAuth();
   const [intervention, setIntervention] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -24,15 +20,11 @@ const InterventionDetail = () => {
     try {
       setLoading(true);
       setError("");
-      console.log("🔄 Chargement de l'intervention ID:", id);
 
       const response = await interventionsAPI.getById(id);
-      console.log("✅ Réponse API:", response);
-      console.log("📦 Données reçues:", response.data);
 
       if (response.data) {
         setIntervention(response.data);
-        // Pré-remplir la note de satisfaction si elle existe
         if (response.data.satisfaction) {
           setSatisfactionNote(response.data.satisfaction);
         }
@@ -40,13 +32,7 @@ const InterventionDetail = () => {
         setError("Aucune donnée reçue de l'API");
       }
     } catch (error) {
-      console.error("❌ Erreur chargement intervention:", error);
-      console.error("📋 Détails erreur:", {
-        status: error.response?.status,
-        data: error.response?.data,
-        message: error.message,
-      });
-
+      console.error("Erreur lors du chargement de l'intervention:", error);
       if (error.response?.status === 404) {
         setError("Intervention non trouvée");
       } else if (error.response?.status === 403) {
@@ -68,16 +54,10 @@ const InterventionDetail = () => {
       setError("ID d'intervention manquant");
       setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  const canViewIntervention = () => {
-    if (!intervention) return false;
-    if (user?.role === "admin" || user?.role === "juriste") return true;
-    if (user?.role === "commune" && intervention.commune_id === user.commune_id)
-      return true;
-    return false;
-  };
+  // ✅ SUPPRIMÉ : La fonction canViewIntervention n'est plus nécessaire
+  // Le backend gère déjà les permissions
 
   const canReply = () => {
     return (
@@ -95,15 +75,12 @@ const InterventionDetail = () => {
         satisfaction: note,
       });
 
-      // Mettre à jour l'intervention locale
       setIntervention((prev) => ({
         ...prev,
         satisfaction: note,
       }));
-
-      console.log("✅ Note de satisfaction enregistrée !");
     } catch (error) {
-      console.error("❌ Erreur enregistrement satisfaction:", error);
+      console.error("Erreur enregistrement satisfaction:", error);
     } finally {
       setSubmittingSatisfaction(false);
     }
@@ -154,6 +131,9 @@ const InterventionDetail = () => {
     );
   }
 
+  // ✅ SUPPRIMÉ : Plus besoin de vérifier hasPermission
+  // Si on arrive ici, c'est que le backend a autorisé l'accès
+
   if (error || !intervention) {
     return (
       <Layout activePage="interventions">
@@ -168,14 +148,6 @@ const InterventionDetail = () => {
             <p>
               Rôle utilisateur: <strong>{user?.role}</strong>
             </p>
-            <p>
-              Commune utilisateur ID: <strong>{user?.commune_id}</strong>
-            </p>
-            {user?.commune && (
-              <p>
-                Commune utilisateur: <strong>{user.commune.nom}</strong>
-              </p>
-            )}
           </div>
           <Link
             to="/interventions"
@@ -188,53 +160,7 @@ const InterventionDetail = () => {
     );
   }
 
-  // Vérification des permissions avec plus de détails
-  const hasPermission = canViewIntervention();
-  console.log("🔐 Permission accordée:", hasPermission);
-  console.log("🏘️ Commune intervention:", intervention.commune_id);
-  console.log("👤 Commune utilisateur:", user?.commune_id);
-  console.log("🎯 Rôle utilisateur:", user?.role);
-
-  if (!hasPermission) {
-    return (
-      <Layout activePage="interventions">
-        <div className="card card-rounded p-6 text-center">
-          <h2 className="text-xl font-semibold text-danger mb-4">
-            Accès non autorisé
-          </h2>
-          <div className="text-tertiary mb-4 space-y-2">
-            <p>
-              Cette intervention appartient à la commune ID:{" "}
-              <strong>{intervention.commune_id}</strong>
-            </p>
-            <p>
-              Votre commune ID: <strong>{user?.commune_id}</strong>
-            </p>
-            {intervention.commune && (
-              <p>
-                Commune de l'intervention:{" "}
-                <strong>{intervention.commune.nom}</strong>
-              </p>
-            )}
-            {user?.commune && (
-              <p>
-                Votre commune: <strong>{user.commune.nom}</strong>
-              </p>
-            )}
-            <p>
-              Votre rôle: <strong>{user?.role}</strong>
-            </p>
-          </div>
-          <Link
-            to="/interventions"
-            className="inline-block bg-primary text-white rounded-lg px-6 py-3 font-semibold text-sm hover:bg-primary-light transition-colors"
-          >
-            ← Retour aux interventions
-          </Link>
-        </div>
-      </Layout>
-    );
-  }
+  // ✅ SUPPRIMÉ : La section complète de vérification de permission a été enlevée
 
   const status = intervention.reponse
     ? intervention.satisfaction
@@ -246,7 +172,6 @@ const InterventionDetail = () => {
 
   return (
     <Layout activePage="interventions">
-      {/* En-tête avec navigation */}
       <div className="mb-6">
         <Link
           to="/interventions"
@@ -258,7 +183,7 @@ const InterventionDetail = () => {
         <div className="flex justify-between items-start">
           <div>
             <h1 className="text-2xl font-semibold text-primary mb-2">
-              {user?.role === "commune" ? "Ma Question" : "Intervention"} #
+              {user?.role === "commune" ? "Question n°" : "Intervention"}
               {intervention.id.toString().padStart(4, "0")}
             </h1>
             <div className="flex items-center gap-4 text-sm text-tertiary">
@@ -282,12 +207,12 @@ const InterventionDetail = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Informations principales */}
+        {/* Contenu principal */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Carte Question */}
+          {/* Détails question */}
           <div className="card card-rounded p-6">
             <h2 className="text-lg font-semibold text-primary mb-4">
-              {user?.role === "commune" ? "Ma Question" : "Question"}
+              Description
             </h2>
 
             <div className="mb-4">
@@ -315,7 +240,7 @@ const InterventionDetail = () => {
 
             <div>
               <label className="block text-sm font-medium text-secondary mb-2">
-                Description
+                Question
               </label>
               <div className="bg-light/50 p-4 rounded-lg">
                 <p className="text-secondary whitespace-pre-wrap">
@@ -325,7 +250,7 @@ const InterventionDetail = () => {
             </div>
           </div>
 
-          {/* Carte Réponse (si existe) */}
+          {/* Réponse du juriste */}
           {intervention.reponse && (
             <div className="card card-rounded p-6">
               <div className="flex justify-between items-start mb-4">
@@ -388,7 +313,7 @@ const InterventionDetail = () => {
             </div>
           )}
 
-          {/* Section Satisfaction pour les communes */}
+          {/* Satisfaction (communes) */}
           {user?.role === "commune" && intervention.reponse && (
             <div className="card card-rounded p-6">
               <h2 className="text-lg font-semibold text-primary mb-4">
@@ -441,9 +366,9 @@ const InterventionDetail = () => {
           )}
         </div>
 
-        {/* Sidebar avec métadonnées */}
+        {/* Sidebar */}
         <div className="space-y-6">
-          {/* Statut et actions */}
+          {/* Statut */}
           <div className="card card-rounded p-6">
             <h3 className="text-lg font-semibold text-primary mb-4">Statut</h3>
 
@@ -522,7 +447,7 @@ const InterventionDetail = () => {
             )}
           </div>
 
-          {/* Actions rapides pour juristes/admin */}
+          {/* Actions rapides */}
           {(user?.role === "admin" || user?.role === "juriste") && (
             <div className="card card-rounded p-6">
               <h3 className="text-lg font-semibold text-primary mb-4">
@@ -546,7 +471,7 @@ const InterventionDetail = () => {
             </div>
           )}
 
-          {/* Information pour les communes */}
+          {/* Info communes en attente */}
           {user?.role === "commune" && !intervention.reponse && (
             <div className="card card-rounded p-6 bg-primary/5 border border-primary/20">
               <h3 className="text-lg font-semibold text-primary mb-2">

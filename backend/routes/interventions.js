@@ -97,7 +97,7 @@ router.get("/:id", authMiddleware, async (req, res) => {
     // Vérifier les permissions
     if (
       req.user.role === "commune" &&
-      intervention.commune_id !== req.user.id
+      intervention.demandeur_id !== req.user.id
     ) {
       return res
         .status(403)
