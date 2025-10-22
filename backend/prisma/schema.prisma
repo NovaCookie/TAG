@@ -56,7 +56,7 @@ model Interventions {
   reponse         String?
   date_reponse    DateTime?
   notes           String?
-  satisfaction    Int?     @default(1) // 1-5
+  satisfaction    Int?     // 1-5
   urgent          Boolean  @default(false)
   date_creation   DateTime @default(now())
 

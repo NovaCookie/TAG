@@ -14,6 +14,7 @@ const InterventionDetail = () => {
   const [error, setError] = useState("");
   const [satisfactionNote, setSatisfactionNote] = useState(0);
   const [submittingSatisfaction, setSubmittingSatisfaction] = useState(false);
+  const [satisfactionMessage, setSatisfactionMessage] = useState("");
 
   const fetchIntervention = async () => {
     try {
@@ -24,14 +25,16 @@ const InterventionDetail = () => {
 
       if (response.data) {
         setIntervention(response.data);
+
         if (response.data.satisfaction) {
           setSatisfactionNote(response.data.satisfaction);
+        } else {
+          setSatisfactionNote(0);
         }
       } else {
         setError("Aucune donnée reçue de l'API");
       }
     } catch (error) {
-      console.error("Erreur lors du chargement de l'intervention:", error);
       if (error.response?.status === 404) {
         setError("Intervention non trouvée");
       } else if (error.response?.status === 403) {
@@ -66,17 +69,36 @@ const InterventionDetail = () => {
     if (!intervention || submittingSatisfaction) return;
 
     setSubmittingSatisfaction(true);
+    setSatisfactionMessage("");
+
     try {
-      await interventionsAPI.rateSatisfaction(intervention.id, {
-        satisfaction: note,
-      });
+      const response = await interventionsAPI.rateSatisfaction(
+        intervention.id,
+        note
+      );
 
       setIntervention((prev) => ({
         ...prev,
         satisfaction: note,
       }));
+
+      setSatisfactionNote(note);
+      setSatisfactionMessage("Merci pour votre évaluation !");
+
+      setTimeout(() => setSatisfactionMessage(""), 3000);
     } catch (error) {
-      console.error("Erreur enregistrement satisfaction:", error);
+      let errorMessage = "Erreur lors de l'enregistrement";
+
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.response?.status === 403) {
+        errorMessage = "Vous ne pouvez noter que vos propres interventions";
+      } else if (error.response?.status === 400) {
+        errorMessage = "Impossible de noter une intervention sans réponse";
+      }
+
+      setSatisfactionMessage(errorMessage);
+      setTimeout(() => setSatisfactionMessage(""), 5000);
     } finally {
       setSubmittingSatisfaction(false);
     }
@@ -86,31 +108,139 @@ const InterventionDetail = () => {
     const currentSatisfaction = intervention?.satisfaction || satisfactionNote;
 
     return (
-      <div className="flex items-center gap-1">
-        {[1, 2, 3, 4, 5].map((star) => (
-          <button
-            key={star}
-            type="button"
-            disabled={submittingSatisfaction || intervention?.satisfaction}
-            onClick={() => handleSatisfactionSubmit(star)}
-            className={`text-2xl transition-transform hover:scale-110 ${
-              star <= currentSatisfaction
-                ? "text-warning"
-                : "text-tertiary hover:text-warning/70"
-            } ${
-              submittingSatisfaction
-                ? "opacity-50 cursor-not-allowed"
-                : "cursor-pointer"
+      <div className="space-y-4">
+        <div className="flex items-center gap-1">
+          {[1, 2, 3, 4, 5].map((star) => (
+            <button
+              key={star}
+              type="button"
+              disabled={submittingSatisfaction || intervention?.satisfaction}
+              onClick={() => handleSatisfactionSubmit(star)}
+              className={`text-3xl transition-all duration-200 ${
+                star <= currentSatisfaction
+                  ? "text-warning transform scale-110"
+                  : "text-tertiary hover:text-warning/70 hover:scale-105"
+              } ${
+                submittingSatisfaction
+                  ? "opacity-50 cursor-not-allowed"
+                  : "cursor-pointer"
+              }`}
+            >
+              ★
+            </button>
+          ))}
+        </div>
+
+        {submittingSatisfaction && (
+          <div className="flex items-center gap-2 text-tertiary">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-warning"></div>
+            <span>Enregistrement en cours...</span>
+          </div>
+        )}
+
+        {satisfactionMessage && (
+          <div
+            className={`p-3 rounded-lg text-sm font-medium ${
+              satisfactionMessage.includes("Erreur")
+                ? "bg-danger/10 text-danger border border-danger/20"
+                : "bg-success/10 text-success border border-success/20"
             }`}
           >
-            ★
-          </button>
-        ))}
-        {submittingSatisfaction && (
-          <span className="text-sm text-tertiary ml-2">Enregistrement...</span>
+            {satisfactionMessage}
+          </div>
         )}
+
+        <div className="flex justify-between text-xs text-tertiary">
+          <span>Pas satisfait</span>
+          <span>Très satisfait</span>
+        </div>
       </div>
     );
+  };
+
+  const handleDownload = async (piece) => {
+    try {
+      const response = await interventionsAPI.downloadPieceJointe(piece.id);
+
+      // Vérifier si c'est une erreur JSON
+      if (response.headers["content-type"]?.includes("application/json")) {
+        const errorData = await response.data.text();
+        throw new Error("Erreur serveur");
+      }
+
+      const blob = new Blob([response.data], {
+        type: response.headers["content-type"] || "application/octet-stream",
+      });
+
+      if (blob.size === 0) {
+        throw new Error("Fichier vide");
+      }
+
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = piece.nom_original;
+      link.style.display = "none";
+
+      document.body.appendChild(link);
+      link.click();
+
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }, 100);
+    } catch (error) {
+      let errorMessage = "Erreur lors du téléchargement du fichier";
+
+      if (error.response?.status === 404) {
+        errorMessage = "Fichier non trouvé sur le serveur";
+      } else if (error.response?.status === 403) {
+        errorMessage = "Vous n'avez pas accès à ce fichier";
+      } else if (error.message === "Fichier vide") {
+        errorMessage = "Le fichier est vide ou corrompu";
+      }
+
+      alert(errorMessage);
+    }
+  };
+
+  const handlePreview = async (piece) => {
+    try {
+      const response = await interventionsAPI.downloadPieceJointe(piece.id);
+
+      // Vérifier si c'est une erreur JSON
+      if (response.headers["content-type"]?.includes("application/json")) {
+        const errorData = await response.data.text();
+        throw new Error("Erreur serveur");
+      }
+
+      const blob = new Blob([response.data], {
+        type: response.headers["content-type"] || "application/octet-stream",
+      });
+
+      if (blob.size === 0) {
+        throw new Error("Fichier vide");
+      }
+
+      const url = window.URL.createObjectURL(blob);
+      const newWindow = window.open(url, "_blank");
+
+      if (!newWindow) {
+        throw new Error("Popup bloquée. Autorisez les popups pour ce site.");
+      }
+    } catch (error) {
+      let errorMessage = "Impossible d'ouvrir le fichier";
+
+      if (error.response?.status === 404) {
+        errorMessage = "Fichier non trouvé sur le serveur";
+      } else if (error.response?.status === 403) {
+        errorMessage = "Vous n'avez pas accès à ce fichier";
+      } else if (error.message.includes("Popup")) {
+        errorMessage = error.message;
+      }
+
+      alert(errorMessage);
+    }
   };
 
   if (loading) {
@@ -316,16 +446,10 @@ const InterventionDetail = () => {
                   <p className="text-secondary mb-4">
                     Comment évaluez-vous la réponse reçue ?
                   </p>
-                  <div className="flex items-center gap-4">
-                    {renderSatisfactionStars()}
-                    <div className="text-sm text-tertiary">
-                      <div>1 = Pas satisfait</div>
-                      <div>5 = Très satisfait</div>
-                    </div>
-                  </div>
+                  {renderSatisfactionStars()}
                 </div>
               ) : (
-                <div>
+                <div className="space-y-4">
                   <p className="text-secondary mb-2">
                     Vous avez évalué cette réponse :
                   </p>
@@ -334,7 +458,7 @@ const InterventionDetail = () => {
                       {[1, 2, 3, 4, 5].map((star) => (
                         <span
                           key={star}
-                          className={`text-2xl ${
+                          className={`text-3xl ${
                             star <= intervention.satisfaction
                               ? "text-warning"
                               : "text-tertiary"
@@ -344,11 +468,11 @@ const InterventionDetail = () => {
                         </span>
                       ))}
                     </div>
-                    <span className="text-secondary font-semibold ml-2">
+                    <span className="text-secondary font-semibold text-lg ml-2">
                       ({intervention.satisfaction}/5)
                     </span>
                   </div>
-                  <p className="text-tertiary text-sm mt-2">
+                  <p className="text-tertiary text-sm">
                     Merci pour votre évaluation !
                   </p>
                 </div>
@@ -415,23 +539,58 @@ const InterventionDetail = () => {
 
             {intervention.pieces_jointes &&
             intervention.pieces_jointes.length > 0 ? (
-              <div className="space-y-2">
-                {intervention.pieces_jointes.map((piece, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-2 bg-light/50 rounded"
-                  >
-                    <span className="text-sm text-secondary truncate">
-                      {piece.nom_original}
-                    </span>
-                    <button
-                      onClick={() => window.open(piece.chemin, "_blank")}
-                      className="text-primary hover:text-primary-light text-sm"
+              <div className="space-y-3">
+                {intervention.pieces_jointes.map((piece, index) => {
+                  const isImage =
+                    piece.nom_original.match(/\.(jpg|jpeg|png)$/i);
+                  const isPDF = piece.nom_original.match(/\.pdf$/i);
+
+                  return (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-3 bg-light/50 rounded-lg border border-light-gray"
                     >
-                      Télécharger
-                    </button>
-                  </div>
-                ))}
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="flex-shrink-0">
+                          {isImage ? (
+                            <span className="text-2xl">🖼️</span>
+                          ) : isPDF ? (
+                            <span className="text-2xl">📄</span>
+                          ) : (
+                            <span className="text-2xl">📎</span>
+                          )}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-secondary truncate">
+                            {piece.nom_original}
+                          </p>
+                          <p className="text-xs text-tertiary">
+                            {formatDate(piece.date_creation)}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2 flex-shrink-0">
+                        {(isImage || isPDF) && (
+                          <button
+                            onClick={() => handlePreview(piece)}
+                            className="bg-primary text-white rounded-lg px-6 py-3 font-semibold text-sm hover:bg-primary-light transition-colors"
+                          >
+                            Voir
+                          </button>
+                        )}
+
+                        <button
+                          onClick={() => handleDownload(piece)}
+                          className="bg-primary text-white rounded-lg px-6 py-3 font-semibold text-sm hover:bg-primary-light transition-colors"
+                        >
+                          Télécharger
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             ) : (
               <p className="text-tertiary text-sm">Aucune pièce jointe</p>

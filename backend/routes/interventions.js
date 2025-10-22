@@ -3,6 +3,9 @@ const { PrismaClient } = require("@prisma/client");
 const { authMiddleware, requireRole } = require("../middleware/auth");
 const prisma = new PrismaClient();
 const router = express.Router();
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
 
 // GET /api/interventions - Lister les interventions (avec filtres)
 router.get("/", authMiddleware, async (req, res) => {
@@ -30,7 +33,7 @@ router.get("/", authMiddleware, async (req, res) => {
       where.reponse = null;
     }
 
-    // FILTRE RECHERCHE - NOUVEAU
+    // Filtre recherche
     if (search && search.trim() !== "") {
       where.OR = [
         { question: { contains: search, mode: "insensitive" } },
@@ -140,8 +143,8 @@ router.post("/", authMiddleware, requireRole(["commune"]), async (req, res) => {
       data: {
         question,
         theme_id: parseInt(theme_id),
-        commune_id: utilisateur.commune_id, // La commune de l'utilisateur connecté
-        demandeur_id: req.user.id, // L'utilisateur qui pose la question
+        commune_id: utilisateur.commune_id,
+        demandeur_id: req.user.id,
       },
       include: {
         commune: { select: { nom: true } },
@@ -223,10 +226,8 @@ router.put(
         where: { id: parseInt(req.params.id) },
       });
 
-      if (!intervention || intervention.commune_id !== req.user.id) {
-        return res
-          .status(404)
-          .json({ error: "Intervention non trouvée ou accès non autorisé" });
+      if (!intervention) {
+        return res.status(404).json({ error: "Intervention non trouvée" });
       }
 
       if (!intervention.reponse) {
@@ -238,10 +239,6 @@ router.put(
       const updatedIntervention = await prisma.interventions.update({
         where: { id: parseInt(req.params.id) },
         data: { satisfaction: parseInt(satisfaction) },
-        include: {
-          commune: { select: { nom: true } },
-          juriste: { select: { nom: true, prenom: true } },
-        },
       });
 
       res.json({
@@ -272,7 +269,7 @@ router.get(
           date_question: {
             gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
           },
-        }, // 30 derniers jours
+        },
         orderBy: { _count: { id: "desc" } },
       });
 
@@ -285,24 +282,23 @@ router.get(
 
       // Satisfaction par strate de commune
       const satisfactionParStrate = await prisma.$queryRaw`
-     SELECT 
-    CASE 
-      WHEN c.population < 100 THEN '< 100 habitants'
-      WHEN c.population BETWEEN 100 AND 500 THEN '100-500 habitants' 
-      ELSE '> 500 habitants'
-    END as strate,
-    (AVG(COALESCE(i.satisfaction, 1)))::float as satisfaction_moyenne,
-    COUNT(i.id)::integer as nb_interventions
-  FROM "Interventions" i
-  JOIN "Communes" c ON i.commune_id = c.id
-  GROUP BY strate
-  `;
+        SELECT 
+          CASE 
+            WHEN c.population < 100 THEN '< 100 habitants'
+            WHEN c.population BETWEEN 100 AND 500 THEN '100-500 habitants' 
+            ELSE '> 500 habitants'
+          END as strate,
+          (AVG(COALESCE(i.satisfaction, 1)))::float as satisfaction_moyenne,
+          COUNT(i.id)::integer as nb_interventions
+        FROM "Interventions" i
+        JOIN "Communes" c ON i.commune_id = c.id
+        GROUP BY strate
+      `;
 
       // Temps moyen de réponse
       const interventionsAvecReponse = await prisma.interventions.findMany({
         where: {
           date_reponse: { not: null },
-          // Supprimé: date_question: { not: null } ← CAUSE UNE ERREUR
         },
         select: {
           date_question: true,
@@ -310,7 +306,6 @@ router.get(
         },
       });
 
-      // Calcul manuel du temps moyen
       let totalMs = 0;
       interventionsAvecReponse.forEach((intervention) => {
         const tempsReponse =
@@ -356,7 +351,7 @@ router.get("/theme/:themeId/similaires", authMiddleware, async (req, res) => {
     const interventions = await prisma.interventions.findMany({
       where: {
         theme_id: parseInt(themeId),
-        reponse: { not: null }, // Seulement celles avec réponse
+        reponse: { not: null },
       },
       include: {
         commune: { select: { nom: true } },
@@ -369,6 +364,185 @@ router.get("/theme/:themeId/similaires", authMiddleware, async (req, res) => {
     res.json({ questionsSimilaires: interventions });
   } catch (error) {
     res.status(500).json({ error: "Erreur recherche questions similaires" });
+  }
+});
+
+// Configuration de multer pour l'upload
+const checkFileType = (file, cb) => {
+  const allowedMimes = {
+    "application/pdf": [".pdf"],
+    "image/jpeg": [".jpg", ".jpeg"],
+    "image/png": [".png"],
+    "application/msword": [".doc"],
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [
+      ".docx",
+    ],
+  };
+
+  const fileExtension = path.extname(file.originalname).toLowerCase();
+  const mimeType = file.mimetype;
+
+  if (
+    allowedMimes[mimeType] &&
+    allowedMimes[mimeType].includes(fileExtension)
+  ) {
+    cb(null, true);
+  } else {
+    cb(
+      new Error(`Type de fichier non autorisé: ${mimeType} (${fileExtension})`),
+      false
+    );
+  }
+};
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = "uploads/pieces-jointes";
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+
+  filename: (req, file, cb) => {
+    const cleanName = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, "_");
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    const extension = path.extname(cleanName);
+    const nameWithoutExt = path.basename(cleanName, extension);
+
+    cb(null, nameWithoutExt + "-" + uniqueSuffix + extension);
+  },
+});
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+  },
+  fileFilter: (req, file, cb) => {
+    checkFileType(file, cb);
+  },
+});
+
+// POST /api/interventions/:id/pieces-jointes - Upload pièces jointes
+router.post(
+  "/:id/pieces-jointes",
+  authMiddleware,
+  requireRole(["commune"]),
+  upload.array("pieces_jointes", 5),
+  async (req, res) => {
+    try {
+      const interventionId = parseInt(req.params.id);
+
+      const intervention = await prisma.interventions.findUnique({
+        where: { id: interventionId },
+        include: { demandeur: true },
+      });
+
+      if (!intervention) {
+        return res.status(404).json({ error: "Intervention non trouvée" });
+      }
+
+      if (intervention.demandeur_id !== req.user.id) {
+        return res.status(403).json({ error: "Accès non autorisé" });
+      }
+
+      const piecesJointes = [];
+
+      if (req.files && req.files.length > 0) {
+        for (const file of req.files) {
+          const pieceJointe = await prisma.piecesJointes.create({
+            data: {
+              nom_original: file.originalname,
+              nom_fichier: file.filename,
+              chemin: file.path,
+              intervention_id: interventionId,
+            },
+          });
+          piecesJointes.push(pieceJointe);
+        }
+      }
+
+      res.status(201).json({
+        message: "Pièces jointes uploadées avec succès",
+        pieces_jointes: piecesJointes,
+      });
+    } catch (error) {
+      console.error("Erreur upload pièces jointes:", error);
+      res
+        .status(500)
+        .json({ error: "Erreur lors de l'upload des pièces jointes" });
+    }
+  }
+);
+
+// GET /api/interventions/pieces-jointes/:id - Télécharger une pièce jointe
+router.get("/pieces-jointes/:id", authMiddleware, async (req, res) => {
+  try {
+    const pieceId = parseInt(req.params.id);
+
+    const pieceJointe = await prisma.piecesJointes.findUnique({
+      where: { id: pieceId },
+      include: {
+        intervention: {
+          include: {
+            demandeur: true,
+            commune: true,
+          },
+        },
+      },
+    });
+
+    if (!pieceJointe) {
+      return res.status(404).json({ error: "Pièce jointe non trouvée" });
+    }
+
+    const user = req.user;
+    const intervention = pieceJointe.intervention;
+
+    if (user.role === "commune" && intervention.demandeur_id !== user.id) {
+      return res.status(403).json({ error: "Accès non autorisé" });
+    }
+
+    if (!fs.existsSync(pieceJointe.chemin)) {
+      return res
+        .status(404)
+        .json({ error: "Fichier non trouvé sur le serveur" });
+    }
+
+    const extension = path.extname(pieceJointe.nom_original).toLowerCase();
+    const mimeTypes = {
+      ".pdf": "application/pdf",
+      ".jpg": "image/jpeg",
+      ".jpeg": "image/jpeg",
+      ".png": "image/png",
+      ".doc": "application/msword",
+      ".docx":
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    };
+
+    const mimeType = mimeTypes[extension] || "application/octet-stream";
+
+    res.setHeader("Content-Type", mimeType);
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename="${encodeURIComponent(pieceJointe.nom_original)}"`
+    );
+
+    const fileStream = fs.createReadStream(pieceJointe.chemin);
+
+    fileStream.on("error", (error) => {
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Erreur lors de la lecture du fichier" });
+      }
+    });
+
+    fileStream.pipe(res);
+  } catch (error) {
+    console.error("Erreur téléchargement pièce jointe:", error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Erreur lors du téléchargement" });
+    }
   }
 });
 

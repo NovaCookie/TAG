@@ -46,7 +46,6 @@ const NouvelleIntervention = () => {
   };
 
   const handleFileChange = (e) => {
-    // upload de fichier plus tard
     const files = Array.from(e.target.files);
     setFormData((prev) => ({
       ...prev,
@@ -82,12 +81,23 @@ const NouvelleIntervention = () => {
       const interventionData = {
         question: formData.question,
         theme_id: parseInt(formData.theme_id),
+        urgent: formData.urgent,
       };
 
       const response = await interventionsAPI.create(interventionData);
+      const interventionId = response.data.intervention.id;
 
-      // TODO: Upload des pièces jointes
+      if (formData.pieces_jointes.length > 0) {
+        const uploadFormData = new FormData();
+        formData.pieces_jointes.forEach((file) => {
+          uploadFormData.append("pieces_jointes", file);
+        });
 
+        await interventionsAPI.uploadPiecesJointes(
+          interventionId,
+          uploadFormData
+        );
+      }
       // Redirection vers la page des interventions avec message de succès
       navigate("/interventions", {
         state: {
@@ -223,19 +233,6 @@ const NouvelleIntervention = () => {
               </div>
             )}
           </div>
-
-          {/* Informations complémentaires
-          <div className="bg-light/50 p-4 rounded-lg">
-            <h3 className="font-medium text-secondary mb-2">
-              💡 Conseils pour une bonne question
-            </h3>
-            <ul className="text-sm text-tertiary space-y-1 list-disc list-inside">
-              <li>Soyez précis et concret dans votre description</li>
-              <li>Incluez toutes les informations contextuelles importantes</li>
-              <li>Mentionnez les dates et délais concernés</li>
-              <li>Joignez les documents pertinents si nécessaire</li>
-            </ul>
-          </div> */}
 
           {/* Case à cocher Urgent*/}
           <div className="flex items-center">
