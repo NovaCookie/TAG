@@ -4,18 +4,22 @@ import { useAuth } from "../context/AuthContext";
 import Layout from "./layout/Layout";
 import StatusBadge from "./common/StatusBadge";
 import Pagination from "./common/Pagination";
-import { formatDate } from "../utils/helpers";
-import { interventionsAPI, themesAPI } from "../services/api";
+import { formatDate, formatDateForInput } from "../utils/helpers";
+import { interventionsAPI, themesAPI, usersAPI } from "../services/api";
 
 const Interventions = () => {
   const { user } = useAuth();
   const [interventions, setInterventions] = useState([]);
   const [themes, setThemes] = useState([]);
+  const [communes, setCommunes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     search: "",
     status: "all",
     theme: "all",
+    commune: "all",
+    dateDebut: "",
+    dateFin: "",
   });
   const [pagination, setPagination] = useState({
     page: 1,
@@ -29,9 +33,16 @@ const Interventions = () => {
     return ["admin", "juriste"].includes(user?.role);
   };
 
+  const canFilterByCommune = () => {
+    return ["admin", "juriste"].includes(user?.role);
+  };
+
   useEffect(() => {
     fetchInterventions();
     fetchThemes();
+    if (canFilterByCommune()) {
+      fetchCommunes();
+    }
   }, [user, pagination.page, filters]);
 
   const fetchInterventions = async () => {
@@ -51,10 +62,19 @@ const Interventions = () => {
       if (filters.theme !== "all") {
         params.theme = filters.theme;
       }
-
+      if (filters.commune !== "all") {
+        params.commune = filters.commune;
+      }
+      if (filters.dateDebut) {
+        params.dateDebut = filters.dateDebut;
+      }
+      if (filters.dateFin) {
+        params.dateFin = filters.dateFin;
+      }
       if (filters.search && filters.search.trim() !== "") {
         params.search = filters.search;
       }
+
       const response = await interventionsAPI.getAll(params);
       const data = response.data;
 
@@ -80,6 +100,15 @@ const Interventions = () => {
     }
   };
 
+  const fetchCommunes = async () => {
+    try {
+      const response = await usersAPI.getCommunesList();
+      setCommunes(response.data);
+    } catch (error) {
+      console.error("Erreur chargement communes:", error);
+    }
+  };
+
   const getInterventionStatus = (intervention) => {
     if (!intervention.reponse) {
       return intervention.urgent ? "urgent" : "en_attente";
@@ -95,6 +124,14 @@ const Interventions = () => {
     }));
     // Reset à la première page quand on change de filtre
     setPagination((prev) => ({ ...prev, page: 1 }));
+  };
+
+  const resetDateFilters = () => {
+    setFilters((prev) => ({
+      ...prev,
+      dateDebut: "",
+      dateFin: "",
+    }));
   };
 
   const InterventionRow = ({ intervention }) => {
@@ -154,7 +191,9 @@ const Interventions = () => {
   const statusOptions = [
     { value: "all", label: "Tous les statuts" },
     { value: "en_attente", label: "En attente" },
-    { value: "terminé", label: "Terminé" },
+    { value: "repondu", label: "Répondu" },
+    { value: "termine", label: "Terminé" },
+    { value: "urgent", label: "Urgent" },
   ];
 
   // Options de filtre pour les thèmes
@@ -163,6 +202,15 @@ const Interventions = () => {
     ...themes.map((theme) => ({
       value: theme.id.toString(),
       label: theme.designation,
+    })),
+  ];
+
+  // Options de filtre pour les communes
+  const communeOptions = [
+    { value: "all", label: "Toutes les communes" },
+    ...communes.map((commune) => ({
+      value: commune.id.toString(),
+      label: commune.nom,
     })),
   ];
 
@@ -185,7 +233,7 @@ const Interventions = () => {
 
       {/* Filters */}
       <div className="card card-rounded p-6 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {/* Recherche */}
           <div>
             <label className="block text-sm font-medium text-secondary mb-2">
@@ -234,6 +282,62 @@ const Interventions = () => {
                 </option>
               ))}
             </select>
+          </div>
+
+          {/* Filtre commune (seulement pour admin/juriste) */}
+          {canFilterByCommune() && (
+            <div>
+              <label className="block text-sm font-medium text-secondary mb-2">
+                Commune
+              </label>
+              <select
+                className="w-full px-4 py-2 border border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light"
+                value={filters.commune}
+                onChange={(e) => handleFilterChange("commune", e.target.value)}
+              >
+                {communeOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+
+        {/* Filtres par date */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 pt-4 border-t border-light">
+          <div>
+            <label className="block text-sm font-medium text-secondary mb-2">
+              Date de début
+            </label>
+            <input
+              type="date"
+              className="w-full px-4 py-2 border border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light"
+              value={filters.dateDebut}
+              onChange={(e) => handleFilterChange("dateDebut", e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-secondary mb-2">
+              Date de fin
+            </label>
+            <input
+              type="date"
+              className="w-full px-4 py-2 border border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light"
+              value={filters.dateFin}
+              onChange={(e) => handleFilterChange("dateFin", e.target.value)}
+            />
+          </div>
+
+          <div className="flex items-end">
+            <button
+              onClick={resetDateFilters}
+              className="w-full bg-gray-200 text-gray-700 rounded-lg px-4 py-2 font-medium text-sm hover:bg-gray-300 transition-colors"
+            >
+              Effacer les dates
+            </button>
           </div>
         </div>
       </div>

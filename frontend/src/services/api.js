@@ -78,7 +78,22 @@ export const usersAPI = {
   create: (data) => api.post("/users", data),
   update: (id, data) => api.put(`/users/${id}`, data),
   toggleStatus: (id) => api.patch(`/users/${id}/toggle-status`),
+  getCommunesList: () => api.get("/users/communes/list"),
+  updateInfos: (id, data) => api.put(`/users/${id}/infos`, data),
+  updateEmail: (id, data) => api.put(`/users/${id}/email`, data),
+  updatePassword: (id, data) => api.put(`/users/${id}/password`, data),
   getStats: () => api.get("/users/stats"),
+};
+
+// === Communes ===
+
+export const CommunesAPI = {
+  getAll: (params) => api.get("/communes", { params }),
+  getById: (id) => api.get(`/communes/${id}`),
+  create: (data) => api.post("/communes", data),
+  update: (id, data) => api.put(`/communes/${id}`, data),
+  toggleStatus: (id) => api.patch(`/communes/${id}/toggle-status`),
+  getStats: () => api.get("/communes/stats/global"),
 };
 
 export default api;

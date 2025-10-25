@@ -8,7 +8,7 @@ const { authMiddleware, requireRole } = require("./middleware/auth");
 const interventionRoutes = require("./routes/interventions");
 const themeRoutes = require("./routes/themes");
 const userRoutes = require("./routes/users");
-
+const communeRoutes = require("./routes/communes");
 
 // Middleware
 app.use(cors()); // Permet à React de communiquer avec Express
@@ -19,6 +19,7 @@ app.use("/api/interventions", interventionRoutes);
 
 app.use("/api/themes", themeRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/communes", communeRoutes);
 
 // ==================== ROUTES PROTÉGÉES ====================
 

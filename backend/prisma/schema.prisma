@@ -38,10 +38,13 @@ model Utilisateurs {
   actif         Boolean  @default(true)
   date_creation DateTime @default(now())
   
-  // Nouveaux champs pour reset password
   reset_token        String?
   reset_token_expiry DateTime?
   
+  email_temp                  String?
+  email_confirmation_token    String?
+  email_confirmation_expiry   DateTime?
+
   commune_id    Int?
   commune       Communes? @relation(fields: [commune_id], references: [id], onDelete: SetNull)
   

@@ -14,6 +14,7 @@ import LoginForm from "./components/LoginForm";
 import Dashboard from "./components/Dashboard";
 import Interventions from "./components/Interventions";
 import Users from "./components/Users";
+import Communes from "./components/Communes";
 import Settings from "./components/Settings";
 import Support from "./components/Support";
 
@@ -137,6 +138,15 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
+                <Route
+                  path="/communes"
+                  element={
+                    <ProtectedRoute>
+                      <Communes />
+                    </ProtectedRoute>
+                  }
+                />
+
                 <Route
                   path="/settings"
                   element={

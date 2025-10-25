@@ -2,195 +2,213 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import Layout from "./layout/Layout";
-import StatusBadge from "./common/StatusBadge";
 import { formatDate } from "../utils/helpers";
 import { interventionsAPI, usersAPI } from "../services/api";
 
-const Dashboard = () => {
+const TableauDeBord = () => {
   const { user } = useAuth();
-  const [stats, setStats] = useState({
+
+  // États pour les statistiques
+  const [statistiques, setStatistiques] = useState({
     totalQuestions: 0,
     questionsEnAttente: 0,
+    questionsRepondues: 0,
     questionsUrgentes: 0,
   });
 
-  const [dernieresInterventions, setLatestInterventions] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Dernières questions
+  const [dernieresQuestions, setDernieresQuestions] = useState([]);
+  const [chargement, setChargement] = useState(true);
 
   useEffect(() => {
-    fetchDashboardData();
+    chargerDonneesTableauDeBord();
   }, [user]);
 
-  const fetchDashboardData = async () => {
+  /** Charger toutes les données du tableau de bord */
+  const chargerDonneesTableauDeBord = async () => {
     try {
-      setLoading(true);
-      await Promise.all([fetchUserStats(), fetchInterventions()]);
-    } catch (error) {
-      console.error("Erreur chargement dashboard:", error);
+      setChargement(true);
+      await Promise.all([
+        chargerStatistiquesUtilisateur(),
+        chargerDernieresQuestions(),
+      ]);
+    } catch (erreur) {
+      console.error("Erreur chargement tableau de bord :", erreur);
     } finally {
-      setLoading(false);
+      setChargement(false);
     }
   };
 
-  const fetchUserStats = async () => {
+  /** Charger les statistiques selon le rôle de l'utilisateur */
+  const chargerStatistiquesUtilisateur = async () => {
     try {
-      let statsData = {};
+      let donnees = {};
 
       if (user?.role === "commune") {
-        // COMMUNE: seulement ses interventions
-        const response = await interventionsAPI.getAll({ limit: 1000 });
-        const interventions = response.data.interventions;
+        const reponse = await interventionsAPI.getAll({ limit: 1000 });
+        const interventions = reponse.data.interventions;
 
-        statsData = {
+        donnees = {
           totalQuestions: interventions.length,
           questionsEnAttente: interventions.filter(
             (i) => !i.reponse && !i.urgent
+          ).length,
+          questionsRepondues: interventions.filter(
+            (i) => i.reponse && !i.satisfaction
           ).length,
           questionsUrgentes: interventions.filter((i) => !i.reponse && i.urgent)
             .length,
         };
       } else if (user?.role === "juriste") {
-        // JURISTE: toutes les interventions en attente
-        const responseEnAttente = await interventionsAPI.getAll({
-          statut: "en_attente",
-          limit: 1000,
-        });
+        const reponse = await interventionsAPI.getAll({ limit: 1000 });
+        const interventions = reponse.data.interventions;
 
-        const interventions = responseEnAttente.data.interventions;
-
-        statsData = {
-          totalQuestions: responseEnAttente.data.pagination.total,
-          questionsEnAttente: interventions.filter((i) => !i.urgent).length,
-          questionsUrgentes: interventions.filter((i) => i.urgent).length,
+        donnees = {
+          totalQuestions: interventions.filter((i) => !i.reponse).length,
+          questionsEnAttente: interventions.filter(
+            (i) => !i.reponse && !i.urgent
+          ).length,
+          questionsRepondues: interventions.filter(
+            (i) => i.reponse && !i.satisfaction
+          ).length,
+          questionsUrgentes: interventions.filter((i) => !i.reponse && i.urgent)
+            .length,
         };
       } else if (user?.role === "admin") {
-        // ADMIN: toutes les interventions
         try {
-          const [responseStats, responseUsers] = await Promise.all([
+          const [statsInterventions, statsUtilisateurs] = await Promise.all([
             interventionsAPI.getStats(),
             usersAPI.getStats(),
           ]);
 
-          const statsAvancees = responseStats.data;
-          const usersStats = responseUsers.data;
+          const reponseToutes = await interventionsAPI.getAll({ limit: 1000 });
+          const toutesInterventions = reponseToutes.data.interventions;
 
-          // Récupère les interventions pour compter les urgentes
-          const responseEnAttente = await interventionsAPI.getAll({
-            statut: "en_attente",
-            limit: 1000,
-          });
+          const enAttente = toutesInterventions.filter(
+            (i) => !i.reponse && !i.urgent
+          );
+          const repondues = toutesInterventions.filter(
+            (i) => i.reponse && !i.satisfaction
+          );
+          const urgentes = toutesInterventions.filter(
+            (i) => !i.reponse && i.urgent
+          );
+          const terminees = toutesInterventions.filter(
+            (i) => i.reponse && i.satisfaction
+          );
 
-          const interventionsUrgentes =
-            responseEnAttente.data.interventions.filter((i) => i.urgent).length;
-
-          statsData = {
-            totalQuestions: statsAvancees.totalInterventions,
-            questionsEnAttente:
-              statsAvancees.interventionsSansReponse - interventionsUrgentes,
-            questionsUrgentes: interventionsUrgentes,
-            totalCommunes: usersStats.totalCommunes,
-            totalUtilisateurs: usersStats.totalUtilisateurs || 0,
+          donnees = {
+            totalQuestions: toutesInterventions.length,
+            questionsEnAttente: enAttente.length,
+            questionsRepondues: repondues.length,
+            questionsUrgentes: urgentes.length,
+            totalCommunes: statsUtilisateurs.data.totalCommunes,
+            totalUtilisateurs: statsUtilisateurs.data.totalUtilisateurs || 0,
             satisfactionMoyenne:
-              statsAvancees.satisfactionParStrate?.[0]?.satisfaction_moyenne ||
-              0,
+              statsInterventions.data.satisfactionParStrate?.[0]
+                ?.satisfaction_moyenne || 0,
             tauxReponse:
-              statsAvancees.totalInterventions > 0
+              toutesInterventions.length > 0
                 ? Math.round(
-                    (1 -
-                      statsAvancees.interventionsSansReponse /
-                        statsAvancees.totalInterventions) *
+                    ((repondues.length + terminees.length) /
+                      toutesInterventions.length) *
                       100
                   )
                 : 0,
           };
-        } catch (error) {
-          console.error("Stats avancées non disponibles, utilisation basique");
-          // Fallback aux stats basiques
-          const [response, responseEnAttente, responseUsers] =
-            await Promise.all([
-              interventionsAPI.getAll({ limit: 1000 }),
-              interventionsAPI.getAll({ statut: "en_attente", limit: 1000 }),
-              usersAPI.getStats().catch(() => ({
-                data: { totalCommunes: "N/A", usersByRole: {} },
-              })), // Fallback si erreur
-            ]);
+        } catch (erreur) {
+          console.error(
+            "Stats avancées non disponibles, fallback aux stats basiques"
+          );
 
-          const interventionsUrgentes =
-            responseEnAttente.data.interventions.filter((i) => i.urgent).length;
-          const usersStats = responseUsers.data;
+          const reponseToutes = await interventionsAPI.getAll({ limit: 1000 });
+          const toutesInterventions = reponseToutes.data.interventions;
 
-          statsData = {
-            totalQuestions: response.data.pagination.total,
-            questionsEnAttente:
-              responseEnAttente.data.pagination.total - interventionsUrgentes,
-            questionsUrgentes: interventionsUrgentes,
-            totalCommunes: usersStats.totalCommunes,
-            totalUtilisateurs: usersStats.usersByRole.juriste || 0,
+          const enAttente = toutesInterventions.filter(
+            (i) => !i.reponse && !i.urgent
+          );
+          const repondues = toutesInterventions.filter(
+            (i) => i.reponse && !i.satisfaction
+          );
+          const urgentes = toutesInterventions.filter(
+            (i) => !i.reponse && i.urgent
+          );
+
+          const statsUtilisateurs = await usersAPI.getStats().catch(() => ({
+            data: { totalCommunes: "N/A", totalUtilisateurs: 0 },
+          }));
+
+          donnees = {
+            totalQuestions: toutesInterventions.length,
+            questionsEnAttente: enAttente.length,
+            questionsRepondues: repondues.length,
+            questionsUrgentes: urgentes.length,
+            totalCommunes: statsUtilisateurs.data.totalCommunes,
+            totalUtilisateurs: statsUtilisateurs.data.totalUtilisateurs || 0,
             satisfactionMoyenne: 0,
             tauxReponse: 0,
           };
         }
       }
 
-      console.log("Stats calculées:", statsData);
-      setStats(statsData);
-    } catch (error) {
-      console.error("Erreur stats utilisateur:", error);
+      console.log("Statistiques calculées :", donnees);
+      setStatistiques(donnees);
+    } catch (erreur) {
+      console.error("Erreur chargement statistiques utilisateur :", erreur);
     }
   };
 
-  const fetchInterventions = async () => {
+  /** Charger les dernières interventions */
+  const chargerDernieresQuestions = async () => {
     try {
-      let params = { limit: 5 };
+      let parametres = { limit: 5 };
 
       if (user?.role === "commune") {
-        // COMMUNE: seulement ses interventions
-        params.order = "desc";
+        parametres.order = "desc";
       } else if (user?.role === "juriste") {
-        // JURISTE: toutes les interventions en attente
-        params.statut = "en_attente";
-        params.order = "asc";
+        parametres.statut = "en_attente";
+        parametres.order = "asc";
       } else if (user?.role === "admin") {
-        // ADMIN: toutes les interventions
-        params.order = "desc";
+        parametres.order = "desc";
       }
 
-      const response = await interventionsAPI.getAll(params);
-      setLatestInterventions(response.data.interventions);
-    } catch (error) {
-      console.error("Erreur interventions:", error);
+      const reponse = await interventionsAPI.getAll(parametres);
+      setDernieresQuestions(reponse.data.interventions);
+    } catch (erreur) {
+      console.error("Erreur chargement dernières interventions :", erreur);
     }
   };
 
-  const getInterventionStatus = (intervention) => {
-    if (!intervention.reponse) {
-      return intervention.urgent ? "urgent" : "en_attente";
-    }
-    if (intervention.reponse && !intervention.satisfaction) return "repondu";
-    return "termine";
-  };
-
-  const StatCard = ({ title, value, color, subtitle, iconColor, loading }) => (
+  /** Composant carte statistique */
+  const CarteStatistique = ({
+    titre,
+    valeur,
+    couleur,
+    sousTitre,
+    couleurIcone,
+    chargement,
+  }) => (
     <div className="card card-rounded p-6 transition-transform hover:translate-y-[-2px]">
       <div className="flex justify-between items-center mb-5">
-        <h3 className="text-lg font-semibold text-secondary">{title}</h3>
-        <div className={`w-3 h-3 rounded-full ${iconColor}`}></div>
+        <h3 className="text-lg font-semibold text-secondary">{titre}</h3>
+        <div className={`w-3 h-3 rounded-full ${couleurIcone}`}></div>
       </div>
-      {loading ? (
+      {chargement ? (
         <div className="animate-pulse">
           <div className="h-8 bg-gray-200 rounded mb-2"></div>
           <div className="h-4 bg-gray-200 rounded"></div>
         </div>
       ) : (
         <>
-          <div className={`text-3xl font-bold ${color} mb-2`}>{value}</div>
-          <div className="text-tertiary text-sm">{subtitle}</div>
+          <div className={`text-3xl font-bold ${couleur} mb-2`}>{valeur}</div>
+          <div className="text-tertiary text-sm">{sousTitre}</div>
         </>
       )}
     </div>
   );
 
-  const getDashboardTitle = () => {
+  /** Titres et descriptions dynamiques selon rôle */
+  const obtenirTitreTableauDeBord = () => {
     switch (user?.role) {
       case "commune":
         return "Mes interventions";
@@ -203,7 +221,7 @@ const Dashboard = () => {
     }
   };
 
-  const getDashboardDescription = () => {
+  const obtenirDescriptionTableauDeBord = () => {
     switch (user?.role) {
       case "commune":
         return `Bienvenue ${user?.prenom} ! Suivez vos questions juridiques.`;
@@ -216,36 +234,53 @@ const Dashboard = () => {
     }
   };
 
-  const getStatCardTitle = (index) => {
-    const titles = {
-      commune: ["Mes questions", "En attente", "Urgentes"],
-      juriste: ["Questions à traiter", "Normales", "Urgentes"],
-      admin: ["Total questions", "En attente", "Urgentes"],
+  const obtenirTitreCarte = (index) => {
+    const titres = {
+      commune: ["Mes questions", "En attente", "Répondues", "Urgentes"],
+      juriste: ["Questions à traiter", "Normales", "Répondues", "Urgentes"],
+      admin: ["Total questions", "En attente", "Répondues", "Urgentes"],
     };
     return (
-      titles[user?.role]?.[index] || ["Total", "En attente", "Urgentes"][index]
+      titres[user?.role]?.[index] ||
+      ["Total", "En attente", "Répondues", "Urgentes"][index]
     );
   };
 
-  const getStatCardSubtitle = (index) => {
-    const subtitles = {
-      commune: ["Total posées", "Réponse attendue", " "],
-      juriste: ["À traiter", "Réponses à fournir", "Action immédiate"],
-      admin: ["Toutes communes", "Sans réponse", "Priorité haute"],
+  const obtenirSousTitreCarte = (index) => {
+    const sousTitres = {
+      commune: [
+        "Total posées",
+        "Réponse attendue",
+        "À noter",
+        "Action requise",
+      ],
+      juriste: [
+        "À traiter",
+        "Réponses à fournir",
+        "En attente de notation",
+        "Action immédiate",
+      ],
+      admin: [
+        "Toutes communes",
+        "Sans réponse",
+        "En attente de notation",
+        "Priorité haute",
+      ],
     };
     return (
-      subtitles[user?.role]?.[index] || ["Total", "En attente", "Urgent"][index]
+      sousTitres[user?.role]?.[index] ||
+      ["Total", "En attente", "Répondu", "Urgent"][index]
     );
   };
 
-  if (loading) {
+  if (chargement) {
     return (
       <Layout activePage="dashboard">
         <div className="animate-pulse">
           <div className="h-8 bg-gray-200 rounded w-1/4 mb-8"></div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="card card-rounded p-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+            {[...Array(4)].map((_, index) => (
+              <div key={index} className="card card-rounded p-6">
                 <div className="h-8 bg-gray-200 rounded mb-2"></div>
                 <div className="h-4 bg-gray-200 rounded"></div>
               </div>
@@ -258,13 +293,13 @@ const Dashboard = () => {
 
   return (
     <Layout activePage="dashboard">
-      {/* Page Header */}
+      {/* En-tête */}
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-2xl font-semibold text-primary mb-2">
-            {getDashboardTitle()}
+            {obtenirTitreTableauDeBord()}
           </h1>
-          <p className="text-secondary">{getDashboardDescription()}</p>
+          <p className="text-secondary">{obtenirDescriptionTableauDeBord()}</p>
         </div>
         <div className="text-right">
           <div className="text-sm text-tertiary">
@@ -282,35 +317,46 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Widgets Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        <StatCard
-          title={getStatCardTitle(0)}
-          value={stats.totalQuestions}
-          color="text-primary"
-          subtitle={getStatCardSubtitle(0)}
-          iconColor="bg-primary"
-          loading={loading}
-        />
-        <StatCard
-          title={getStatCardTitle(1)}
-          value={stats.questionsEnAttente}
-          color="text-warning"
-          subtitle={getStatCardSubtitle(1)}
-          iconColor="bg-warning"
-          loading={loading}
-        />
-        <StatCard
-          title={getStatCardTitle(2)}
-          value={stats.questionsUrgentes}
-          color="text-danger"
-          subtitle={getStatCardSubtitle(2)}
-          iconColor="bg-danger"
-          loading={loading}
-        />
+      {/* Grille statistiques */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+        {[0, 1, 2, 3].map((i) => (
+          <CarteStatistique
+            key={i}
+            titre={obtenirTitreCarte(i)}
+            valeur={
+              i === 0
+                ? statistiques.totalQuestions
+                : i === 1
+                ? statistiques.questionsEnAttente
+                : i === 2
+                ? statistiques.questionsRepondues
+                : statistiques.questionsUrgentes
+            }
+            couleur={
+              i === 0
+                ? "text-primary"
+                : i === 1
+                ? "text-warning"
+                : i === 2
+                ? "text-success"
+                : "text-danger"
+            }
+            sousTitre={obtenirSousTitreCarte(i)}
+            couleurIcone={
+              i === 0
+                ? "bg-primary"
+                : i === 1
+                ? "bg-warning"
+                : i === 2
+                ? "bg-success"
+                : "bg-danger"
+            }
+            chargement={chargement}
+          />
+        ))}
       </div>
 
-      {/* Section Statistiques avancées pour Admin */}
+      {/* Section Admin */}
       {user?.role === "admin" && (
         <div className="mb-10">
           <div className="flex justify-between items-center mb-6">
@@ -324,45 +370,48 @@ const Dashboard = () => {
               Voir le détail
             </Link>
           </div>
-
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            <StatCard
-              title="Communes"
-              value={stats.totalCommunes || "N/A"}
-              color="text-primary"
-              subtitle="Total"
-              iconColor="bg-primary"
+            <CarteStatistique
+              titre="Communes"
+              valeur={statistiques.totalCommunes || "N/A"}
+              couleur=""
+              sousTitre="Total"
+              couleurIcone=""
             />
-            <StatCard
-              title="Utilisateurs"
-              value={stats.totalUtilisateurs || "N/A"}
-              color="text-info"
-              subtitle="Total"
-              iconColor="bg-info"
+            <CarteStatistique
+              titre="Utilisateurs"
+              valeur={statistiques.totalUtilisateurs || "N/A"}
+              couleur=""
+              sousTitre="Total"
+              couleurIcone=""
             />
-            <StatCard
-              title="Satisfaction"
-              value={
-                stats.satisfactionMoyenne
-                  ? `${stats.satisfactionMoyenne.toFixed(1)}/5`
+            <CarteStatistique
+              titre="Satisfaction"
+              valeur={
+                statistiques.satisfactionMoyenne
+                  ? `${statistiques.satisfactionMoyenne.toFixed(1)}/5`
                   : "N/A"
               }
-              color="text-warning"
-              subtitle="Moyenne générale"
-              iconColor="bg-warning"
+              couleur=""
+              sousTitre="Moyenne générale"
+              couleurIcone=""
             />
-            <StatCard
-              title="Taux de réponse"
-              value={stats.tauxReponse ? `${stats.tauxReponse}%` : "N/A"}
-              color="text-success"
-              subtitle="Questions traitées"
-              iconColor="bg-success"
+            <CarteStatistique
+              titre="Taux de réponse"
+              valeur={
+                statistiques.tauxReponse
+                  ? `${statistiques.tauxReponse}%`
+                  : "N/A"
+              }
+              couleur=""
+              sousTitre="Questions traitées"
+              couleurIcone=""
             />
           </div>
         </div>
       )}
 
-      {/* Dernières Interventions */}
+      {/* Dernières questions */}
       <div className="card card-rounded p-6">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold text-primary">
@@ -381,48 +430,29 @@ const Dashboard = () => {
         </div>
 
         <div className="space-y-4">
-          {dernieresInterventions.map((intervention) => {
-            const statut = getInterventionStatus(intervention);
-            return (
-              <div
-                key={intervention.id}
-                className="flex justify-between items-center py-4 border-b border-light last:border-b-0 hover:bg-light/50 rounded-lg px-3 transition-colors"
-              >
-                <div className="flex-1">
-                  <div className="font-medium text-secondary mb-1 line-clamp-2">
-                    {intervention.question}
-                  </div>
-                  <div className="flex items-center gap-4 text-sm text-tertiary">
-                    <span>Posée {formatDate(intervention.date_question)}</span>
-                    <StatusBadge status={statut} />
-                    {intervention.theme && (
-                      <span className="text-primary-light">
-                        {intervention.theme.designation}
-                      </span>
-                    )}
-                    {user?.role !== "commune" && intervention.commune && (
-                      <span className="text-tertiary">
-                        {intervention.commune.nom}
-                      </span>
-                    )}
-                    {intervention.urgent && (
-                      <span className="text-danger text-xs font-semibold">
-                        ⚠ URGENT
-                      </span>
-                    )}
-                  </div>
+          {dernieresQuestions.map((question) => (
+            <div
+              key={question.id}
+              className="flex justify-between items-center py-4 border-b border-light last:border-b-0 hover:bg-light/50 rounded-lg px-3 transition-colors"
+            >
+              <div className="flex-1">
+                <div className="font-medium text-secondary mb-1 line-clamp-2">
+                  {question.question}
                 </div>
-                <Link
-                  to={`/interventions/${intervention.id}`}
-                  className="w-8 h-8 rounded-full bg-light text-primary flex items-center justify-center hover:bg-light-gray transition-colors ml-4"
-                >
-                  <span>→</span>
-                </Link>
+                <div className="flex items-center gap-4 text-sm text-tertiary">
+                  <span>Posée {formatDate(question.date_question)}</span>
+                </div>
               </div>
-            );
-          })}
+              <Link
+                to={`/interventions/${question.id}`}
+                className="w-8 h-8 rounded-full bg-light text-primary flex items-center justify-center hover:bg-light-gray transition-colors ml-4"
+              >
+                <span>→</span>
+              </Link>
+            </div>
+          ))}
 
-          {dernieresInterventions.length === 0 && (
+          {dernieresQuestions.length === 0 && (
             <div className="text-center py-8 text-tertiary">
               {user?.role === "commune"
                 ? "Aucune question pour le moment"
@@ -434,7 +464,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Bouton d'action principal pour les communes */}
+      {/* Bouton action principale pour commune */}
       {user?.role === "commune" && (
         <div className="mt-6 text-center">
           <Link
@@ -449,4 +479,4 @@ const Dashboard = () => {
   );
 };
 
-export default Dashboard;
+export default TableauDeBord;

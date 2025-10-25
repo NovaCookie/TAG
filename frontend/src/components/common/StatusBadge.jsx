@@ -1,4 +1,3 @@
-import React from "react";
 import { getBadgeColor, getStatusLabel } from "../../utils/helpers";
 
 const StatusBadge = ({ status, className = "" }) => {

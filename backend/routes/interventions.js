@@ -10,41 +10,87 @@ const fs = require("fs");
 // GET /api/interventions - Lister les interventions (avec filtres)
 router.get("/", authMiddleware, async (req, res) => {
   try {
-    const { commune, theme, statut, search, page = 1, limit = 10 } = req.query;
-
+    const {
+      page = 1,
+      limit = 10,
+      status,
+      theme,
+      commune,
+      dateDebut,
+      dateFin,
+      search,
+    } = req.query;
     const where = {};
-
-    // Filtre par commune (pour les communes)
-    if (req.user.role === "commune") {
-      where.demandeur_id = req.user.id;
-    } else if (commune) {
-      where.commune_id = parseInt(commune);
-    }
-
-    // Filtre par thème
-    if (theme) {
-      where.theme_id = parseInt(theme);
-    }
-
-    // Filtre par statut (répondu/non répondu)
-    if (statut === "terminé") {
-      where.NOT = { reponse: null };
-    } else if (statut === "en_attente") {
-      where.reponse = null;
-    }
 
     // Filtre recherche
     if (search && search.trim() !== "") {
-      where.OR = [
-        { question: { contains: search, mode: "insensitive" } },
-        { reponse: { contains: search, mode: "insensitive" } },
-        { notes: { contains: search, mode: "insensitive" } },
-        {
-          commune: {
-            nom: { contains: search, mode: "insensitive" },
-          },
-        },
-      ];
+      const searchLower = search.toLowerCase();
+
+      // Si la recherche correspond à un statut connu, on utilise le filtre de statut
+      const statusMapping = {
+        "en attente": "en_attente",
+        en_attente: "en_attente",
+        répondu: "repondu",
+        repondu: "repondu",
+        terminé: "termine",
+        termine: "termine",
+        urgent: "urgent",
+      };
+
+      const matchedStatus = statusMapping[searchLower];
+      if (matchedStatus) {
+        // Appliquer le filtre de statut correspondant
+        if (matchedStatus === "en_attente") {
+          where.reponse = null;
+        } else if (matchedStatus === "repondu") {
+          where.reponse = { not: null };
+          where.satisfaction = null;
+        } else if (matchedStatus === "termine") {
+          where.satisfaction = { not: null };
+        } else if (matchedStatus === "urgent") {
+          where.urgent = true;
+        }
+      } else {
+        // Recherche normale dans les autres champs
+        where.OR = [
+          { question: { contains: search, mode: "insensitive" } },
+          { reponse: { contains: search, mode: "insensitive" } },
+          { notes: { contains: search, mode: "insensitive" } },
+          { commune: { nom: { contains: search, mode: "insensitive" } } },
+        ];
+      }
+    }
+
+    // Filtre par statut (si spécifié séparément)
+    if (status && status !== "all" && !search) {
+      if (status === "en_attente") {
+        where.reponse = null;
+      } else if (status === "repondu") {
+        where.reponse = { not: null };
+        where.satisfaction = null;
+      } else if (status === "termine") {
+        where.satisfaction = { not: null };
+      } else if (status === "urgent") {
+        where.urgent = true;
+      }
+    }
+
+    // Filtre par thème
+    if (theme && theme !== "all") {
+      where.theme_id = parseInt(theme);
+    }
+
+    // Filtre par commune
+    if (commune && commune !== "all") {
+      where.commune_id = parseInt(commune);
+    }
+
+    // Filtre par date
+    if (dateDebut || dateFin) {
+      where.date_question = {};
+      if (dateDebut) where.date_question.gte = new Date(dateDebut);
+      if (dateFin)
+        where.date_question.lte = new Date(dateFin + "T23:59:59.999Z");
     }
 
     const interventions = await prisma.interventions.findMany({
