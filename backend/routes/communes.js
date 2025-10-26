@@ -14,7 +14,7 @@ router.get("/", authMiddleware, async (req, res) => {
       page = 1,
       limit = 10,
     } = req.query;
-
+    let where = {};
     // Filtre recherche par nom
     if (search && search.trim() !== "") {
       where.nom = { contains: search, mode: "insensitive" };

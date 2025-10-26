@@ -54,7 +54,8 @@ model Utilisateurs {
 
 model Interventions {
   id              Int      @id @default(autoincrement())
-  question        String
+  titre           String?
+  description     String?
   date_question   DateTime @default(now())
   reponse         String?
   date_reponse    DateTime?

@@ -27,6 +27,9 @@ import InterventionDetail from "./components/interventions/InterventionDetail";
 import RepondreIntervention from "./components/interventions/RepondreIntervention";
 import NouvelleIntervention from "./components/interventions/NouvelleIntervention";
 
+// === Pages utilisateurs ===
+import NouvelUtilisateur from "./components/utilisateurs/NouvelUtilisateur";
+
 // ===================================================================
 // 🔒 ROUTES PERSONNALISÉES
 // ===================================================================
@@ -189,7 +192,14 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
-
+                <Route
+                  path="/nouvel-utilisateur"
+                  element={
+                    <ProtectedRoute>
+                      <NouvelUtilisateur />
+                    </ProtectedRoute>
+                  }
+                />
                 {/* === Routes par défaut === */}
                 <Route path="/" element={<Navigate to="/dashboard" />} />
                 <Route path="*" element={<Navigate to="/dashboard" />} />

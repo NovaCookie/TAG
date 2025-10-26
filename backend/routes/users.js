@@ -206,10 +206,18 @@ router.get("/:id", authMiddleware, requireRole(["admin"]), async (req, res) => {
 // POST /api/users - Créer un utilisateur
 router.post("/", authMiddleware, requireRole(["admin"]), async (req, res) => {
   try {
-    const { nom, prenom, email, role, commune_id, mot_de_passe } = req.body;
+    const {
+      nom,
+      prenom,
+      email,
+      role,
+      commune_id,
+      mot_de_passe,
+      envoyerEmail = true,
+    } = req.body;
 
     // Validation des données requises
-    if (!nom || !prenom || !email || !role) {
+    if (!nom || !prenom || !email || !role || !mot_de_passe) {
       return res
         .status(400)
         .json({ error: "Tous les champs obligatoires doivent être remplis" });
@@ -234,6 +242,11 @@ router.post("/", authMiddleware, requireRole(["admin"]), async (req, res) => {
     //     });
     // }
 
+    //Hasher le mot de passe
+    const bcrypt = require("bcrypt");
+    const saltRounds = 10;
+    const motDePasseHash = await bcrypt.hash(mot_de_passe, saltRounds);
+
     // Créer l'utilisateur
     const user = await prisma.utilisateurs.create({
       data: {
@@ -242,7 +255,7 @@ router.post("/", authMiddleware, requireRole(["admin"]), async (req, res) => {
         email,
         role,
         commune_id: role === "commune" ? parseInt(commune_id) : null,
-        mot_de_passe: mot_de_passe, // ⚠️ À hasher en production!
+        mot_de_passe: motDePasseHash,
         actif: true,
       },
       include: {
@@ -254,8 +267,20 @@ router.post("/", authMiddleware, requireRole(["admin"]), async (req, res) => {
       },
     });
 
+    // Envoyer l'email de bienvenue si demandé
+    if (envoyerEmail) {
+      try {
+        await emailService.sendWelcomeEmail(user);
+      } catch (emailError) {
+        console.error("Erreur envoi email bienvenue:", emailError);
+        // On continue même si l'email échoue
+      }
+    }
+
     res.status(201).json({
-      message: "Utilisateur créé avec succès",
+      message: envoyerEmail
+        ? "Utilisateur créé avec succès et email de bienvenue envoyé"
+        : "Utilisateur créé avec succès",
       user: {
         id: user.id,
         nom: user.nom,

@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import Layout from "./layout/Layout";
 import StatusBadge from "./common/StatusBadge";
 import Pagination from "./common/Pagination";
-import { formatDate, formatDateForInput } from "../utils/helpers";
+import { formatDate } from "../utils/helpers"; // ✅ retiré formatDateForInput
 import { interventionsAPI, themesAPI, usersAPI } from "../services/api";
 
 const Interventions = () => {
@@ -28,52 +28,25 @@ const Interventions = () => {
     totalPages: 0,
   });
 
-  // Permission functions
-  const canViewAllInterventions = () => {
+  const canFilterByCommune = useCallback(() => {
     return ["admin", "juriste"].includes(user?.role);
-  };
+  }, [user]);
 
-  const canFilterByCommune = () => {
-    return ["admin", "juriste"].includes(user?.role);
-  };
-
-  useEffect(() => {
-    fetchInterventions();
-    fetchThemes();
-    if (canFilterByCommune()) {
-      fetchCommunes();
-    }
-  }, [user, pagination.page, filters]);
-
-  const fetchInterventions = async () => {
+  const fetchInterventions = useCallback(async () => {
     try {
       setLoading(true);
 
-      // Préparer les paramètres pour l'API
       const params = {
         page: pagination.page,
         limit: pagination.limit,
       };
 
-      // Ajouter les filtres
-      if (filters.status !== "all") {
-        params.statut = filters.status;
-      }
-      if (filters.theme !== "all") {
-        params.theme = filters.theme;
-      }
-      if (filters.commune !== "all") {
-        params.commune = filters.commune;
-      }
-      if (filters.dateDebut) {
-        params.dateDebut = filters.dateDebut;
-      }
-      if (filters.dateFin) {
-        params.dateFin = filters.dateFin;
-      }
-      if (filters.search && filters.search.trim() !== "") {
-        params.search = filters.search;
-      }
+      if (filters.status !== "all") params.statut = filters.status;
+      if (filters.theme !== "all") params.theme = filters.theme;
+      if (filters.commune !== "all") params.commune = filters.commune;
+      if (filters.dateDebut) params.dateDebut = filters.dateDebut;
+      if (filters.dateFin) params.dateFin = filters.dateFin;
+      if (filters.search.trim() !== "") params.search = filters.search;
 
       const response = await interventionsAPI.getAll(params);
       const data = response.data;
@@ -89,25 +62,31 @@ const Interventions = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [pagination.page, pagination.limit, filters]);
 
-  const fetchThemes = async () => {
+  const fetchThemes = useCallback(async () => {
     try {
       const response = await themesAPI.getAll();
       setThemes(response.data);
     } catch (error) {
       console.error("Erreur chargement thèmes:", error);
     }
-  };
+  }, []);
 
-  const fetchCommunes = async () => {
+  const fetchCommunes = useCallback(async () => {
     try {
       const response = await usersAPI.getCommunesList();
       setCommunes(response.data);
     } catch (error) {
       console.error("Erreur chargement communes:", error);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchInterventions();
+    fetchThemes();
+    if (canFilterByCommune()) fetchCommunes();
+  }, [fetchInterventions, fetchThemes, fetchCommunes, canFilterByCommune]);
 
   const getInterventionStatus = (intervention) => {
     if (!intervention.reponse) {
@@ -122,7 +101,6 @@ const Interventions = () => {
       ...prev,
       [key]: value,
     }));
-    // Reset à la première page quand on change de filtre
     setPagination((prev) => ({ ...prev, page: 1 }));
   };
 
@@ -142,7 +120,7 @@ const Interventions = () => {
         <div className="flex-1">
           <div className="flex flex-col gap-2 mb-2">
             <div className="font-medium text-secondary line-clamp-2">
-              {intervention.question}
+              {intervention.titre}
             </div>
             <div className="text-sm text-tertiary">
               Réf: INT-{intervention.id.toString().padStart(4, "0")}
@@ -187,7 +165,7 @@ const Interventions = () => {
     );
   };
 
-  // Options de filtre pour le statut
+  // Filtres
   const statusOptions = [
     { value: "all", label: "Tous les statuts" },
     { value: "en_attente", label: "En attente" },
@@ -196,7 +174,6 @@ const Interventions = () => {
     { value: "urgent", label: "Urgent" },
   ];
 
-  // Options de filtre pour les thèmes
   const themeOptions = [
     { value: "all", label: "Tous les thèmes" },
     ...themes.map((theme) => ({
@@ -205,7 +182,6 @@ const Interventions = () => {
     })),
   ];
 
-  // Options de filtre pour les communes
   const communeOptions = [
     { value: "all", label: "Toutes les communes" },
     ...communes.map((commune) => ({
@@ -216,7 +192,7 @@ const Interventions = () => {
 
   return (
     <Layout activePage="interventions">
-      {/* Page Header */}
+      {/* en-tête de page */}
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-2xl font-semibold text-primary">
           {user?.role === "commune" ? "Mes Questions" : "Interventions"}

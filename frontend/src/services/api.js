@@ -37,6 +37,9 @@ export const interventionsAPI = {
   getById: (id) => api.get(`/interventions/${id}`),
   create: (data) => api.post("/interventions", data),
   addResponse: (id, data) => api.put(`/interventions/${id}/reponse`, data),
+  delete: (id) => {
+    return api.delete(`/interventions/${id}`);
+  },
 
   // Notation de satisfaction (1 à 5)
   rateSatisfaction: (id, satisfaction) =>

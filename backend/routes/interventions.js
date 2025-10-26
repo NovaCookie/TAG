@@ -22,6 +22,10 @@ router.get("/", authMiddleware, async (req, res) => {
     } = req.query;
     const where = {};
 
+    if (req.user.role === "commune") {
+      where.demandeur_id = req.user.id;
+    }
+
     // Filtre recherche
     if (search && search.trim() !== "") {
       const searchLower = search.toLowerCase();
@@ -53,7 +57,8 @@ router.get("/", authMiddleware, async (req, res) => {
       } else {
         // Recherche normale dans les autres champs
         where.OR = [
-          { question: { contains: search, mode: "insensitive" } },
+          { titre: { contains: search, mode: "insensitive" } },
+          { description: { contains: search, mode: "insensitive" } },
           { reponse: { contains: search, mode: "insensitive" } },
           { notes: { contains: search, mode: "insensitive" } },
           { commune: { nom: { contains: search, mode: "insensitive" } } },
@@ -165,9 +170,9 @@ router.get("/:id", authMiddleware, async (req, res) => {
 // POST /api/interventions - Créer une intervention (communes seulement)
 router.post("/", authMiddleware, requireRole(["commune"]), async (req, res) => {
   try {
-    const { question, theme_id, pieces_jointes } = req.body;
+    const { titre, description, theme_id } = req.body;
 
-    if (!question || !theme_id) {
+    if (!titre || !description || !theme_id) {
       return res
         .status(400)
         .json({ error: "Question et thème sont obligatoires" });
@@ -187,7 +192,8 @@ router.post("/", authMiddleware, requireRole(["commune"]), async (req, res) => {
 
     const intervention = await prisma.interventions.create({
       data: {
-        question,
+        titre,
+        description,
         theme_id: parseInt(theme_id),
         commune_id: utilisateur.commune_id,
         demandeur_id: req.user.id,
@@ -210,6 +216,53 @@ router.post("/", authMiddleware, requireRole(["commune"]), async (req, res) => {
       .json({ error: "Erreur lors de la création de l'intervention" });
   }
 });
+
+// DELETE /api/interventions/:id - Supprimer une intervention (admin seulement)
+router.delete(
+  "/:id",
+  authMiddleware,
+  requireRole(["admin"]),
+  async (req, res) => {
+    try {
+      const interventionId = parseInt(req.params.id);
+
+      // Vérifier si l'intervention existe
+      const intervention = await prisma.interventions.findUnique({
+        where: { id: interventionId },
+      });
+
+      if (!intervention) {
+        return res.status(404).json({ error: "Intervention non trouvée" });
+      }
+
+      // Supprimer d'abord les pièces jointes (contrainte clé étrangère)
+      await prisma.piecesJointes.deleteMany({
+        where: { intervention_id: interventionId },
+      });
+
+      // Puis supprimer l'intervention
+      await prisma.interventions.delete({
+        where: { id: interventionId },
+      });
+
+      res.json({
+        message: "Intervention supprimée avec succès",
+        deletedInterventionId: interventionId,
+      });
+    } catch (error) {
+      console.error("Erreur suppression intervention:", error);
+
+      if (error.code === "P2025") {
+        return res.status(404).json({ error: "Intervention non trouvée" });
+      }
+
+      res.status(500).json({
+        error: "Erreur lors de la suppression de l'intervention",
+        details: error.message,
+      });
+    }
+  }
+);
 
 // PUT /api/interventions/:id/reponse - Répondre à une intervention (juristes seulement)
 router.put(

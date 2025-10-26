@@ -437,7 +437,7 @@ const TableauDeBord = () => {
             >
               <div className="flex-1">
                 <div className="font-medium text-secondary mb-1 line-clamp-2">
-                  {question.question}
+                  {question.titre}
                 </div>
                 <div className="flex items-center gap-4 text-sm text-tertiary">
                   <span>Posée {formatDate(question.date_question)}</span>

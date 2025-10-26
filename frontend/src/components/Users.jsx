@@ -7,6 +7,7 @@ import Pagination from "./common/Pagination";
 import SearchFilter from "./common/SearchFilter";
 import { getRoleColor } from "../utils/helpers";
 import { usersAPI } from "../services/api";
+import { Link } from "react-router-dom";
 
 // Composant Modal pour modifier les informations
 const ModalModifierInfos = ({ utilisateur, onClose, onSuccess }) => {
@@ -548,9 +549,12 @@ const Users = () => {
             total
           </p>
         </div>
-        <button className="bg-primary text-white rounded-lg px-6 py-3 font-semibold text-sm hover:bg-primary-light transition-colors">
+        <Link
+          to="/nouvel-utilisateur"
+          className="bg-primary text-white rounded-lg px-6 py-3 font-semibold text-sm hover:bg-primary-light transition-colors"
+        >
           Nouvel utilisateur
-        </button>
+        </Link>
       </div>
 
       {/* Filtres */}
