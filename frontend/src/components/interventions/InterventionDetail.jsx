@@ -121,7 +121,6 @@ const InterventionDetail = () => {
     setSatisfactionMessage("");
 
     try {
-      // suppression de la variable 'res' inutilisée pour éviter le warning ESLint
       await interventionsAPI.rateSatisfaction(intervention.id, note);
 
       setIntervention((prev) => ({
@@ -159,8 +158,6 @@ const InterventionDetail = () => {
       const res = await interventionsAPI.downloadPieceJointe(piece.id);
 
       if (res.headers["content-type"]?.includes("application/json")) {
-        // Si le serveur renvoie JSON (erreur) on essaie de lire le message d'erreur
-        // mais on ne garde pas de variable non utilisée : on lit directement
         const text = await res.data.text?.();
         console.error(
           "Erreur serveur lors du téléchargement:",
@@ -249,7 +246,7 @@ const InterventionDetail = () => {
 
   const getInterventionStatus = (interv) => {
     if (!interv?.reponse) {
-      return interv?.urgent ? "urgent" : "en_attente";
+      return "en_attente";
     }
     if (interv.reponse && !interv.satisfaction) return "repondu";
     return "termine";
@@ -510,6 +507,11 @@ const InterventionDetail = () => {
                     </label>
                     <p className="text-tertiary">
                       {intervention.juriste?.prenom} {intervention.juriste?.nom}
+                      {intervention.juriste?.actif === false && (
+                        <span className="text-danger text-xs ml-2">
+                          (Archivé)
+                        </span>
+                      )}
                     </p>
                   </div>
 
@@ -620,6 +622,9 @@ const InterventionDetail = () => {
                 </label>
                 <p className="text-tertiary">
                   {intervention.demandeur?.prenom} {intervention.demandeur?.nom}
+                  {intervention.demandeur?.actif === false && (
+                    <span className="text-danger text-xs ml-2">(Archivé)</span>
+                  )}
                 </p>
               </div>
 
@@ -647,24 +652,20 @@ const InterventionDetail = () => {
               </div>
 
               <div className="flex justify-between">
-                <span className="text-tertiary">Urgent:</span>
-                <span
-                  className={
-                    intervention.urgent
-                      ? "text-danger font-semibold"
-                      : "text-tertiary"
-                  }
-                >
-                  {intervention.urgent ? "Oui" : "Non"}
-                </span>
-              </div>
-
-              <div className="flex justify-between">
-                <span className="text-tertiary">Date:</span>
+                <span className="text-tertiary">Date de création:</span>
                 <span className="text-tertiary">
                   {formatDate(intervention.date_question)}
                 </span>
               </div>
+
+              {intervention.date_reponse && (
+                <div className="flex justify-between">
+                  <span className="text-tertiary">Date de réponse:</span>
+                  <span className="text-tertiary">
+                    {formatDate(intervention.date_reponse)}
+                  </span>
+                </div>
+              )}
 
               {intervention.satisfaction && (
                 <div className="flex justify-between items-center">
@@ -782,7 +783,7 @@ const InterventionDetail = () => {
               <div className="space-y-2">
                 {!intervention.reponse && (
                   <Link
-                    to={`/interventions/${intervention.id}/repondre`}
+                    to={`/interventions/${intervention.id}/reply`}
                     className="block w-full text-center bg-primary text-white py-2 px-4 rounded-lg font-semibold hover:bg-primary-light transition-colors"
                   >
                     Répondre

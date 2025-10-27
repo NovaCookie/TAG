@@ -129,7 +129,7 @@ router.get(
   }
 );
 
-// GET /api/users/communes - Liste des communes pour les filtres
+// GET /api/users/communes/list - Liste des communes pour les filtres
 router.get("/communes/list", authMiddleware, async (req, res) => {
   try {
     const communes = await prisma.communes.findMany({
@@ -149,25 +149,9 @@ router.get("/communes/list", authMiddleware, async (req, res) => {
   }
 });
 
-router.get("/communes", authMiddleware, async (req, res) => {
-  try {
-    const communes = await prisma.communes.findMany({
-      where: { actif: true },
-      select: { id: true, nom: true },
-    });
-    res.json(communes);
-  } catch (error) {
-    res.status(500).json({ error: "Erreur chargement communes" });
-  }
-});
-
 // GET /api/users/:id - Détail d'un utilisateur
 router.get("/:id", authMiddleware, requireRole(["admin"]), async (req, res) => {
   try {
-    console.log("Params reçus:", req.params);
-    console.log("ID reçu:", req.params.id);
-    console.log("ID après parseInt:", parseInt(req.params.id));
-
     const userId = parseInt(req.params.id);
     const user = await prisma.utilisateurs.findUnique({
       where: { id: userId },
@@ -178,14 +162,6 @@ router.get("/:id", authMiddleware, requireRole(["admin"]), async (req, res) => {
             nom: true,
             population: true,
           },
-        },
-        interventions_demandees: {
-          include: {
-            theme: true,
-            juriste: true,
-          },
-          orderBy: { date_question: "desc" },
-          take: 5,
         },
       },
     });
@@ -232,17 +208,7 @@ router.post("/", authMiddleware, requireRole(["admin"]), async (req, res) => {
       return res.status(400).json({ error: "Cet email est déjà utilisé" });
     }
 
-    // // Pour les communes, vérifier que commune_id est fourni
-    // if (role === "commune" && !commune_id) {
-    //   return res
-    //     .status(400)
-    //     .json({
-    //       error:
-    //         "Une commune doit être associée aux utilisateurs de type 'commune'",
-    //     });
-    // }
-
-    //Hasher le mot de passe
+    // Hasher le mot de passe
     const bcrypt = require("bcrypt");
     const saltRounds = 10;
     const motDePasseHash = await bcrypt.hash(mot_de_passe, saltRounds);
@@ -296,6 +262,87 @@ router.post("/", authMiddleware, requireRole(["admin"]), async (req, res) => {
     res
       .status(500)
       .json({ error: "Erreur lors de la création de l'utilisateur" });
+  }
+});
+
+// PUT /api/users/:id - Modifier complètement un utilisateur (NOUVEAU)
+router.put("/:id", authMiddleware, requireRole(["admin"]), async (req, res) => {
+  try {
+    const { nom, prenom, email, role, commune_id, actif } = req.body;
+    const userId = parseInt(req.params.id);
+
+    // Vérifier que l'utilisateur existe
+    const utilisateurExistant = await prisma.utilisateurs.findUnique({
+      where: { id: userId },
+    });
+
+    if (!utilisateurExistant) {
+      return res.status(404).json({ error: "Utilisateur non trouvé" });
+    }
+
+    // Vérifier si le nouvel email est déjà utilisé par un autre utilisateur
+    if (email && email !== utilisateurExistant.email) {
+      const emailUtilise = await prisma.utilisateurs.findUnique({
+        where: { email },
+      });
+
+      if (emailUtilise && emailUtilise.id !== userId) {
+        return res.status(400).json({ error: "Cet email est déjà utilisé" });
+      }
+    }
+
+    // Préparer les données de mise à jour
+    const updateData = {
+      nom: nom || utilisateurExistant.nom,
+      prenom: prenom || utilisateurExistant.prenom,
+      email: email || utilisateurExistant.email,
+      role: role || utilisateurExistant.role,
+      actif: actif !== undefined ? actif : utilisateurExistant.actif,
+    };
+
+    // Gestion de la commune selon le rôle
+    if (role === "commune") {
+      if (!commune_id) {
+        return res.status(400).json({ 
+          error: "Une commune doit être associée aux utilisateurs de type 'commune'" 
+        });
+      }
+      updateData.commune_id = parseInt(commune_id);
+    } else {
+      updateData.commune_id = null;
+    }
+
+    // Mettre à jour l'utilisateur
+    const utilisateur = await prisma.utilisateurs.update({
+      where: { id: userId },
+      data: updateData,
+      include: {
+        commune: {
+          select: {
+            id: true,
+            nom: true,
+          },
+        },
+      },
+    });
+
+    res.json({
+      message: "Utilisateur modifié avec succès",
+      user: {
+        id: utilisateur.id,
+        nom: utilisateur.nom,
+        prenom: utilisateur.prenom,
+        email: utilisateur.email,
+        role: utilisateur.role,
+        actif: utilisateur.actif,
+        commune: utilisateur.commune,
+      },
+    });
+  } catch (error) {
+    console.error("Erreur modification utilisateur:", error);
+    res
+      .status(500)
+      .json({ error: "Erreur lors de la modification de l'utilisateur" });
   }
 });
 
@@ -472,6 +519,7 @@ router.put(
     }
   }
 );
+
 // PUT /api/users/:id/infos - Modifier les informations basiques
 router.put(
   "/:id/infos",
@@ -517,4 +565,47 @@ router.put(
     }
   }
 );
+
+// PATCH /api/users/:id/toggle-status - Activer/Désactiver un utilisateur
+router.patch(
+  "/:id/toggle-status",
+  authMiddleware,
+  requireRole(["admin"]),
+  async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+
+      // Vérifier que l'utilisateur existe
+      const utilisateur = await prisma.utilisateurs.findUnique({
+        where: { id: userId },
+      });
+
+      if (!utilisateur) {
+        return res.status(404).json({ error: "Utilisateur non trouvé" });
+      }
+
+      // Inverser le statut actif
+      const updatedUser = await prisma.utilisateurs.update({
+        where: { id: userId },
+        data: {
+          actif: !utilisateur.actif,
+        },
+      });
+
+      res.json({
+        message: `Utilisateur ${updatedUser.actif ? "activé" : "désactivé"} avec succès`,
+        user: {
+          id: updatedUser.id,
+          actif: updatedUser.actif,
+        },
+      });
+    } catch (error) {
+      console.error("Erreur changement statut utilisateur:", error);
+      res
+        .status(500)
+        .json({ error: "Erreur lors du changement de statut de l'utilisateur" });
+    }
+  }
+);
+
 module.exports = router;

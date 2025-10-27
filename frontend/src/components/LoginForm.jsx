@@ -47,7 +47,7 @@ const LoginForm = () => {
               htmlFor="email"
               className="block text-secondary text-sm font-medium mb-2"
             >
-              Courriel
+              Courriel *
             </label>
             <input
               type="email"
@@ -65,7 +65,7 @@ const LoginForm = () => {
               htmlFor="password"
               className="block text-secondary text-sm font-medium mb-2"
             >
-              Mot de passe
+              Mot de passe *
             </label>
             <input
               type="password"
@@ -89,7 +89,7 @@ const LoginForm = () => {
 
         <div className="mt-8 text-sm text-center">
           <Link
-            to="/forgot-password"
+            to="/auth/forgot-password"
             className="text-primary hover:text-primary-light hover:underline transition-colors"
           >
             Mot de passe oublié ?

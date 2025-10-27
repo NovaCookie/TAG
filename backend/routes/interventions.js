@@ -26,48 +26,28 @@ router.get("/", authMiddleware, async (req, res) => {
       where.demandeur_id = req.user.id;
     }
 
-    // Filtre recherche
+    // Filtre recherche AVEC ET entre les mots
     if (search && search.trim() !== "") {
-      const searchLower = search.toLowerCase();
+      const mots = search
+        .trim()
+        .split(/\s+/)
+        .filter((mot) => mot.length > 0);
 
-      // Si la recherche correspond à un statut connu, on utilise le filtre de statut
-      const statusMapping = {
-        "en attente": "en_attente",
-        en_attente: "en_attente",
-        répondu: "repondu",
-        repondu: "repondu",
-        terminé: "termine",
-        termine: "termine",
-        urgent: "urgent",
-      };
-
-      const matchedStatus = statusMapping[searchLower];
-      if (matchedStatus) {
-        // Appliquer le filtre de statut correspondant
-        if (matchedStatus === "en_attente") {
-          where.reponse = null;
-        } else if (matchedStatus === "repondu") {
-          where.reponse = { not: null };
-          where.satisfaction = null;
-        } else if (matchedStatus === "termine") {
-          where.satisfaction = { not: null };
-        } else if (matchedStatus === "urgent") {
-          where.urgent = true;
-        }
-      } else {
-        // Recherche normale dans les autres champs
-        where.OR = [
-          { titre: { contains: search, mode: "insensitive" } },
-          { description: { contains: search, mode: "insensitive" } },
-          { reponse: { contains: search, mode: "insensitive" } },
-          { notes: { contains: search, mode: "insensitive" } },
-          { commune: { nom: { contains: search, mode: "insensitive" } } },
-        ];
+      if (mots.length > 0) {
+        where.AND = mots.map((mot) => ({
+          OR: [
+            { titre: { contains: mot, mode: "insensitive" } },
+            { description: { contains: mot, mode: "insensitive" } },
+            { reponse: { contains: mot, mode: "insensitive" } },
+            { notes: { contains: mot, mode: "insensitive" } },
+            { commune: { nom: { contains: mot, mode: "insensitive" } } },
+          ],
+        }));
       }
     }
 
     // Filtre par statut (si spécifié séparément)
-    if (status && status !== "all" && !search) {
+    if (status && status !== "all") {
       if (status === "en_attente") {
         where.reponse = null;
       } else if (status === "repondu") {
@@ -75,8 +55,6 @@ router.get("/", authMiddleware, async (req, res) => {
         where.satisfaction = null;
       } else if (status === "termine") {
         where.satisfaction = { not: null };
-      } else if (status === "urgent") {
-        where.urgent = true;
       }
     }
 
@@ -103,8 +81,20 @@ router.get("/", authMiddleware, async (req, res) => {
       include: {
         commune: { select: { nom: true } },
         theme: { select: { designation: true } },
-        demandeur: { select: { nom: true, prenom: true } },
-        juriste: { select: { nom: true, prenom: true } },
+        demandeur: {
+          select: {
+            nom: true,
+            prenom: true,
+            actif: true,
+          },
+        },
+        juriste: {
+          select: {
+            nom: true,
+            prenom: true,
+            actif: true,
+          },
+        },
       },
       orderBy: { date_question: "desc" },
       skip: (page - 1) * limit,
@@ -138,8 +128,22 @@ router.get("/:id", authMiddleware, async (req, res) => {
       include: {
         commune: { select: { nom: true, population: true } },
         theme: { select: { designation: true } },
-        demandeur: { select: { nom: true, prenom: true, email: true } },
-        juriste: { select: { nom: true, prenom: true, email: true } },
+        demandeur: {
+          select: {
+            nom: true,
+            prenom: true,
+            email: true,
+            actif: true,
+          },
+        },
+        juriste: {
+          select: {
+            nom: true,
+            prenom: true,
+            email: true,
+            actif: true,
+          },
+        },
         pieces_jointes: true,
       },
     });
@@ -172,10 +176,24 @@ router.post("/", authMiddleware, requireRole(["commune"]), async (req, res) => {
   try {
     const { titre, description, theme_id } = req.body;
 
+    // VALIDATION DES CHAMPS OBLIGATOIRES
     if (!titre || !description || !theme_id) {
       return res
         .status(400)
-        .json({ error: "Question et thème sont obligatoires" });
+        .json({ error: "Titre, description et thème sont obligatoires" });
+    }
+
+    // VALIDATION DES LONGUEURS
+    if (titre.length > 100) {
+      return res
+        .status(400)
+        .json({ error: "Le titre ne peut pas dépasser 100 caractères" });
+    }
+
+    if (description.length > 2000) {
+      return res
+        .status(400)
+        .json({ error: "La description ne peut pas dépasser 2000 caractères" });
     }
 
     // Récupérer l'utilisateur avec sa commune
@@ -192,8 +210,8 @@ router.post("/", authMiddleware, requireRole(["commune"]), async (req, res) => {
 
     const intervention = await prisma.interventions.create({
       data: {
-        titre,
-        description,
+        titre: titre.substring(0, 100),
+        description: description.substring(0, 2000),
         theme_id: parseInt(theme_id),
         commune_id: utilisateur.commune_id,
         demandeur_id: req.user.id,
@@ -288,8 +306,21 @@ router.put(
         include: {
           commune: { select: { nom: true } },
           theme: { select: { designation: true } },
-          demandeur: { select: { nom: true, prenom: true, email: true } },
-          juriste: { select: { nom: true, prenom: true } },
+          demandeur: {
+            select: {
+              nom: true,
+              prenom: true,
+              email: true,
+              actif: true,
+            },
+          },
+          juriste: {
+            select: {
+              nom: true,
+              prenom: true,
+              actif: true,
+            },
+          },
         },
       });
 
@@ -516,7 +547,7 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 5 * 1024 * 1024,
+    fileSize: 5 * 1024 * 1024, // 5Mo limite
   },
   fileFilter: (req, file, cb) => {
     checkFileType(file, cb);

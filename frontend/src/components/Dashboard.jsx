@@ -8,15 +8,12 @@ import { interventionsAPI, usersAPI } from "../services/api";
 const TableauDeBord = () => {
   const { user } = useAuth();
 
-  // États pour les statistiques
   const [statistiques, setStatistiques] = useState({
     totalQuestions: 0,
     questionsEnAttente: 0,
     questionsRepondues: 0,
-    questionsUrgentes: 0,
   });
 
-  // Dernières questions
   const [dernieresQuestions, setDernieresQuestions] = useState([]);
   const [chargement, setChargement] = useState(true);
 
@@ -24,7 +21,6 @@ const TableauDeBord = () => {
     chargerDonneesTableauDeBord();
   }, [user]);
 
-  /** Charger toutes les données du tableau de bord */
   const chargerDonneesTableauDeBord = async () => {
     try {
       setChargement(true);
@@ -39,7 +35,6 @@ const TableauDeBord = () => {
     }
   };
 
-  /** Charger les statistiques selon le rôle de l'utilisateur */
   const chargerStatistiquesUtilisateur = async () => {
     try {
       let donnees = {};
@@ -50,14 +45,8 @@ const TableauDeBord = () => {
 
         donnees = {
           totalQuestions: interventions.length,
-          questionsEnAttente: interventions.filter(
-            (i) => !i.reponse && !i.urgent
-          ).length,
-          questionsRepondues: interventions.filter(
-            (i) => i.reponse && !i.satisfaction
-          ).length,
-          questionsUrgentes: interventions.filter((i) => !i.reponse && i.urgent)
-            .length,
+          questionsEnAttente: interventions.filter((i) => !i.reponse).length,
+          questionsRepondues: interventions.filter((i) => i.reponse).length,
         };
       } else if (user?.role === "juriste") {
         const reponse = await interventionsAPI.getAll({ limit: 1000 });
@@ -65,14 +54,8 @@ const TableauDeBord = () => {
 
         donnees = {
           totalQuestions: interventions.filter((i) => !i.reponse).length,
-          questionsEnAttente: interventions.filter(
-            (i) => !i.reponse && !i.urgent
-          ).length,
-          questionsRepondues: interventions.filter(
-            (i) => i.reponse && !i.satisfaction
-          ).length,
-          questionsUrgentes: interventions.filter((i) => !i.reponse && i.urgent)
-            .length,
+          questionsEnAttente: interventions.filter((i) => !i.reponse).length,
+          questionsRepondues: interventions.filter((i) => i.reponse).length,
         };
       } else if (user?.role === "admin") {
         try {
@@ -84,24 +67,13 @@ const TableauDeBord = () => {
           const reponseToutes = await interventionsAPI.getAll({ limit: 1000 });
           const toutesInterventions = reponseToutes.data.interventions;
 
-          const enAttente = toutesInterventions.filter(
-            (i) => !i.reponse && !i.urgent
-          );
-          const repondues = toutesInterventions.filter(
-            (i) => i.reponse && !i.satisfaction
-          );
-          const urgentes = toutesInterventions.filter(
-            (i) => !i.reponse && i.urgent
-          );
-          const terminees = toutesInterventions.filter(
-            (i) => i.reponse && i.satisfaction
-          );
+          const enAttente = toutesInterventions.filter((i) => !i.reponse);
+          const repondues = toutesInterventions.filter((i) => i.reponse);
 
           donnees = {
             totalQuestions: toutesInterventions.length,
             questionsEnAttente: enAttente.length,
             questionsRepondues: repondues.length,
-            questionsUrgentes: urgentes.length,
             totalCommunes: statsUtilisateurs.data.totalCommunes,
             totalUtilisateurs: statsUtilisateurs.data.totalUtilisateurs || 0,
             satisfactionMoyenne:
@@ -110,9 +82,7 @@ const TableauDeBord = () => {
             tauxReponse:
               toutesInterventions.length > 0
                 ? Math.round(
-                    ((repondues.length + terminees.length) /
-                      toutesInterventions.length) *
-                      100
+                    (repondues.length / toutesInterventions.length) * 100
                   )
                 : 0,
           };
@@ -124,15 +94,8 @@ const TableauDeBord = () => {
           const reponseToutes = await interventionsAPI.getAll({ limit: 1000 });
           const toutesInterventions = reponseToutes.data.interventions;
 
-          const enAttente = toutesInterventions.filter(
-            (i) => !i.reponse && !i.urgent
-          );
-          const repondues = toutesInterventions.filter(
-            (i) => i.reponse && !i.satisfaction
-          );
-          const urgentes = toutesInterventions.filter(
-            (i) => !i.reponse && i.urgent
-          );
+          const enAttente = toutesInterventions.filter((i) => !i.reponse);
+          const repondues = toutesInterventions.filter((i) => i.reponse);
 
           const statsUtilisateurs = await usersAPI.getStats().catch(() => ({
             data: { totalCommunes: "N/A", totalUtilisateurs: 0 },
@@ -142,7 +105,6 @@ const TableauDeBord = () => {
             totalQuestions: toutesInterventions.length,
             questionsEnAttente: enAttente.length,
             questionsRepondues: repondues.length,
-            questionsUrgentes: urgentes.length,
             totalCommunes: statsUtilisateurs.data.totalCommunes,
             totalUtilisateurs: statsUtilisateurs.data.totalUtilisateurs || 0,
             satisfactionMoyenne: 0,
@@ -158,7 +120,6 @@ const TableauDeBord = () => {
     }
   };
 
-  /** Charger les dernières interventions */
   const chargerDernieresQuestions = async () => {
     try {
       let parametres = { limit: 5 };
@@ -166,7 +127,6 @@ const TableauDeBord = () => {
       if (user?.role === "commune") {
         parametres.order = "desc";
       } else if (user?.role === "juriste") {
-        parametres.statut = "en_attente";
         parametres.order = "asc";
       } else if (user?.role === "admin") {
         parametres.order = "desc";
@@ -179,7 +139,6 @@ const TableauDeBord = () => {
     }
   };
 
-  /** Composant carte statistique */
   const CarteStatistique = ({
     titre,
     valeur,
@@ -207,20 +166,6 @@ const TableauDeBord = () => {
     </div>
   );
 
-  /** Titres et descriptions dynamiques selon rôle */
-  const obtenirTitreTableauDeBord = () => {
-    switch (user?.role) {
-      case "commune":
-        return "Mes interventions";
-      case "juriste":
-        return "Interventions en attente";
-      case "admin":
-        return "Tableau de bord général";
-      default:
-        return "Tableau de bord";
-    }
-  };
-
   const obtenirDescriptionTableauDeBord = () => {
     switch (user?.role) {
       case "commune":
@@ -236,40 +181,24 @@ const TableauDeBord = () => {
 
   const obtenirTitreCarte = (index) => {
     const titres = {
-      commune: ["Mes questions", "En attente", "Répondues", "Urgentes"],
-      juriste: ["Questions à traiter", "Normales", "Répondues", "Urgentes"],
-      admin: ["Total questions", "En attente", "Répondues", "Urgentes"],
+      commune: ["Mes questions", "En attente", "Répondues"],
+      juriste: ["Questions à traiter", "En attente", "Répondues"],
+      admin: ["Total questions", "En attente", "Répondues"],
     };
     return (
-      titres[user?.role]?.[index] ||
-      ["Total", "En attente", "Répondues", "Urgentes"][index]
+      titres[user?.role]?.[index] || ["Total", "En attente", "Répondues"][index]
     );
   };
 
   const obtenirSousTitreCarte = (index) => {
     const sousTitres = {
-      commune: [
-        "Total posées",
-        "Réponse attendue",
-        "À noter",
-        "Action requise",
-      ],
-      juriste: [
-        "À traiter",
-        "Réponses à fournir",
-        "En attente de notation",
-        "Action immédiate",
-      ],
-      admin: [
-        "Toutes communes",
-        "Sans réponse",
-        "En attente de notation",
-        "Priorité haute",
-      ],
+      commune: ["Total posées", "Réponse attendue", "Questions traitées"],
+      juriste: ["À traiter", "Réponses à fournir", "Questions traitées"],
+      admin: ["Toutes communes", "Sans réponse", "Avec réponse"],
     };
     return (
       sousTitres[user?.role]?.[index] ||
-      ["Total", "En attente", "Répondu", "Urgent"][index]
+      ["Total", "En attente", "Répondu"][index]
     );
   };
 
@@ -278,8 +207,8 @@ const TableauDeBord = () => {
       <Layout activePage="dashboard">
         <div className="animate-pulse">
           <div className="h-8 bg-gray-200 rounded w-1/4 mb-8"></div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
-            {[...Array(4)].map((_, index) => (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+            {[...Array(3)].map((_, index) => (
               <div key={index} className="card card-rounded p-6">
                 <div className="h-8 bg-gray-200 rounded mb-2"></div>
                 <div className="h-4 bg-gray-200 rounded"></div>
@@ -293,11 +222,10 @@ const TableauDeBord = () => {
 
   return (
     <Layout activePage="dashboard">
-      {/* En-tête */}
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-2xl font-semibold text-primary mb-2">
-            {obtenirTitreTableauDeBord()}
+            Tableau de bord
           </h1>
           <p className="text-secondary">{obtenirDescriptionTableauDeBord()}</p>
         </div>
@@ -317,9 +245,8 @@ const TableauDeBord = () => {
         </div>
       </div>
 
-      {/* Grille statistiques */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-        {[0, 1, 2, 3].map((i) => (
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        {[0, 1, 2].map((i) => (
           <CarteStatistique
             key={i}
             titre={obtenirTitreCarte(i)}
@@ -328,35 +255,24 @@ const TableauDeBord = () => {
                 ? statistiques.totalQuestions
                 : i === 1
                 ? statistiques.questionsEnAttente
-                : i === 2
-                ? statistiques.questionsRepondues
-                : statistiques.questionsUrgentes
+                : statistiques.questionsRepondues
             }
             couleur={
               i === 0
                 ? "text-primary"
                 : i === 1
                 ? "text-warning"
-                : i === 2
-                ? "text-success"
-                : "text-danger"
+                : "text-success"
             }
             sousTitre={obtenirSousTitreCarte(i)}
             couleurIcone={
-              i === 0
-                ? "bg-primary"
-                : i === 1
-                ? "bg-warning"
-                : i === 2
-                ? "bg-success"
-                : "bg-danger"
+              i === 0 ? "bg-primary" : i === 1 ? "bg-warning" : "bg-success"
             }
             chargement={chargement}
           />
         ))}
       </div>
 
-      {/* Section Admin */}
       {user?.role === "admin" && (
         <div className="mb-10">
           <div className="flex justify-between items-center mb-6">
@@ -374,16 +290,12 @@ const TableauDeBord = () => {
             <CarteStatistique
               titre="Communes"
               valeur={statistiques.totalCommunes || "N/A"}
-              couleur=""
               sousTitre="Total"
-              couleurIcone=""
             />
             <CarteStatistique
               titre="Utilisateurs"
               valeur={statistiques.totalUtilisateurs || "N/A"}
-              couleur=""
               sousTitre="Total"
-              couleurIcone=""
             />
             <CarteStatistique
               titre="Satisfaction"
@@ -392,9 +304,7 @@ const TableauDeBord = () => {
                   ? `${statistiques.satisfactionMoyenne.toFixed(1)}/5`
                   : "N/A"
               }
-              couleur=""
               sousTitre="Moyenne générale"
-              couleurIcone=""
             />
             <CarteStatistique
               titre="Taux de réponse"
@@ -403,15 +313,12 @@ const TableauDeBord = () => {
                   ? `${statistiques.tauxReponse}%`
                   : "N/A"
               }
-              couleur=""
               sousTitre="Questions traitées"
-              couleurIcone=""
             />
           </div>
         </div>
       )}
 
-      {/* Dernières questions */}
       <div className="card card-rounded p-6">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold text-primary">
@@ -431,9 +338,10 @@ const TableauDeBord = () => {
 
         <div className="space-y-4">
           {dernieresQuestions.map((question) => (
-            <div
+            <Link
               key={question.id}
-              className="flex justify-between items-center py-4 border-b border-light last:border-b-0 hover:bg-light/50 rounded-lg px-3 transition-colors"
+              to={`/interventions/${question.id}`}
+              className="flex justify-between items-center py-4 border-b border-light last:border-b-0 hover:bg-light/50 rounded-lg px-3 transition-colors cursor-pointer"
             >
               <div className="flex-1">
                 <div className="font-medium text-secondary mb-1 line-clamp-2">
@@ -443,13 +351,10 @@ const TableauDeBord = () => {
                   <span>Posée {formatDate(question.date_question)}</span>
                 </div>
               </div>
-              <Link
-                to={`/interventions/${question.id}`}
-                className="w-8 h-8 rounded-full bg-light text-primary flex items-center justify-center hover:bg-light-gray transition-colors ml-4"
-              >
+              <div className="w-8 h-8 rounded-full bg-light text-primary flex items-center justify-center hover:bg-light-gray transition-colors ml-4">
                 <span>→</span>
-              </Link>
-            </div>
+              </div>
+            </Link>
           ))}
 
           {dernieresQuestions.length === 0 && (
@@ -464,12 +369,11 @@ const TableauDeBord = () => {
         </div>
       </div>
 
-      {/* Bouton action principale pour commune */}
       {user?.role === "commune" && (
         <div className="mt-6 text-center">
           <Link
-            to="/nouvelle-intervention"
-            className="btn btn-primary text-lg px-8 py-3"
+            to="/interventions/new"
+            className="bg-primary text-white rounded-lg px-8 py-4 font-semibold hover:bg-primary-light transition-colors shadow-md hover:shadow-lg"
           >
             Poser une nouvelle question
           </Link>

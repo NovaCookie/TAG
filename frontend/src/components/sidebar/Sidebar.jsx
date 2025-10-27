@@ -1,7 +1,7 @@
 import { useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import SidebarLink from "../sidebar/SidebarLink";
-import SidebarSection from "../sidebar/SidebarSection";
+import SidebarLink from "./SidebarLink";
+import SidebarSection from "./SidebarSection";
 
 const Sidebar = ({ isOpen, onToggle }) => {
   const { user } = useAuth();
@@ -14,7 +14,6 @@ const Sidebar = ({ isOpen, onToggle }) => {
   const ICONS = {
     dashboard: "📊",
     interventions: "📝",
-    messaging: "💬",
     users: "👥",
     communes: "🏠",
     settings: "⚙️",
@@ -27,8 +26,8 @@ const Sidebar = ({ isOpen, onToggle }) => {
         isOpen ? "w-64" : "w-16"
       } overflow-hidden transition-all duration-1000`}
     >
-      <div className="p-4 ">
-        {/* Flèche et Navigation sur la même ligne */}
+      <div className="p-4">
+        {/* Header + Toggle button */}
         <div className="flex items-center justify-between mb-6">
           {isOpen && (
             <div className="font-medium uppercase text-lg text-tertiary">
@@ -38,7 +37,7 @@ const Sidebar = ({ isOpen, onToggle }) => {
           <button
             onClick={onToggle}
             className="p-2 hover:bg-light-gray transition-colors rounded flex-shrink-0"
-            title={isOpen ? "Réduire la sidebar" : "Étendre la sidebar"}
+            title={isOpen ? "Collapse sidebar" : "Expand sidebar"}
           >
             {isOpen ? (
               <svg
@@ -72,7 +71,7 @@ const Sidebar = ({ isOpen, onToggle }) => {
           </button>
         </div>
 
-        {/* Navigation Principale */}
+        {/* === MAIN NAVIGATION === */}
         <SidebarSection isOpen={isOpen}>
           <SidebarLink
             to="/dashboard"
@@ -84,15 +83,15 @@ const Sidebar = ({ isOpen, onToggle }) => {
           <SidebarLink
             to="/interventions"
             icon={ICONS.interventions}
-            title={user?.role === "commune" ? "Mes questions" : "Interventions"}
+            title={user?.role === "commune" ? "Mes Questions" : "Interventions"}
             isOpen={isOpen}
             isActive={isActive("/interventions")}
           />
         </SidebarSection>
 
-        {/* Menu Gestion - Admin/Juriste seulement */}
+        {/* === MANAGEMENT SECTION === */}
         {(canViewAll() || canManageUsers()) && (
-          <SidebarSection title="Gestion" isOpen={isOpen}>
+          <SidebarSection title="Management" isOpen={isOpen}>
             {canManageUsers() && (
               <SidebarLink
                 to="/users"
@@ -114,8 +113,8 @@ const Sidebar = ({ isOpen, onToggle }) => {
           </SidebarSection>
         )}
 
-        {/* Menu Compte */}
-        <SidebarSection title="Compte" isOpen={isOpen}>
+        {/* === ACCOUNT SECTION === */}
+        <SidebarSection title="Account" isOpen={isOpen}>
           <SidebarLink
             to="/settings"
             icon={ICONS.settings}

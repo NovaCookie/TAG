@@ -1,5 +1,3 @@
-import React from "react";
-
 const SidebarSection = ({ title, isOpen, children }) => {
   return (
     <div className="mb-4">

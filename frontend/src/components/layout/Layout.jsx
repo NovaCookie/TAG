@@ -1,10 +1,10 @@
-import { useContext} from "react";
+import { useContext } from "react";
 import Header from "./Header";
-import Sidebar from "./Sidebar";
+import Sidebar from "../sidebar/Sidebar";
 import { SidebarContext } from "../../context/SidebarContext";
 
 const Layout = ({ children, activePage }) => {
-  const {isOpen, setIsOpen} = useContext(SidebarContext);
+  const { isOpen, setIsOpen } = useContext(SidebarContext);
 
   const toggleSidebar = () => {
     setIsOpen(!isOpen);

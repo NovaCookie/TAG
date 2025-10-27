@@ -4,7 +4,7 @@ import Layout from "./layout/Layout";
 import StatusBadge from "./common/StatusBadge";
 import Pagination from "./common/Pagination";
 import SearchFilter from "./common/SearchFilter";
-import { CommunesAPI } from "../services/api";
+import { communesAPI } from "../services/api";
 
 const Communes = () => {
   const { user } = useAuth();
@@ -29,7 +29,7 @@ const Communes = () => {
     try {
       setChargement(true);
 
-      const reponse = await CommunesAPI.getAll({
+      const reponse = await communesAPI.getAll({
         page: pagination.page,
         limit: 10,
         search: filtres.search !== "" ? filtres.search : undefined,
@@ -68,7 +68,7 @@ const Communes = () => {
 
   const basculerStatutCommune = async (communeId) => {
     try {
-      const reponse = await CommunesAPI.basculerStatut(communeId);
+      const reponse = await communesAPI.basculerStatut(communeId);
 
       setCommunes((prev) =>
         prev.map((commune) =>

@@ -2,27 +2,19 @@ import axios from "axios";
 
 const API_URL = "http://localhost:5000/api";
 
-/**
- * === Configuration globale d’Axios ===
- * L’instance `api` gère automatiquement :
- *  - la base URL de l’API
- *  - l’ajout du token JWT à chaque requête
- */
+// === Axios Global Config ===
 const api = axios.create({
   baseURL: API_URL,
 });
 
-// === Intercepteur : ajout automatique du token JWT ===
+// === Add JWT Token Automatically ===
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
+  if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
-// === Authentification ===
-
+// === Auth ===
 export const authAPI = {
   login: (credentials) => api.post("/auth/login", credentials),
   register: (userData) => api.post("/auth/register", userData),
@@ -30,51 +22,40 @@ export const authAPI = {
   resetPassword: (data) => api.post("/auth/reset-password", data),
 };
 
-// === Interventions (Questions / Réponses / Satisfaction) ===
-
+// === Interventions ===
 export const interventionsAPI = {
   getAll: (params) => api.get("/interventions", { params }),
   getById: (id) => api.get(`/interventions/${id}`),
   create: (data) => api.post("/interventions", data),
-  addResponse: (id, data) => api.put(`/interventions/${id}/reponse`, data),
-  delete: (id) => {
-    return api.delete(`/interventions/${id}`);
-  },
+  addResponse: (id, data) => api.put(`/interventions/${id}/response`, data),
+  delete: (id) => api.delete(`/interventions/${id}`),
 
-  // Notation de satisfaction (1 à 5)
   rateSatisfaction: (id, satisfaction) =>
     api.put(`/interventions/${id}/satisfaction`, { satisfaction }),
 
-  // Statistiques pour le tableau de bord
   getStats: () => api.get("/interventions/stats/dashboard"),
 
-  // Recherche de questions similaires
   getSimilarQuestions: (themeId, keywords) =>
-    api.get(`/interventions/theme/${themeId}/similaires`, {
-      params: { keywords },
-    }),
+    api.get(`/interventions/theme/${themeId}/similar`, { params: { keywords } }),
 
-  // Gestion des pièces jointes
-  uploadPiecesJointes: (interventionId, formData) =>
-    api.post(`/interventions/${interventionId}/pieces-jointes`, formData, {
+  uploadAttachments: (interventionId, formData) =>
+    api.post(`/interventions/${interventionId}/attachments`, formData, {
       headers: { "Content-Type": "multipart/form-data" },
     }),
 
-  downloadPieceJointe: (pieceId) =>
-    api.get(`/interventions/pieces-jointes/${pieceId}`, {
+  downloadAttachment: (attachmentId) =>
+    api.get(`/interventions/attachments/${attachmentId}`, {
       responseType: "blob",
     }),
 };
 
-// === Thèmes ===
-
+// === Themes ===
 export const themesAPI = {
   getAll: () => api.get("/themes"),
   create: (data) => api.post("/themes", data),
 };
 
-// === Utilisateurs ===
-
+// === Users ===
 export const usersAPI = {
   getAll: (params) => api.get("/users", { params }),
   getById: (id) => api.get(`/users/${id}`),
@@ -89,8 +70,7 @@ export const usersAPI = {
 };
 
 // === Communes ===
-
-export const CommunesAPI = {
+export const communesAPI = {
   getAll: (params) => api.get("/communes", { params }),
   getById: (id) => api.get(`/communes/${id}`),
   create: (data) => api.post("/communes", data),
@@ -98,5 +78,3 @@ export const CommunesAPI = {
   toggleStatus: (id) => api.patch(`/communes/${id}/toggle-status`),
   getStats: () => api.get("/communes/stats/global"),
 };
-
-export default api;

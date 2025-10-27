@@ -182,36 +182,24 @@ const RepondreIntervention = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Colonne de gauche - Question et Détails */}
+        {/* Colonne de gauche - Question et Formulaire */}
         <div className="lg:col-span-2 space-y-6">
           {/* Bloc Question */}
           <div className="card card-rounded p-6">
             <h2 className="text-lg font-semibold text-primary mb-4 border-b border-light-gray pb-3">
               Question
             </h2>
-            <div className="bg-light/50 p-4 rounded-lg">
-              <h3 className="text-xl font-semibold text-primary mb-3">
-                {intervention.titre}
-              </h3>
-              <p className="text-secondary whitespace-pre-wrap">
-                {intervention.description}
-              </p>
-            </div>
-          </div>
-
-          {/* Bloc Description (si séparé)
-          {intervention.titre && intervention.description && (
-            <div className="card card-rounded p-6">
-              <h2 className="text-lg font-semibold text-primary mb-4 border-b border-light-gray pb-3">
-                Description détaillée
-              </h2>
+            <div className="space-y-4">
               <div className="bg-light/50 p-4 rounded-lg">
+                <h3 className="font-semibold text-primary mb-2">
+                  {intervention.titre}
+                </h3>
                 <p className="text-secondary whitespace-pre-wrap">
                   {intervention.description}
                 </p>
               </div>
             </div>
-          )} */}
+          </div>
 
           {/* Formulaire de réponse */}
           <div className="card card-rounded p-6">
@@ -261,22 +249,6 @@ const RepondreIntervention = () => {
                   placeholder="Notes pour l'équipe juridique..."
                   className="w-full px-4 py-3 border border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light resize-none"
                 />
-                <p className="text-tertiary text-sm mt-1">
-                  Ces notes ne seront pas visibles par la commune.
-                </p>
-              </div>
-
-              {/* Conseils */}
-              <div className="bg-primary/5 p-4 rounded-lg border border-primary/20">
-                <h4 className="font-medium text-primary mb-2 flex items-center gap-2">
-                  💡 Conseils de rédaction
-                </h4>
-                <ul className="text-sm text-secondary space-y-1 list-disc list-inside">
-                  <li>Soyez clair et précis dans votre réponse</li>
-                  <li>Citez les articles de loi pertinents si nécessaire</li>
-                  <li>Proposez des solutions concrètes</li>
-                  <li>Vérifiez l'exactitude des informations fournies</li>
-                </ul>
               </div>
 
               {/* Erreur générale */}
@@ -335,6 +307,9 @@ const RepondreIntervention = () => {
                 </label>
                 <p className="text-tertiary">
                   {intervention.demandeur?.prenom} {intervention.demandeur?.nom}
+                  {intervention.demandeur?.actif === false && (
+                    <span className="text-danger text-xs ml-2">(Archivé)</span>
+                  )}
                 </p>
               </div>
 
@@ -344,15 +319,6 @@ const RepondreIntervention = () => {
                 </label>
                 <p className="text-tertiary">
                   {intervention.theme?.designation}
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-secondary mb-1">
-                  Date de la question
-                </label>
-                <p className="text-tertiary">
-                  {formatDate(intervention.date_question)}
                 </p>
               </div>
             </div>
@@ -373,22 +339,9 @@ const RepondreIntervention = () => {
               </div>
 
               <div className="flex justify-between">
-                <span className="text-tertiary">Urgent:</span>
-                <span
-                  className={
-                    intervention.urgent
-                      ? "text-danger font-semibold"
-                      : "text-tertiary"
-                  }
-                >
-                  {intervention.urgent ? "Oui" : "Non"}
-                </span>
-              </div>
-
-              <div className="flex justify-between">
-                <span className="text-tertiary">À répondre avant:</span>
+                <span className="text-tertiary">Date de création:</span>
                 <span className="text-tertiary">
-                  {intervention.urgent ? "24h" : "72h"}
+                  {formatDate(intervention.date_question)}
                 </span>
               </div>
             </div>
@@ -442,19 +395,6 @@ const RepondreIntervention = () => {
                 Aucune pièce jointe
               </p>
             )}
-          </div>
-
-          {/* Conseils juridiques */}
-          <div className="card card-rounded p-6 bg-primary/5 border border-primary/20">
-            <h3 className="text-lg font-semibold text-primary mb-3">
-              ⚖️ Bonnes pratiques
-            </h3>
-            <div className="space-y-2 text-sm text-secondary">
-              <p>• Vérifiez les références légales</p>
-              <p>• Adaptez le langage à la commune</p>
-              <p>• Soyez exhaustif mais concis</p>
-              <p>• Relisez avant envoi</p>
-            </div>
           </div>
         </div>
       </div>

@@ -9,7 +9,7 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { SidebarProvider } from "./context/SidebarContext";
 
-// === Pages principales ===
+// === Main Pages ===
 import LoginForm from "./components/LoginForm";
 import Dashboard from "./components/Dashboard";
 import Interventions from "./components/Interventions";
@@ -18,57 +18,42 @@ import Communes from "./components/Communes";
 import Settings from "./components/Settings";
 import Support from "./components/Support";
 
-// === Pages d'authentification ===
+// === Auth Pages ===
 import PasswordForgot from "./components/auth/PasswordForgot";
 import PasswordReset from "./components/auth/PasswordReset";
 
-// === Pages interventions ===
+// === Intervention Pages ===
 import InterventionDetail from "./components/interventions/InterventionDetail";
-import RepondreIntervention from "./components/interventions/RepondreIntervention";
-import NouvelleIntervention from "./components/interventions/NouvelleIntervention";
+import ReplyIntervention from "./components/interventions/ReplyIntervention";
+import NewIntervention from "./components/interventions/NewIntervention";
 
-// === Pages utilisateurs ===
-import NouvelUtilisateur from "./components/utilisateurs/NouvelUtilisateur";
+// === User Pages ===
+import NewUser from "./components/users/NewUser";
+import EditUser from "./components/users/EditUser";
 
 // ===================================================================
-// 🔒 ROUTES PERSONNALISÉES
+// 🔒 Custom Route Wrappers
 // ===================================================================
-
-// Route protégée : accessible uniquement si connecté
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
-
-  if (loading) {
-    return <LoadingScreen message="Chargement..." />;
-  }
-
-  return user ? children : <Navigate to="/login" />;
+  if (loading) return <LoadingScreen message="Loading..." />;
+  return user ? children : <Navigate to="/auth/login" />;
 };
 
-// Route publique : redirige vers le tableau de bord si déjà connecté
 const PublicRoute = ({ children }) => {
   const { user, loading } = useAuth();
-
-  if (loading) {
-    return <LoadingScreen message="Chargement..." />;
-  }
-
+  if (loading) return <LoadingScreen message="Loading..." />;
   return user ? <Navigate to="/dashboard" /> : children;
 };
 
-// Route d’auth uniquement (accessible même si connecté)
 const AuthRoute = ({ children }) => {
   const { loading } = useAuth();
-
-  if (loading) {
-    return <LoadingScreen message="Chargement..." />;
-  }
-
+  if (loading) return <LoadingScreen message="Loading..." />;
   return children;
 };
 
 // ===================================================================
-// ⏳ ÉCRAN DE CHARGEMENT
+// ⏳ Loading Screen
 // ===================================================================
 const LoadingScreen = ({ message }) => (
   <div className="min-h-screen flex items-center justify-center bg-light dark:bg-gray-900">
@@ -80,7 +65,7 @@ const LoadingScreen = ({ message }) => (
 );
 
 // ===================================================================
-// 🚀 APPLICATION PRINCIPALE
+// 🚀 Main Application
 // ===================================================================
 function App() {
   return (
@@ -90,9 +75,9 @@ function App() {
           <Router>
             <div className="App">
               <Routes>
-                {/* === Authentification === */}
+                {/* === Authentication === */}
                 <Route
-                  path="/login"
+                  path="/auth/login"
                   element={
                     <PublicRoute>
                       <LoginForm />
@@ -100,7 +85,7 @@ function App() {
                   }
                 />
                 <Route
-                  path="/forgot-password"
+                  path="/auth/forgot-password"
                   element={
                     <AuthRoute>
                       <PasswordForgot />
@@ -108,7 +93,7 @@ function App() {
                   }
                 />
                 <Route
-                  path="/reset-password"
+                  path="/auth/reset-password"
                   element={
                     <AuthRoute>
                       <PasswordReset />
@@ -116,7 +101,7 @@ function App() {
                   }
                 />
 
-                {/* === Tableau de bord & sections principales === */}
+                {/* === Dashboard & Main Sections === */}
                 <Route
                   path="/dashboard"
                   element={
@@ -134,6 +119,32 @@ function App() {
                   }
                 />
                 <Route
+                  path="/interventions/:id"
+                  element={
+                    <ProtectedRoute>
+                      <InterventionDetail />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/interventions/:id/reply"
+                  element={
+                    <ProtectedRoute>
+                      <ReplyIntervention />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/interventions/new"
+                  element={
+                    <ProtectedRoute>
+                      <NewIntervention />
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* === User Management === */}
+                <Route
                   path="/users"
                   element={
                     <ProtectedRoute>
@@ -141,6 +152,24 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
+                <Route
+                  path="/users/new"
+                  element={
+                    <ProtectedRoute>
+                      <NewUser />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/users/edit/:id"
+                  element={
+                    <ProtectedRoute>
+                      <EditUser />
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* === Communes === */}
                 <Route
                   path="/communes"
                   element={
@@ -150,6 +179,7 @@ function App() {
                   }
                 />
 
+                {/* === Settings & Support === */}
                 <Route
                   path="/settings"
                   element={
@@ -167,40 +197,7 @@ function App() {
                   }
                 />
 
-                {/* === Gestion des interventions === */}
-                <Route
-                  path="/interventions/:id"
-                  element={
-                    <ProtectedRoute>
-                      <InterventionDetail />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/interventions/:id/repondre"
-                  element={
-                    <ProtectedRoute>
-                      <RepondreIntervention />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/nouvelle-intervention"
-                  element={
-                    <ProtectedRoute>
-                      <NouvelleIntervention />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/nouvel-utilisateur"
-                  element={
-                    <ProtectedRoute>
-                      <NouvelUtilisateur />
-                    </ProtectedRoute>
-                  }
-                />
-                {/* === Routes par défaut === */}
+                {/* === Default Redirects === */}
                 <Route path="/" element={<Navigate to="/dashboard" />} />
                 <Route path="*" element={<Navigate to="/dashboard" />} />
               </Routes>

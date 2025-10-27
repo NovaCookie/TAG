@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import Layout from "./layout/Layout";
 import StatusBadge from "./common/StatusBadge";
 import Pagination from "./common/Pagination";
-import { formatDate } from "../utils/helpers"; // ✅ retiré formatDateForInput
+import { formatDate } from "../utils/helpers";
 import { interventionsAPI, themesAPI, usersAPI } from "../services/api";
 
 const Interventions = () => {
@@ -41,7 +41,7 @@ const Interventions = () => {
         limit: pagination.limit,
       };
 
-      if (filters.status !== "all") params.statut = filters.status;
+      if (filters.status !== "all") params.status = filters.status;
       if (filters.theme !== "all") params.theme = filters.theme;
       if (filters.commune !== "all") params.commune = filters.commune;
       if (filters.dateDebut) params.dateDebut = filters.dateDebut;
@@ -90,10 +90,12 @@ const Interventions = () => {
 
   const getInterventionStatus = (intervention) => {
     if (!intervention.reponse) {
-      return intervention.urgent ? "urgent" : "en_attente";
+      return "en_attente";
+    } else if (intervention.reponse && !intervention.satisfaction) {
+      return "repondu";
+    } else {
+      return "termine";
     }
-    if (intervention.reponse && !intervention.satisfaction) return "repondu";
-    return "termine";
   };
 
   const handleFilterChange = (key, value) => {
@@ -116,62 +118,43 @@ const Interventions = () => {
     const status = getInterventionStatus(intervention);
 
     return (
-      <div className="flex justify-between items-center py-5 border-b border-light last:border-b-0 hover:bg-light/50 dark:hover:bg-gray-700/50 transition-colors">
-        <div className="flex-1">
-          <div className="flex flex-col gap-2 mb-2">
-            <div className="font-medium text-secondary line-clamp-2">
-              {intervention.titre}
+      <Link to={`/interventions/${intervention.id}`} className="block">
+        <div className="flex justify-between items-center py-5 border-b border-light last:border-b-0 hover:bg-light/50 transition-colors cursor-pointer">
+          <div className="flex-1">
+            <div className="flex flex-col gap-2 mb-2">
+              <div className="font-medium text-secondary line-clamp-2">
+                {intervention.titre}
+              </div>
+              <div className="text-sm text-tertiary">
+                Réf: INT-{intervention.id.toString().padStart(4, "0")}
+              </div>
             </div>
-            <div className="text-sm text-tertiary">
-              Réf: INT-{intervention.id.toString().padStart(4, "0")}
+            <div className="flex items-center gap-4 text-sm text-tertiary">
+              <span className="text-secondary">
+                {intervention.commune?.nom}
+              </span>
+              <StatusBadge status={status} />
+              <span>Posée {formatDate(intervention.date_question)}</span>
+              {intervention.theme && (
+                <span className="text-primary-light">
+                  {intervention.theme.designation}
+                </span>
+              )}
             </div>
           </div>
-          <div className="flex items-center gap-4 text-sm text-tertiary">
-            <span className="text-secondary">{intervention.commune?.nom}</span>
-            <StatusBadge status={status} />
-            <span>Posée {formatDate(intervention.date_question)}</span>
-            {intervention.theme && (
-              <span className="text-primary-light">
-                {intervention.theme.designation}
-              </span>
-            )}
-            {intervention.urgent && (
-              <span className="text-danger text-xs font-semibold bg-danger/10 px-2 py-1 rounded">
-                ⚠ URGENT
-              </span>
-            )}
+          <div className="w-8 h-8 rounded-full bg-light text-primary flex items-center justify-center hover:bg-primary-light hover:text-white transition-colors ml-4">
+            <span>→</span>
           </div>
         </div>
-        <div className="flex gap-2 ml-4">
-          <Link
-            to={`/interventions/${intervention.id}`}
-            className="w-8 h-8 rounded-full bg-light text-primary flex items-center justify-center hover:bg-primary-light hover:text-white transition-colors dark:bg-gray-700 dark:hover:bg-primary-light"
-            title="Voir les détails"
-          >
-            👁️
-          </Link>
-          {(user?.role === "juriste" || user?.role === "admin") &&
-            !intervention.reponse && (
-              <Link
-                to={`/interventions/${intervention.id}/repondre`}
-                className="w-8 h-8 rounded-full bg-light text-primary flex items-center justify-center hover:bg-primary-light hover:text-white transition-colors dark:bg-gray-700 dark:hover:bg-primary-light"
-                title="Répondre"
-              >
-                ✏️
-              </Link>
-            )}
-        </div>
-      </div>
+      </Link>
     );
   };
 
-  // Filtres
   const statusOptions = [
     { value: "all", label: "Tous les statuts" },
     { value: "en_attente", label: "En attente" },
     { value: "repondu", label: "Répondu" },
     { value: "termine", label: "Terminé" },
-    { value: "urgent", label: "Urgent" },
   ];
 
   const themeOptions = [
@@ -192,32 +175,31 @@ const Interventions = () => {
 
   return (
     <Layout activePage="interventions">
-      {/* en-tête de page */}
+      {/* En-tête de page */}
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-2xl font-semibold text-primary">
           {user?.role === "commune" ? "Mes Questions" : "Interventions"}
         </h1>
         {user?.role === "commune" && (
           <Link
-            to="/nouvelle-intervention"
-            className="bg-primary text-white rounded-lg px-6 py-3 font-semibold text-sm hover:bg-primary-light transition-colors"
+            to="/intentions/new"
+            className="bg-primary text-white rounded-lg px-6 py-3 font-semibold text-sm hover:bg-primary-light transition-colors shadow-md hover:shadow-lg"
           >
-            Nouvelle question
+            Poser une nouvelle question
           </Link>
         )}
       </div>
 
-      {/* Filters */}
+      {/* Filtres */}
       <div className="card card-rounded p-6 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* Recherche */}
           <div>
             <label className="block text-sm font-medium text-secondary mb-2">
               Recherche
             </label>
             <input
               type="text"
-              placeholder="Rechercher une question..."
+              placeholder="Rechercher dans le titre ou la description..."
               className="w-full px-4 py-2 border border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light"
               value={filters.search}
               onChange={(e) => handleFilterChange("search", e.target.value)}
@@ -318,7 +300,7 @@ const Interventions = () => {
         </div>
       </div>
 
-      {/* Interventions List */}
+      {/* Liste des interventions */}
       <div className="card card-rounded p-6 mb-8">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold text-primary">

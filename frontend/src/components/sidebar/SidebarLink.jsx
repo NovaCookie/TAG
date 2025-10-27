@@ -1,4 +1,3 @@
-import React from "react";
 import { Link } from "react-router-dom";
 
 const SidebarLink = ({ to, icon, title, isOpen, isActive }) => {
