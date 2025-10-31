@@ -182,7 +182,7 @@ const Interventions = () => {
         </h1>
         {user?.role === "commune" && (
           <Link
-            to="/intentions/new"
+            to="/interventions/new"
             className="bg-primary text-white rounded-lg px-6 py-3 font-semibold text-sm hover:bg-primary-light transition-colors shadow-md hover:shadow-lg"
           >
             Poser une nouvelle question

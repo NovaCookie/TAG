@@ -136,8 +136,10 @@ router.get("/communes/list", authMiddleware, async (req, res) => {
       where: { actif: true },
       select: {
         id: true,
+        code_postal: true,
         nom: true,
         population: true,
+        actif: true,
       },
       orderBy: { nom: "asc" },
     });
@@ -303,8 +305,9 @@ router.put("/:id", authMiddleware, requireRole(["admin"]), async (req, res) => {
     // Gestion de la commune selon le rôle
     if (role === "commune") {
       if (!commune_id) {
-        return res.status(400).json({ 
-          error: "Une commune doit être associée aux utilisateurs de type 'commune'" 
+        return res.status(400).json({
+          error:
+            "Une commune doit être associée aux utilisateurs de type 'commune'",
         });
       }
       updateData.commune_id = parseInt(commune_id);
@@ -593,7 +596,9 @@ router.patch(
       });
 
       res.json({
-        message: `Utilisateur ${updatedUser.actif ? "activé" : "désactivé"} avec succès`,
+        message: `Utilisateur ${
+          updatedUser.actif ? "activé" : "désactivé"
+        } avec succès`,
         user: {
           id: updatedUser.id,
           actif: updatedUser.actif,
@@ -603,7 +608,9 @@ router.patch(
       console.error("Erreur changement statut utilisateur:", error);
       res
         .status(500)
-        .json({ error: "Erreur lors du changement de statut de l'utilisateur" });
+        .json({
+          error: "Erreur lors du changement de statut de l'utilisateur",
+        });
     }
   }
 );

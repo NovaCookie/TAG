@@ -282,9 +282,9 @@ router.delete(
   }
 );
 
-// PUT /api/interventions/:id/reponse - Répondre à une intervention (juristes seulement)
+// PUT /api/interventions/:id/response - Répondre à une intervention (juristes seulement)
 router.put(
-  "/:id/reponse",
+  "/:id/response",
   authMiddleware,
   requireRole(["juriste", "admin"]),
   async (req, res) => {

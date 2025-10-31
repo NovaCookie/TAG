@@ -4,44 +4,39 @@ const { authMiddleware, requireRole } = require("../middleware/auth");
 const prisma = new PrismaClient();
 const router = express.Router();
 
-// GET /api/communes - Liste des communes (tous les utilisateurs)
+// GET /api/communes - Liste des communes avec recherche par code postal
 router.get("/", authMiddleware, async (req, res) => {
   try {
     const {
       search,
+      code_postal,
       utilisateurs,
       interventions,
       page = 1,
       limit = 10,
     } = req.query;
+
     let where = {};
-    // Filtre recherche par nom
+
+    // Filtre recherche par nom OU code postal
     if (search && search.trim() !== "") {
-      where.nom = { contains: search, mode: "insensitive" };
+      where.OR = [
+        { nom: { contains: search, mode: "insensitive" } },
+        { code_postal: { contains: search, mode: "insensitive" } },
+        { population: { equals: parseInt(search) || undefined } },
+      ].filter(Boolean);
     }
 
-    // Filtre par nombre d'utilisateurs
-    if (utilisateurs && utilisateurs !== "all") {
-      // On va devoir faire un filtre après récupération car les counts sont dans _count
-      // On garde cette information pour filtrer après
-      where._utilisateursFilter = utilisateurs;
-    }
-
-    // Filtre par nombre d'interventions
-    if (interventions && interventions !== "all") {
-      // On va devoir faire un filtre après récupération car les counts sont dans _count
-      // On garde cette information pour filtrer après
-      where._interventionsFilter = interventions;
+    // Filtre spécifique par code postal
+    if (code_postal && code_postal.trim() !== "") {
+      where.code_postal = { contains: code_postal, mode: "insensitive" };
     }
 
     // Récupérer toutes les communes d'abord
     const communes = await prisma.communes.findMany({
       where: {
-        // On garde le filtre de recherche ici
-        ...(search &&
-          search.trim() !== "" && {
-            nom: { contains: search, mode: "insensitive" },
-          }),
+        // On applique les filtres de recherche
+        ...where,
       },
       include: {
         _count: {
@@ -105,6 +100,7 @@ router.get("/", authMiddleware, async (req, res) => {
     const communesFormatees = communesPaginees.map((commune) => ({
       id: commune.id,
       nom: commune.nom,
+      code_postal: commune.code_postal,
       population: commune.population,
       actif: commune.actif,
       date_creation: commune.date_creation,
@@ -128,6 +124,26 @@ router.get("/", authMiddleware, async (req, res) => {
     res
       .status(500)
       .json({ error: "Erreur lors de la récupération des communes" });
+  }
+});
+
+router.get("/users/communes/list", authMiddleware, async (req, res) => {
+  try {
+    const communes = await prisma.communes.findMany({
+      select: {
+        id: true,
+        nom: true,
+        code_postal: true,
+        population: true,
+        actif: true,
+      },
+      orderBy: { nom: "asc" },
+    });
+
+    res.json(communes);
+  } catch (error) {
+    console.error("Erreur liste communes users:", error);
+    res.status(500).json({ error: "Erreur lors de la récupération des communes" });
   }
 });
 
@@ -181,7 +197,7 @@ router.get("/:id", authMiddleware, async (req, res) => {
 // POST /api/communes - Créer une commune (Admin seulement)
 router.post("/", authMiddleware, requireRole(["admin"]), async (req, res) => {
   try {
-    const { nom, population } = req.body;
+    const { nom, population, code_postal } = req.body;
 
     if (!nom || !population) {
       return res
@@ -191,7 +207,12 @@ router.post("/", authMiddleware, requireRole(["admin"]), async (req, res) => {
 
     // Vérifier si la commune existe déjà
     const communeExistante = await prisma.communes.findFirst({
-      where: { nom: { equals: nom, mode: "insensitive" } },
+      where: {
+        OR: [
+          { nom: { equals: nom, mode: "insensitive" } },
+          { code_postal: code_postal ? { equals: code_postal } : undefined },
+        ].filter(Boolean),
+      },
     });
 
     if (communeExistante) {
@@ -201,6 +222,7 @@ router.post("/", authMiddleware, requireRole(["admin"]), async (req, res) => {
     const commune = await prisma.communes.create({
       data: {
         nom,
+        code_postal: code_postal || null,
         population: parseInt(population),
         actif: true,
       },
@@ -219,12 +241,14 @@ router.post("/", authMiddleware, requireRole(["admin"]), async (req, res) => {
 // PUT /api/communes/:id - Modifier une commune (Admin seulement)
 router.put("/:id", authMiddleware, requireRole(["admin"]), async (req, res) => {
   try {
-    const { nom, actif } = req.body;
+    const { nom, population, code_postal, actif } = req.body;
 
     const commune = await prisma.communes.update({
       where: { id: parseInt(req.params.id) },
       data: {
         nom,
+        population: population ? parseInt(population) : undefined,
+        code_postal: code_postal || null,
         actif,
       },
     });

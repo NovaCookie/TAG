@@ -106,66 +106,70 @@ const Users = () => {
   }, [messageSucces]);
 
   const LigneUtilisateur = ({ utilisateur }) => (
-    <div className="flex justify-between items-center py-5 border-b border-light-gray last:border-b-0 hover:bg-light/50 transition-colors">
-      <div className="flex items-center gap-4 flex-1">
-        <UserAvatar
-          name={`${utilisateur.prenom} ${utilisateur.nom}`}
-          avatar={utilisateur.avatar}
-          size="md"
-        />
-        <div className="min-w-0 flex-1">
-          <div className="font-medium text-secondary truncate flex items-center gap-2">
-            {utilisateur.prenom} {utilisateur.nom}
-            {!utilisateur.actif && (
-              <span className="text-danger text-xs bg-danger/10 px-2 py-1 rounded-full">
-                Archivé
-              </span>
+    <div className="flex items-center justify-between py-4 px-4 border-b border-light-gray last:border-b-0 hover:bg-light/30 transition-colors">
+      {/* Informations principales sur une seule ligne */}
+      <div className="flex items-center gap-6 flex-1">
+        {/* Avatar + Nom + Email */}
+        <div className="flex items-center gap-3 min-w-80">
+          <UserAvatar
+            name={`${utilisateur.prenom} ${utilisateur.nom}`}
+            size="md"
+          />
+          <div className="min-w-0">
+            <div className="font-semibold text-secondary text-lg truncate">
+              {utilisateur.prenom} {utilisateur.nom}
+            </div>
+            <div className="text-sm text-secondary-light truncate">
+              {utilisateur.email}
+            </div>
+            {utilisateur.commune && (
+              <div className="text-xs text-primary-light truncate">
+                {utilisateur.commune.nom}
+              </div>
             )}
           </div>
-          <div className="text-sm text-secondary-light truncate">
-            {utilisateur.email}
-          </div>
-          {utilisateur.commune && (
-            <div className="text-xs text-primary-light truncate">
-              {utilisateur.commune.nom}
-            </div>
-          )}
+        </div>
+
+        {/* Rôle */}
+        <div className="flex items-center gap-2 min-w-32">
+          <span className="w-3 h-3 rounded-full bg-purple-500"></span>
+          <StatusBadge
+            status={utilisateur.role}
+            className={getRoleColor(utilisateur.role)}
+          />
+        </div>
+
+        {/* Statut */}
+        <div className="flex items-center gap-2 min-w-32">
+          <span className="w-3 h-3 rounded-full bg-green-500"></span>
+          <StatusBadge status={utilisateur.actif ? "active" : "inactive"} />
         </div>
       </div>
 
-      <div className="flex items-center gap-4 mr-4">
-        <StatusBadge
-          status={utilisateur.role}
-          className={getRoleColor(utilisateur.role)}
-        />
-        <StatusBadge status={utilisateur.actif ? "active" : "inactive"} />
-      </div>
-
-      <div className="flex gap-2">
-        <button
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            handleToggleStatus(utilisateur.id);
-          }}
-          className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
-            utilisateur.actif
-              ? "bg-warning/10 text-warning hover:bg-warning hover:text-white"
-              : "bg-success/10 text-success hover:bg-success hover:text-white"
-          }`}
-          title={utilisateur.actif ? "Archiver" : "Activer"}
-        >
-          {utilisateur.actif ? "⏸️" : "▶️"}
-        </button>
-
-        {/* BOUTON MODIFICATION */}
-        <Link
-          to={`/users/edit/${utilisateur.id}`}
-          className="w-8 h-8 rounded-full bg-light text-primary flex items-center justify-center hover:bg-primary-light hover:text-white transition-colors"
-          title="Modifier l'utilisateur"
-        >
-          ✏️
-        </Link>
+      {/* Actions */}
+      <div className="flex items-center gap-4">
+        {user?.role === "admin" && (
+          <div className="flex gap-2">
+            <button
+              onClick={() => handleToggleStatus(utilisateur.id)}
+              className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+                utilisateur.actif
+                  ? "bg-warning/10 text-warning hover:bg-warning hover:text-white"
+                  : "bg-success/10 text-success hover:bg-success hover:text-white"
+              }`}
+              title={utilisateur.actif ? "Archiver" : "Activer"}
+            >
+              {utilisateur.actif ? "⏸️" : "▶️"}
+            </button>
+            <Link
+              to={`/users/edit/${utilisateur.id}`}
+              className="w-8 h-8 rounded-full bg-light text-primary flex items-center justify-center hover:bg-primary-light hover:text-white transition-colors"
+              title="Modifier l'utilisateur"
+            >
+              ✏️
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );

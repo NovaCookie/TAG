@@ -3,7 +3,6 @@ import { useAuth } from "../context/AuthContext";
 import Layout from "./layout/Layout";
 import StatusBadge from "./common/StatusBadge";
 import Pagination from "./common/Pagination";
-import SearchFilter from "./common/SearchFilter";
 import { communesAPI } from "../services/api";
 
 const Communes = () => {
@@ -68,7 +67,7 @@ const Communes = () => {
 
   const basculerStatutCommune = async (communeId) => {
     try {
-      const reponse = await communesAPI.basculerStatut(communeId);
+      const reponse = await communesAPI.toggleStatus(communeId);
 
       setCommunes((prev) =>
         prev.map((commune) =>
@@ -84,66 +83,62 @@ const Communes = () => {
     }
   };
 
-  const obtenirPlageUtilisateurs = (nbUtilisateurs) => {
-    if (nbUtilisateurs === 0) return "0";
-    if (nbUtilisateurs <= 10) return "1-10";
-    if (nbUtilisateurs <= 100) return "11-100";
-    return "101+";
-  };
-
-  const obtenirPlageInterventions = (nbInterventions) => {
-    if (nbInterventions === 0) return "0";
-    if (nbInterventions <= 10) return "1-10";
-    if (nbInterventions <= 50) return "11-50";
-    if (nbInterventions <= 100) return "51-100";
-    return "100+";
-  };
-
   const LigneCommune = ({ commune }) => (
-    <div className="flex justify-between items-center py-5 border-b border-light-gray last:border-b-0 hover:bg-light/50 transition-colors">
-      <div className="flex items-center gap-4 flex-1">
-        <div className="w-10 h-10 rounded-full bg-primary-light text-white flex items-center justify-center font-semibold">
-          {commune.nom.substring(0, 2).toUpperCase()}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="font-medium text-secondary truncate">
+    <div className="flex items-center justify-between py-4 px-4 border-b border-light-gray last:border-b-0 hover:bg-light/30 transition-colors">
+      {/* Informations principales sur une seule ligne */}
+      <div className="flex items-center gap-6 flex-1">
+        {/* Code postal + Nom */}
+        <div className="flex items-center gap-3 min-w-60">
+          {commune.code_postal && (
+            <span className="bg-primary text-white px-3 py-1 rounded text-sm font-semibold">
+              {commune.code_postal}
+            </span>
+          )}
+          <span className="font-semibold text-secondary text-lg">
             {commune.nom}
-          </div>
-          <div className="text-xs text-tertiary flex gap-4">
-            <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-primary"></span>
-              {commune.stats.nb_utilisateurs} utilisateur
-              {commune.stats.nb_utilisateurs !== 1 ? "s" : ""}
-              <span className="text-primary-light ml-1">
-                ({obtenirPlageUtilisateurs(commune.stats.nb_utilisateurs)})
-              </span>
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-warning"></span>
-              {commune.stats.nb_interventions} intervention
-              {commune.stats.nb_interventions !== 1 ? "s" : ""}
-              <span className="text-warning ml-1">
-                ({obtenirPlageInterventions(commune.stats.nb_interventions)})
-              </span>
-            </span>
-          </div>
+          </span>
+        </div>
+
+        {/* Population */}
+        <div className="flex items-center gap-2 min-w-32">
+          <span className="w-3 h-3 rounded-full bg-blue-500"></span>
+          <span className="font-medium text-blue-700">
+            {commune.population?.toLocaleString() || 0} hab.
+          </span>
+        </div>
+
+        {/* Utilisateurs */}
+        <div className="flex items-center gap-2 min-w-40">
+          <span className="w-3 h-3 rounded-full bg-green-500"></span>
+          <span className="font-medium text-green-700">
+            {commune.stats.nb_utilisateurs} utilisateur
+            {commune.stats.nb_utilisateurs !== 1 ? "s" : ""}
+          </span>
+        </div>
+
+        {/* Interventions */}
+        <div className="flex items-center gap-2 min-w-40">
+          <span className="w-3 h-3 rounded-full bg-orange-500"></span>
+          <span className="font-medium text-orange-700">
+            {commune.stats.nb_interventions} intervention
+            {commune.stats.nb_interventions !== 1 ? "s" : ""}
+          </span>
         </div>
       </div>
 
-      <div className="flex items-center gap-4 mr-4">
+      {/* Statut et actions */}
+      <div className="flex items-center gap-4">
         <StatusBadge
           status={commune.actif ? "active" : "inactive"}
           className={
             commune.actif
-              ? "bg-success/10 text-success"
-              : "bg-danger/10 text-danger"
+              ? "bg-success/10 text-success border border-success/20"
+              : "bg-danger/10 text-danger border border-danger/20"
           }
         />
-      </div>
 
-      <div className="flex gap-2">
         {user?.role === "admin" && (
-          <>
+          <div className="flex gap-2">
             <button
               onClick={() => basculerStatutCommune(commune.id)}
               className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
@@ -161,7 +156,7 @@ const Communes = () => {
             >
               ✏️
             </button>
-          </>
+          </div>
         )}
       </div>
     </div>
@@ -194,13 +189,12 @@ const Communes = () => {
             placeholder="Rechercher une commune..."
             value={filtres.search}
             onChange={(e) => gererChangementFiltre("search", e.target.value)}
-            className="w-full px-4 py-3 border border-light-gray rounded-lg focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10"
+            className="w-full px-4 py-3 border border-light-gray rounded-lg focus:outline-none focus:border-primary"
           />
         </div>
 
         {/* Filtres utilisateurs et interventions */}
         <div className="flex gap-4">
-          {/* Filtre utilisateurs */}
           <select
             value={filtres.utilisateurs}
             onChange={(e) =>
@@ -215,7 +209,6 @@ const Communes = () => {
             <option value="101+">Plus de 100 utilisateurs</option>
           </select>
 
-          {/* Filtre interventions */}
           <select
             value={filtres.interventions}
             onChange={(e) =>

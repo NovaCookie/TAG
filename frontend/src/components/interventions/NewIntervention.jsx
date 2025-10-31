@@ -4,7 +4,7 @@ import { useAuth } from "../../context/AuthContext";
 import Layout from "../layout/Layout";
 import { interventionsAPI, themesAPI } from "../../services/api";
 
-const NouvelleIntervention = () => {
+const NewIntervention = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [themes, setThemes] = useState([]);
@@ -337,4 +337,4 @@ const NouvelleIntervention = () => {
   );
 };
 
-export default NouvelleIntervention;
+export default NewIntervention;

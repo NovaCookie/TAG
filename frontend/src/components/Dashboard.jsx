@@ -182,8 +182,8 @@ const TableauDeBord = () => {
   const obtenirTitreCarte = (index) => {
     const titres = {
       commune: ["Mes questions", "En attente", "Répondues"],
-      juriste: ["Questions à traiter", "En attente", "Répondues"],
-      admin: ["Total questions", "En attente", "Répondues"],
+      juriste: ["Total", "En attente", "Répondues"],
+      admin: ["Total", "En attente", "Répondues"],
     };
     return (
       titres[user?.role]?.[index] || ["Total", "En attente", "Répondues"][index]
@@ -193,8 +193,8 @@ const TableauDeBord = () => {
   const obtenirSousTitreCarte = (index) => {
     const sousTitres = {
       commune: ["Total posées", "Réponse attendue", "Questions traitées"],
-      juriste: ["À traiter", "Réponses à fournir", "Questions traitées"],
-      admin: ["Toutes communes", "Sans réponse", "Avec réponse"],
+      juriste: ["Intervention", "Réponses à fournir", "Sans note"],
+      admin: ["Interventions", "Sans réponse", "Sans note"],
     };
     return (
       sousTitres[user?.role]?.[index] ||

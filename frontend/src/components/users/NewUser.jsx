@@ -1,15 +1,19 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
+import { useNavigate, Link } from "react-router-dom";
 import Layout from "../layout/Layout";
 import { usersAPI } from "../../services/api";
-import { Link } from "react-router-dom";
+import SelectFieldRole from "../common/dropdown/SelectFieldRole";
+import SelectFieldCommune from "../common/dropdown/SelectFieldCommune";
 
-const NouvelUtilisateur = () => {
+const NewUser = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [chargement, setChargement] = useState(false);
   const [erreur, setErreur] = useState("");
   const [messageSucces, setMessageSucces] = useState("");
   const [communes, setCommunes] = useState([]);
+  const [formSubmitted, setFormSubmitted] = useState(false);
 
   const [formData, setFormData] = useState({
     nom: "",
@@ -22,7 +26,7 @@ const NouvelUtilisateur = () => {
     envoyer_email_bienvenue: true,
   });
 
-  // Charger la liste des communes
+  // Charger les communes
   useEffect(() => {
     const chargerCommunes = async () => {
       try {
@@ -32,7 +36,6 @@ const NouvelUtilisateur = () => {
         console.error("Erreur chargement communes:", error);
       }
     };
-
     chargerCommunes();
   }, []);
 
@@ -42,6 +45,10 @@ const NouvelUtilisateur = () => {
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
+
+    if (name === "role" && value !== "commune") {
+      setFormData((prev) => ({ ...prev, commune_id: "" }));
+    }
   };
 
   const genererMotDePasse = () => {
@@ -53,7 +60,6 @@ const NouvelUtilisateur = () => {
         Math.floor(Math.random() * caracteres.length)
       );
     }
-
     setFormData((prev) => ({
       ...prev,
       mot_de_passe: motDePasse,
@@ -66,8 +72,8 @@ const NouvelUtilisateur = () => {
     setChargement(true);
     setErreur("");
     setMessageSucces("");
+    setFormSubmitted(true);
 
-    // Validation
     if (formData.mot_de_passe !== formData.confirmer_mot_de_passe) {
       setErreur("Les mots de passe ne correspondent pas");
       setChargement(false);
@@ -80,13 +86,18 @@ const NouvelUtilisateur = () => {
       return;
     }
 
+    if (!formData.commune_id) {
+      setErreur("Veuillez sélectionner une commune");
+      setChargement(false);
+      return;
+    }
+
     const donneesUtilisateur = {
       nom: formData.nom.trim(),
       prenom: formData.prenom.trim(),
       email: formData.email.trim(),
       role: formData.role,
-      commune_id:
-        formData.role === "commune" ? parseInt(formData.commune_id) : null,
+      commune_id: parseInt(formData.commune_id),
       mot_de_passe: formData.mot_de_passe,
       envoyer_email_bienvenue: formData.envoyer_email_bienvenue,
     };
@@ -95,10 +106,7 @@ const NouvelUtilisateur = () => {
       const response = await usersAPI.create(donneesUtilisateur);
       setMessageSucces(response.data.message || "Utilisateur créé avec succès");
 
-      // ✅ Redirection automatique après succès (garde navigate ici)
-      setTimeout(() => {
-        window.location.href = "/users"; // on remplace navigate par window.location.href
-      }, 2000);
+      setTimeout(() => navigate("/users"), 2000);
     } catch (error) {
       setErreur(
         error.response?.data?.error ||
@@ -122,6 +130,7 @@ const NouvelUtilisateur = () => {
     });
     setErreur("");
     setMessageSucces("");
+    setFormSubmitted(false);
   };
 
   if (user?.role !== "admin") {
@@ -142,27 +151,24 @@ const NouvelUtilisateur = () => {
   return (
     <Layout activePage="users">
       <div className="max-w-4xl mx-auto">
-        {/* En-tête */}
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-2xl font-semibold text-primary mb-2">
-              Nouvel Utilisateur
+              Nouvel utilisateur
             </h1>
             <p className="text-secondary-light">
               Créer un nouveau compte utilisateur sur la plateforme
             </p>
           </div>
 
-          {/* ✅ Bouton retour avec Link */}
           <Link
             to="/users"
-            className="px-4 py-2 border border-light-gray text-secondary rounded-lg hover:bg-light-gray transition-colors"
+            className="text-primary hover:text-primary-light mb-4 inline-block"
           >
-            ← Retour
+            ← Retour aux utilisateurs
           </Link>
         </div>
 
-        {/* Messages */}
         {messageSucces && (
           <div className="bg-success/10 border border-success/20 text-success p-4 rounded-lg mb-6">
             {messageSucces}
@@ -175,10 +181,9 @@ const NouvelUtilisateur = () => {
           </div>
         )}
 
-        {/* Formulaire */}
         <div className="bg-white rounded-xl shadow-card p-6">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Informations personnelles */}
+            {/* Nom et prénom */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-secondary mb-2">
@@ -191,6 +196,7 @@ const NouvelUtilisateur = () => {
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-light-gray rounded-lg focus:outline-none focus:border-primary"
                   required
+                  placeholder="Entrez le prénom"
                 />
               </div>
 
@@ -205,6 +211,7 @@ const NouvelUtilisateur = () => {
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-light-gray rounded-lg focus:outline-none focus:border-primary"
                   required
+                  placeholder="Entrez le nom"
                 />
               </div>
             </div>
@@ -227,45 +234,22 @@ const NouvelUtilisateur = () => {
 
             {/* Rôle et Commune */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-secondary mb-2">
-                  Rôle *
-                </label>
-                <select
-                  name="role"
-                  value={formData.role}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-light-gray rounded-lg focus:outline-none focus:border-primary"
-                  required
-                >
-                  <option value="commune">Commune</option>
-                  <option value="juriste">Juriste</option>
-                  <option value="admin">Administrateur</option>
-                </select>
-              </div>
+              <SelectFieldRole
+                value={formData.role}
+                onChange={handleChange}
+                error={formData.role ? "" : "Le rôle est requis"}
+              />
 
-              <div>
-                <label className="block text-sm font-medium text-secondary mb-2">
-                  {formData.role === "commune"
-                    ? "Commune *"
-                    : "Commune (optionnel)"}
-                </label>
-                <select
-                  name="commune_id"
-                  value={formData.commune_id}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-light-gray rounded-lg focus:outline-none focus:border-primary"
-                  required={formData.role === "commune"}
-                >
-                  <option value="">Sélectionnez une commune</option>
-                  {communes.map((commune) => (
-                    <option key={commune.id} value={commune.id}>
-                      {commune.nom}{" "}
-                      {commune.population && `(${commune.population} hab.)`}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <SelectFieldCommune
+                value={formData.commune_id}
+                onChange={handleChange}
+                communes={communes}
+                error={
+                  formSubmitted && !formData.commune_id
+                    ? "La commune est obligatoire"
+                    : ""
+                }
+              />
             </div>
 
             {/* Mot de passe */}
@@ -317,7 +301,7 @@ const NouvelUtilisateur = () => {
               </div>
             </div>
 
-            {/* Options */}
+            {/* Email bienvenue */}
             <div className="border-t border-light-gray pt-6">
               <div className="flex items-center">
                 <input
@@ -338,7 +322,7 @@ const NouvelUtilisateur = () => {
               </div>
             </div>
 
-            {/* Actions */}
+            {/* Boutons */}
             <div className="flex justify-between items-center pt-4">
               <button
                 type="button"
@@ -365,25 +349,9 @@ const NouvelUtilisateur = () => {
             </div>
           </form>
         </div>
-
-        {/* Informations */}
-        <div className="mt-6 bg-light rounded-xl p-6">
-          <h3 className="text-lg font-semibold text-primary mb-3">
-            Informations importantes
-          </h3>
-          <ul className="text-sm text-secondary-light space-y-2">
-            <li>• Tous les champs marqués d'un * sont obligatoires</li>
-            <li>• Le mot de passe doit contenir au minimum 6 caractères</li>
-            <li>• Un email de bienvenue sera envoyé si l'option est cochée</li>
-            <li>
-              • L'utilisateur pourra modifier son mot de passe après la première
-              connexion
-            </li>
-          </ul>
-        </div>
       </div>
     </Layout>
   );
 };
 
-export default NouvelUtilisateur;
+export default NewUser;

@@ -5,7 +5,7 @@ import Layout from "../layout/Layout";
 import { formatDate } from "../../utils/helpers";
 import { interventionsAPI } from "../../services/api";
 
-const RepondreIntervention = () => {
+const ReplyIntervention = () => {
   const { id } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -402,4 +402,4 @@ const RepondreIntervention = () => {
   );
 };
 
-export default RepondreIntervention;
+export default ReplyIntervention;

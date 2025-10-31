@@ -416,7 +416,7 @@ const InterventionDetail = () => {
             </p>
           </div>
           <Link
-            to="/interventions"
+            to="/users"
             className="inline-block bg-primary text-white rounded-lg px-6 py-3 font-semibold text-sm hover:bg-primary-light transition-colors"
           >
             ← Retour aux interventions
@@ -447,7 +447,7 @@ const InterventionDetail = () => {
 
           {canReply() && (
             <Link
-              to={`/interventions/${intervention.id}/repondre`}
+              to={`/interventions/${intervention.id}/reply`}
               className="bg-primary text-white rounded-lg px-6 py-3 font-semibold text-sm hover:bg-primary-light transition-colors"
             >
               Répondre

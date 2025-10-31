@@ -2,7 +2,9 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import Layout from "../layout/Layout";
-import { usersAPI, communesAPI } from "../../services/api";
+import { usersAPI } from "../../services/api";
+import SelectFieldRole from "../common/dropdown/SelectFieldRole";
+import SelectFieldCommune from "../common/dropdown/SelectFieldCommune";
 
 const EditUser = () => {
   const { id } = useParams();
@@ -19,42 +21,42 @@ const EditUser = () => {
     email: "",
     role: "",
     commune_id: "",
+    mot_de_passe: "",
+    confirmer_mot_de_passe: "",
     actif: true,
   });
   const [errors, setErrors] = useState({});
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    if (id) {
-      loadData();
-    }
+    if (id) loadData();
   }, [id]);
 
   const loadData = async () => {
     try {
       setLoading(true);
-
       const [userResponse, communesResponse] = await Promise.all([
         usersAPI.getById(id),
-        communesAPI.getAll()
+        usersAPI.getCommunesList(),
       ]);
 
       const userData = userResponse.data;
       setUserData(userData);
-      
+
       setFormData({
         nom: userData.nom || "",
         prenom: userData.prenom || "",
         email: userData.email || "",
         role: userData.role || "",
         commune_id: userData.commune?.id || "",
+        mot_de_passe: "",
+        confirmer_mot_de_passe: "",
         actif: userData.actif !== undefined ? userData.actif : true,
       });
 
-      // CORRECTION ICI : S'assurer que communes est un tableau
-      const communesData = communesResponse.data;
-      setCommunes(Array.isArray(communesData) ? communesData : []);
-      
+      setCommunes(
+        Array.isArray(communesResponse.data) ? communesResponse.data : []
+      );
     } catch (error) {
       console.error("Erreur chargement données:", error);
       setMessage("Erreur lors du chargement des données");
@@ -65,16 +67,15 @@ const EditUser = () => {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: type === "checkbox" ? checked : value,
     }));
 
     if (errors[name]) {
-      setErrors(prev => ({
+      setErrors((prev) => ({
         ...prev,
-        [name]: ""
+        [name]: "",
       }));
     }
   };
@@ -82,38 +83,52 @@ const EditUser = () => {
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.nom.trim()) {
-      newErrors.nom = "Le nom est obligatoire";
-    }
-
-    if (!formData.prenom.trim()) {
-      newErrors.prenom = "Le prénom est obligatoire";
-    }
-
-    if (!formData.email.trim()) {
-      newErrors.email = "L'email est obligatoire";
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+    if (!formData.nom.trim()) newErrors.nom = "Le nom est obligatoire";
+    if (!formData.prenom.trim()) newErrors.prenom = "Le prénom est obligatoire";
+    if (!formData.email.trim()) newErrors.email = "L'email est obligatoire";
+    else if (!/\S+@\S+\.\S+/.test(formData.email))
       newErrors.email = "L'email n'est pas valide";
-    }
 
-    if (!formData.role) {
-      newErrors.role = "Le rôle est obligatoire";
-    }
+    if (!formData.role) newErrors.role = "Le rôle est obligatoire";
+    if (!formData.commune_id)
+      newErrors.commune_id = "La commune est obligatoire";
 
-    if (formData.role === "commune" && !formData.commune_id) {
-      newErrors.commune_id = "La commune est obligatoire pour ce rôle";
+    // Validation du mot de passe (seulement si rempli)
+    if (formData.mot_de_passe || formData.confirmer_mot_de_passe) {
+      if (formData.mot_de_passe.length < 6) {
+        newErrors.mot_de_passe =
+          "Le mot de passe doit contenir au moins 6 caractères";
+      }
+      if (formData.mot_de_passe !== formData.confirmer_mot_de_passe) {
+        newErrors.confirmer_mot_de_passe =
+          "Les mots de passe ne correspondent pas";
+      }
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
+  const genererMotDePasse = () => {
+    const caracteres =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%";
+    let motDePasse = "";
+    for (let i = 0; i < 12; i++) {
+      motDePasse += caracteres.charAt(
+        Math.floor(Math.random() * caracteres.length)
+      );
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      mot_de_passe: motDePasse,
+      confirmer_mot_de_passe: motDePasse,
+    }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     setSaving(true);
     setMessage("");
@@ -125,32 +140,31 @@ const EditUser = () => {
         email: formData.email,
         role: formData.role,
         actif: formData.actif,
+        commune_id: parseInt(formData.commune_id),
       };
 
-      if (formData.role === "commune") {
-        updateData.commune_id = parseInt(formData.commune_id);
-      } else {
-        updateData.commune_id = null;
+      // Ajouter le mot de passe seulement s'il est modifié
+      if (formData.mot_de_passe) {
+        updateData.nouveauMotDePasse = formData.mot_de_passe;
+        updateData.envoyerEmail = false;
       }
 
       await usersAPI.update(id, updateData);
 
       setMessage("Utilisateur modifié avec succès");
-      
       setTimeout(() => {
         navigate("/users", {
           state: {
             message: "Utilisateur modifié avec succès",
-            type: "success"
-          }
+            type: "success",
+          },
         });
       }, 1500);
-
     } catch (error) {
       console.error("Erreur modification utilisateur:", error);
       setMessage(
-        error.response?.data?.error || 
-        "Erreur lors de la modification de l'utilisateur"
+        error.response?.data?.error ||
+          "Erreur lors de la modification de l'utilisateur"
       );
     } finally {
       setSaving(false);
@@ -175,11 +189,9 @@ const EditUser = () => {
   if (loading) {
     return (
       <Layout activePage="users">
-        <div className="card card-rounded p-6">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-tertiary">Chargement des données...</p>
-          </div>
+        <div className="card card-rounded p-6 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-tertiary">Chargement des données...</p>
         </div>
       </Layout>
     );
@@ -205,28 +217,33 @@ const EditUser = () => {
 
   return (
     <Layout activePage="users">
-      <div className="mb-6">
-        <Link
-          to="/users"
-          className="text-primary hover:text-primary-light mb-4 inline-block"
-        >
-          ← Retour aux utilisateurs
-        </Link>
+      <div className="max-w-4xl mx-auto">
+        <div className="flex justify-between mb-8">
+          <div>
+            <h1 className="text-2xl font-semibold text-primary mb-2">
+              Modifier l'utilisateur
+            </h1>
+            <p className="text-secondary-light">
+              Modifiez les informations de {userData.prenom} {userData.nom}
+            </p>
+          </div>
 
-        <h1 className="text-2xl font-semibold text-primary mb-2">
-          Modifier l'utilisateur
-        </h1>
-        <p className="text-secondary">
-          Modifiez les informations de {userData.prenom} {userData.nom}
-        </p>
+          <Link
+            to="/users"
+            className="text-primary hover:text-primary-light mb-4 inline-block"
+          >
+            ← Retour aux utilisateurs
+          </Link>
+        </div>
       </div>
-
       {message && (
-        <div className={`p-4 rounded-lg mb-6 ${
-          message.includes("succès") 
-            ? "bg-success/10 border border-success/20 text-success" 
-            : "bg-danger/10 border border-danger/20 text-danger"
-        }`}>
+        <div
+          className={`p-4 rounded-lg mb-6 ${
+            message.includes("succès")
+              ? "bg-success/10 border border-success/20 text-success"
+              : "bg-danger/10 border border-danger/20 text-danger"
+          }`}
+        >
           {message}
         </div>
       )}
@@ -235,7 +252,10 @@ const EditUser = () => {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label htmlFor="prenom" className="block text-sm font-medium text-secondary mb-2">
+              <label
+                htmlFor="prenom"
+                className="block text-sm font-medium text-secondary mb-2"
+              >
                 Prénom *
               </label>
               <input
@@ -254,7 +274,10 @@ const EditUser = () => {
             </div>
 
             <div>
-              <label htmlFor="nom" className="block text-sm font-medium text-secondary mb-2">
+              <label
+                htmlFor="nom"
+                className="block text-sm font-medium text-secondary mb-2"
+              >
                 Nom *
               </label>
               <input
@@ -274,7 +297,10 @@ const EditUser = () => {
           </div>
 
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-secondary mb-2">
+            <label
+              htmlFor="email"
+              className="block text-sm font-medium text-secondary mb-2"
+            >
               Email *
             </label>
             <input
@@ -292,56 +318,94 @@ const EditUser = () => {
             )}
           </div>
 
+          {/* Rôle et Commune - TOUJOURS REQUIS */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label htmlFor="role" className="block text-sm font-medium text-secondary mb-2">
-                Rôle *
-              </label>
-              <select
-                id="role"
-                name="role"
-                value={formData.role}
-                onChange={handleChange}
-                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light ${
-                  errors.role ? "border-danger" : "border-light"
-                }`}
+            <SelectFieldRole
+              value={formData.role}
+              onChange={handleChange}
+              error={!formData.role ? "Le rôle est requis" : ""}
+            />
+
+            <SelectFieldCommune
+              value={formData.commune_id}
+              onChange={handleChange}
+              communes={communes}
+              error={!formData.commune_id ? "La commune est obligatoire" : ""}
+            />
+          </div>
+
+          {/* SECTION MOT DE PASSE */}
+          <div className="border-t border-light-gray pt-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-primary">
+                Mot de passe
+              </h3>
+              <button
+                type="button"
+                onClick={genererMotDePasse}
+                className="px-3 py-1 bg-light text-primary rounded-lg text-sm hover:bg-primary-light hover:text-white transition-colors"
               >
-                <option value="">Sélectionnez un rôle</option>
-                <option value="admin">Administrateur</option>
-                <option value="juriste">Juriste</option>
-                <option value="commune">Commune</option>
-              </select>
-              {errors.role && (
-                <p className="text-danger text-sm mt-1">{errors.role}</p>
-              )}
+                Générer automatiquement
+              </button>
             </div>
 
-            {formData.role === "commune" && (
+            <div className="text-sm text-secondary-light mb-4">
+              Laissez vide pour ne pas modifier le mot de passe actuel
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label htmlFor="commune_id" className="block text-sm font-medium text-secondary mb-2">
-                  Commune *
+                <label
+                  htmlFor="mot_de_passe"
+                  className="block text-sm font-medium text-secondary mb-2"
+                >
+                  Nouveau mot de passe
                 </label>
-                <select
-                  id="commune_id"
-                  name="commune_id"
-                  value={formData.commune_id}
+                <input
+                  type="password"
+                  id="mot_de_passe"
+                  name="mot_de_passe"
+                  value={formData.mot_de_passe}
                   onChange={handleChange}
                   className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light ${
-                    errors.commune_id ? "border-danger" : "border-light"
+                    errors.mot_de_passe ? "border-danger" : "border-light"
                   }`}
-                >
-                  <option value="">Sélectionnez une commune</option>
-                  {communes.map((commune) => (
-                    <option key={commune.id} value={commune.id}>
-                      {commune.nom}
-                    </option>
-                  ))}
-                </select>
-                {errors.commune_id && (
-                  <p className="text-danger text-sm mt-1">{errors.commune_id}</p>
+                  placeholder="Ecrivez un nouveau mot de passe"
+                />
+                {errors.mot_de_passe && (
+                  <p className="text-danger text-sm mt-1">
+                    {errors.mot_de_passe}
+                  </p>
                 )}
               </div>
-            )}
+
+              <div>
+                <label
+                  htmlFor="confirmer_mot_de_passe"
+                  className="block text-sm font-medium text-secondary mb-2"
+                >
+                  Confirmation
+                </label>
+                <input
+                  type="password"
+                  id="confirmer_mot_de_passe"
+                  name="confirmer_mot_de_passe"
+                  value={formData.confirmer_mot_de_passe}
+                  onChange={handleChange}
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light ${
+                    errors.confirmer_mot_de_passe
+                      ? "border-danger"
+                      : "border-light"
+                  }`}
+                  placeholder="Confirmez le nouveau mot de passe"
+                />
+                {errors.confirmer_mot_de_passe && (
+                  <p className="text-danger text-sm mt-1">
+                    {errors.confirmer_mot_de_passe}
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center p-4 bg-light rounded-lg">
@@ -353,7 +417,10 @@ const EditUser = () => {
               onChange={handleChange}
               className="w-4 h-4 text-primary bg-white border-light rounded focus:ring-primary-light focus:ring-2"
             />
-            <label htmlFor="actif" className="ml-3 text-sm font-medium text-secondary cursor-pointer">
+            <label
+              htmlFor="actif"
+              className="ml-3 text-sm font-medium text-secondary cursor-pointer"
+            >
               Utilisateur actif
             </label>
           </div>
@@ -370,14 +437,7 @@ const EditUser = () => {
               disabled={saving}
               className="flex-1 bg-primary text-white rounded-lg font-semibold hover:bg-primary-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed py-3"
             >
-              {saving ? (
-                <div className="flex items-center justify-center gap-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  Enregistrement...
-                </div>
-              ) : (
-                "Enregistrer les modifications"
-              )}
+              {saving ? "Enregistrement..." : "Enregistrer les modifications"}
             </button>
           </div>
         </form>

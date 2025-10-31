@@ -11,6 +11,7 @@ datasource db {
 model Communes {
   id            Int      @id @default(autoincrement())
   nom           String
+  code_postal   String?
   population    Int
   actif         Boolean  @default(true)
   date_creation DateTime @default(now())
@@ -45,7 +46,7 @@ model Utilisateurs {
   email_confirmation_token    String?
   email_confirmation_expiry   DateTime?
 
-  commune_id    Int?
+  commune_id    Int
   commune       Communes? @relation(fields: [commune_id], references: [id], onDelete: SetNull)
   
   interventions_demandees Interventions[] @relation("InterventionDemandeur")
