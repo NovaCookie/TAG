@@ -3,12 +3,17 @@ import { useAuth } from "../context/AuthContext";
 import Layout from "./layout/Layout";
 import StatusBadge from "./common/StatusBadge";
 import Pagination from "./common/Pagination";
+import DataTable from "./common/data/DataTable";
+import AlertMessage from "./common/feedback/AlertMessage";
 import { communesAPI } from "../services/api";
+import SelectField from "./common/dropdown/SelectField";
 
 const Communes = () => {
   const { user } = useAuth();
   const [communes, setCommunes] = useState([]);
   const [chargement, setChargement] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
   const [filtres, setFiltres] = useState({
     search: "",
     utilisateurs: "all",
@@ -20,6 +25,24 @@ const Communes = () => {
     total: 0,
   });
 
+  // Options pour les filtres
+  const utilisateursOptions = [
+    { value: "all", label: "Tous les utilisateurs" },
+    { value: "0", label: "Aucun utilisateur" },
+    { value: "1-10", label: "1-10 utilisateurs" },
+    { value: "11-100", label: "11-100 utilisateurs" },
+    { value: "101+", label: "Plus de 100 utilisateurs" },
+  ];
+
+  const interventionsOptions = [
+    { value: "all", label: "Toutes les interventions" },
+    { value: "0", label: "Aucune intervention" },
+    { value: "1-10", label: "1-10 interventions" },
+    { value: "11-50", label: "11-50 interventions" },
+    { value: "51-100", label: "51-100 interventions" },
+    { value: "100+", label: "Plus de 100 interventions" },
+  ];
+
   useEffect(() => {
     chargerCommunes();
   }, [pagination.page, filtres]);
@@ -27,6 +50,7 @@ const Communes = () => {
   const chargerCommunes = async () => {
     try {
       setChargement(true);
+      setErrorMessage("");
 
       const reponse = await communesAPI.getAll({
         page: pagination.page,
@@ -52,6 +76,7 @@ const Communes = () => {
       }
     } catch (erreur) {
       console.error("Erreur chargement communes:", erreur);
+      setErrorMessage("Erreur lors du chargement des communes");
     } finally {
       setChargement(false);
     }
@@ -77,9 +102,10 @@ const Communes = () => {
         )
       );
 
-      console.log(reponse.data.message);
+      setSuccessMessage("Statut de la commune modifié avec succès");
     } catch (erreur) {
       console.error("Erreur changement statut commune:", erreur);
+      setErrorMessage("Erreur lors de la modification du statut");
     }
   };
 
@@ -164,6 +190,20 @@ const Communes = () => {
 
   return (
     <Layout activePage="communes">
+      {/* Messages d'alerte */}
+      <AlertMessage
+        type="success"
+        message={successMessage}
+        onClose={() => setSuccessMessage("")}
+        autoClose
+      />
+      
+      <AlertMessage
+        type="error"
+        message={errorMessage}
+        onClose={() => setErrorMessage("")}
+      />
+
       {/* En-tête de page */}
       <div className="flex justify-between items-center mb-8">
         <div>
@@ -193,36 +233,27 @@ const Communes = () => {
           />
         </div>
 
-        {/* Filtres utilisateurs et interventions */}
+        {/* Filtres utilisateurs et interventions avec SelectField */}
         <div className="flex gap-4">
-          <select
+          <SelectField
             value={filtres.utilisateurs}
             onChange={(e) =>
               gererChangementFiltre("utilisateurs", e.target.value)
             }
-            className="px-4 py-3 border border-light-gray rounded-lg bg-white focus:outline-none focus:border-primary min-w-40"
-          >
-            <option value="all">Tous les utilisateurs</option>
-            <option value="0">Aucun utilisateur</option>
-            <option value="1-10">1-10 utilisateurs</option>
-            <option value="11-100">11-100 utilisateurs</option>
-            <option value="101+">Plus de 100 utilisateurs</option>
-          </select>
+            options={utilisateursOptions}
+            placeholder="Utilisateurs"
+            name="utilisateurs"
+          />
 
-          <select
+          <SelectField
             value={filtres.interventions}
             onChange={(e) =>
               gererChangementFiltre("interventions", e.target.value)
             }
-            className="px-4 py-3 border border-light-gray rounded-lg bg-white focus:outline-none focus:border-primary min-w-40"
-          >
-            <option value="all">Toutes les interventions</option>
-            <option value="0">Aucune intervention</option>
-            <option value="1-10">1-10 interventions</option>
-            <option value="11-50">11-50 interventions</option>
-            <option value="51-100">51-100 interventions</option>
-            <option value="100+">Plus de 100 interventions</option>
-          </select>
+            options={interventionsOptions}
+            placeholder="Interventions"
+            name="interventions"
+          />
         </div>
       </div>
 
@@ -237,28 +268,18 @@ const Communes = () => {
           </span>
         </div>
 
-        {chargement ? (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-tertiary">Chargement des communes...</p>
-          </div>
-        ) : (
-          <div className="space-y-0">
-            {communes.map((commune) => (
-              <LigneCommune key={commune.id} commune={commune} />
-            ))}
-
-            {communes.length === 0 && !chargement && (
-              <div className="text-center py-12 text-secondary-light">
-                {filtres.search ||
-                filtres.utilisateurs !== "all" ||
-                filtres.interventions !== "all"
-                  ? "Aucune commune trouvée avec ces critères"
-                  : "Aucune commune dans la base de données"}
-              </div>
-            )}
-          </div>
-        )}
+        <DataTable
+          data={communes}
+          loading={chargement}
+          emptyMessage={
+            filtres.search ||
+            filtres.utilisateurs !== "all" ||
+            filtres.interventions !== "all"
+              ? "Aucune commune trouvée avec ces critères"
+              : "Aucune commune dans la base de données"
+          }
+          renderItem={LigneCommune}
+        />
       </div>
 
       {/* Pagination */}

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { Link } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
+import AlertMessage from "./common/feedback/AlertMessage";
 
 const LoginForm = () => {
   const [email, setEmail] = useState("");
@@ -35,11 +36,13 @@ const LoginForm = () => {
           Connexion à l'application TAG
         </h2>
 
-        {error && (
-          <div className="bg-danger/10 border border-danger text-danger px-4 py-3 rounded mb-5 text-sm">
-            {error}
-          </div>
-        )}
+        <AlertMessage
+          type="error"
+          message={error}
+          onClose={() => setError("")}
+          autoClose={true}
+          duration={5000}
+        />
 
         <form onSubmit={handleSubmit} className="space-y-6 text-left">
           <div>

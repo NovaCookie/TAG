@@ -5,26 +5,24 @@ import UserAvatar from "./common/UserAvatar";
 import StatusBadge from "./common/StatusBadge";
 import Pagination from "./common/Pagination";
 import SearchFilter from "./common/SearchFilter";
-import { getRoleColor } from "../utils/helpers";
+import DataTable from "./common/data/DataTable";
+import AlertMessage from "./common/feedback/AlertMessage";
 import { usersAPI } from "../services/api";
 import { Link } from "react-router-dom";
+import { useApi, usePagination, useFilters } from "../hooks";
 
 const Users = () => {
   const { user } = useAuth();
-  const [users, setUsers] = useState([]);
-  const [chargement, setChargement] = useState(false);
-  const [filters, setFilters] = useState({
+  const { loading, error, callApi } = useApi();
+  const { pagination, updatePagination, goToPage } = usePagination();
+  const { filters, updateFilter } = useFilters({
     search: "",
     role: "all",
     status: "all",
   });
-  const [pagination, setPagination] = useState({
-    page: 1,
-    totalPages: 1,
-    total: 0,
-  });
 
-  const [messageSucces, setMessageSucces] = useState("");
+  const [users, setUsers] = useState([]);
+  const [successMessage, setSuccessMessage] = useState("");
 
   useEffect(() => {
     fetchUsers();
@@ -33,121 +31,100 @@ const Users = () => {
   const fetchUsers = async () => {
     if (user?.role !== "admin") return;
 
-    try {
-      setChargement(true);
-
-      const response = await usersAPI.getAll({
-        page: pagination.page,
-        limit: 10,
-        search: filters.search !== "" ? filters.search : undefined,
-        role: filters.role !== "all" ? filters.role : undefined,
-        status:
-          filters.status !== "all"
-            ? filters.status === "active"
-              ? "active"
-              : "inactive"
-            : undefined,
-      });
-
-      if (response.data) {
-        setUsers(response.data.users);
-
-        if (response.data.pagination) {
-          setPagination((prev) => ({
-            ...prev,
-            page: response.data.pagination.page,
-            totalPages: response.data.pagination.pages,
-            total: response.data.pagination.total,
-          }));
-        }
+    await callApi(
+      () =>
+        usersAPI.getAll({
+          page: pagination.page,
+          limit: 10,
+          search: filters.search !== "" ? filters.search : undefined,
+          role: filters.role !== "all" ? filters.role : undefined,
+          status: filters.status !== "all" ? filters.status : undefined,
+        }),
+      {
+        onSuccess: (data) => {
+          setUsers(data.users);
+          goToPage(data.pagination.page);
+          updatePagination({
+            page: data.pagination.page,
+            totalPages: data.pagination.pages,
+            total: data.pagination.total,
+            limit: data.pagination.limit || 10,
+          });
+        },
       }
-    } catch (error) {
-      console.error("Erreur chargement utilisateurs:", error);
-    } finally {
-      setChargement(false);
-    }
-  };
-
-  const handleFilterChange = (key, value) => {
-    setFilters((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
-    setPagination((prev) => ({ ...prev, page: 1 }));
+    );
   };
 
   const handleToggleStatus = async (userId) => {
-    try {
-      const response = await usersAPI.toggleStatus(userId);
-
-      setUsers((prev) =>
-        prev.map((user) =>
-          user.id === userId
-            ? {
-                ...user,
-                actif: !user.actif,
-              }
-            : user
-        )
-      );
-
-      setMessageSucces(response.data.message || "Statut modifié avec succès");
-    } catch (error) {
-      console.error("Erreur changement statut:", error);
-    }
+    await callApi(() => usersAPI.toggleStatus(userId), {
+      onSuccess: (response) => {
+        setUsers((prev) =>
+          prev.map((user) =>
+            user.id === userId ? { ...user, actif: !user.actif } : user
+          )
+        );
+        setSuccessMessage(response.message || "Statut modifié avec succès");
+      },
+    });
   };
 
-  // Effacer le message de succès après 5 secondes
-  useEffect(() => {
-    if (messageSucces) {
-      const timer = setTimeout(() => setMessageSucces(""), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [messageSucces]);
-
-  const LigneUtilisateur = ({ utilisateur }) => (
+  // Rendu d'une ligne utilisateur dans le style des communes
+  const renderUserRow = (utilisateur) => (
     <div className="flex items-center justify-between py-4 px-4 border-b border-light-gray last:border-b-0 hover:bg-light/30 transition-colors">
       {/* Informations principales sur une seule ligne */}
       <div className="flex items-center gap-6 flex-1">
-        {/* Avatar + Nom + Email */}
-        <div className="flex items-center gap-3 min-w-80">
+        {/* Avatar + Nom */}
+        <div className="flex items-center gap-3 min-w-60">
           <UserAvatar
             name={`${utilisateur.prenom} ${utilisateur.nom}`}
-            size="md"
+            size="sm"
           />
-          <div className="min-w-0">
-            <div className="font-semibold text-secondary text-lg truncate">
+          <div>
+            <div className="font-semibold text-secondary">
               {utilisateur.prenom} {utilisateur.nom}
             </div>
-            <div className="text-sm text-secondary-light truncate">
+            <div className="text-sm text-secondary-light">
               {utilisateur.email}
             </div>
-            {utilisateur.commune && (
-              <div className="text-xs text-primary-light truncate">
-                {utilisateur.commune.nom}
-              </div>
-            )}
           </div>
         </div>
 
+        {/* Commune */}
+        <div className="flex items-center gap-2 min-w-40">
+          <span className="w-3 h-3 rounded-full bg-primary"></span>
+          <span className="font-medium text-primary">
+            {utilisateur.commune?.nom || "Aucune commune"}
+          </span>
+        </div>
+
         {/* Rôle */}
-        <div className="flex items-center gap-2 min-w-32">
-          <span className="w-3 h-3 rounded-full bg-purple-500"></span>
-          <StatusBadge
-            status={utilisateur.role}
-            className={getRoleColor(utilisateur.role)}
-          />
+        <div className="flex items-center gap-2 min-w-40">
+          <span className="w-3 h-3 rounded-full bg-green-500"></span>
+          <span className="font-medium text-green-700 capitalize">
+            {utilisateur.role}
+          </span>
         </div>
 
         {/* Statut */}
-        <div className="flex items-center gap-2 min-w-32">
-          <span className="w-3 h-3 rounded-full bg-green-500"></span>
-          <StatusBadge status={utilisateur.actif ? "active" : "inactive"} />
+        <div className="flex items-center gap-2 min-w-40">
+          <span className="w-3 h-3 rounded-full bg-orange-500"></span>
+          <span className="font-medium text-orange-700">
+            {utilisateur.actif ? "Actif" : "Inactif"}
+          </span>
         </div>
       </div>
 
-      {/* Actions */}
+      {/* Statut et actions */}
       <div className="flex items-center gap-4">
+        <StatusBadge
+          status={utilisateur.actif ? "active" : "inactive"}
+          className={
+            utilisateur.actif
+              ? "bg-success/10 text-success border border-success/20"
+              : "bg-danger/10 text-danger border border-danger/20"
+          }
+        />
+
         {user?.role === "admin" && (
           <div className="flex gap-2">
             <button
@@ -157,14 +134,14 @@ const Users = () => {
                   ? "bg-warning/10 text-warning hover:bg-warning hover:text-white"
                   : "bg-success/10 text-success hover:bg-success hover:text-white"
               }`}
-              title={utilisateur.actif ? "Archiver" : "Activer"}
+              title={utilisateur.actif ? "Désactiver" : "Activer"}
             >
               {utilisateur.actif ? "⏸️" : "▶️"}
             </button>
             <Link
               to={`/users/edit/${utilisateur.id}`}
               className="w-8 h-8 rounded-full bg-light text-primary flex items-center justify-center hover:bg-primary-light hover:text-white transition-colors"
-              title="Modifier l'utilisateur"
+              title="Modifier"
             >
               ✏️
             </Link>
@@ -191,12 +168,15 @@ const Users = () => {
 
   return (
     <Layout activePage="users">
-      {/* Message de succès */}
-      {messageSucces && (
-        <div className="bg-success/10 border border-success/20 text-success p-4 rounded-lg mb-6">
-          {messageSucces}
-        </div>
-      )}
+      {/* Messages d'alerte */}
+      <AlertMessage
+        type="success"
+        message={successMessage}
+        onClose={() => setSuccessMessage("")}
+        autoClose
+      />
+
+      <AlertMessage type="error" message={error} onClose={() => {}} />
 
       {/* En-tête de page */}
       <div className="flex justify-between items-center mb-8">
@@ -220,7 +200,7 @@ const Users = () => {
       {/* Filtres */}
       <SearchFilter
         filters={filters}
-        onFilterChange={handleFilterChange}
+        onFilterChange={updateFilter}
         searchPlaceholder="Rechercher un utilisateur..."
         filterConfig={[
           {
@@ -237,7 +217,7 @@ const Users = () => {
             options: [
               { value: "all", label: "Tous les statuts" },
               { value: "active", label: "Actif" },
-              { value: "inactive", label: "Archivé" },
+              { value: "inactive", label: "Inactif" },
             ],
           },
         ]}
@@ -254,38 +234,20 @@ const Users = () => {
           </span>
         </div>
 
-        {chargement ? (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-tertiary">Chargement des utilisateurs...</p>
-          </div>
-        ) : (
-          <div className="space-y-0">
-            {users.map((utilisateur) => (
-              <LigneUtilisateur
-                key={utilisateur.id}
-                utilisateur={utilisateur}
-              />
-            ))}
-
-            {users.length === 0 && !chargement && (
-              <div className="text-center py-12 text-secondary-light">
-                {filters.search ||
-                filters.role !== "all" ||
-                filters.status !== "all"
-                  ? "Aucun utilisateur trouvé avec ces critères"
-                  : "Aucun utilisateur dans la base de données"}
-              </div>
-            )}
-          </div>
-        )}
+        <DataTable
+          data={users}
+          loading={loading}
+          emptyMessage={
+            filters.search || filters.role !== "all" || filters.status !== "all"
+              ? "Aucun utilisateur trouvé avec ces critères"
+              : "Aucun utilisateur dans la base de données"
+          }
+          renderItem={renderUserRow}
+        />
       </div>
 
       {/* Pagination */}
-      <Pagination
-        pagination={pagination}
-        onPageChange={(page) => setPagination((prev) => ({ ...prev, page }))}
-      />
+      <Pagination pagination={pagination} onPageChange={goToPage} />
     </Layout>
   );
 };

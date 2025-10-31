@@ -1,17 +1,15 @@
-import React from 'react';
-
-const UserAvatar = ({ 
-  name, 
-  avatar, 
-  online = false, 
+const UserAvatar = ({
+  name,
+  avatar,
+  online = false,
   size = "md",
-  className = "" 
+  className = "",
 }) => {
   const sizeClasses = {
     sm: "w-8 h-8 text-xs",
     md: "w-10 h-10 text-sm",
     lg: "w-12 h-12 text-base",
-    xl: "w-16 h-16 text-lg"
+    xl: "w-16 h-16 text-lg",
   };
 
   return (

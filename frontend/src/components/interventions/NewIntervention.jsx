@@ -3,12 +3,15 @@ import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import Layout from "../layout/Layout";
 import { interventionsAPI, themesAPI } from "../../services/api";
+import SelectField from "../common/dropdown/SelectField";
+import AlertMessage from "../common/feedback/AlertMessage";
 
 const NewIntervention = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [themes, setThemes] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
   const [formData, setFormData] = useState({
     titre: "",
     description: "",
@@ -29,6 +32,11 @@ const NewIntervention = () => {
       console.error("Erreur chargement thèmes:", error);
     }
   };
+
+  const themeOptions = themes.map((theme) => ({
+    value: theme.id.toString(),
+    label: theme.designation,
+  }));
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -139,6 +147,18 @@ const NewIntervention = () => {
   if (user?.role !== "commune") {
     return (
       <Layout activePage="interventions">
+        <AlertMessage
+          type="success"
+          message={successMessage}
+          onClose={() => setSuccessMessage("")}
+          autoClose
+        />
+        <AlertMessage
+          type="error"
+          message={errors.submit}
+          onClose={() => setErrors((prev) => ({ ...prev, submit: "" }))}
+          autoClose
+        />
         <div className="card card-rounded p-6 text-center">
           <h2 className="text-xl font-semibold text-danger mb-4">
             Accès non autorisé
@@ -248,22 +268,14 @@ const NewIntervention = () => {
               >
                 Thème de la question *
               </label>
-              <select
-                id="theme_id"
-                name="theme_id"
+              <SelectField
                 value={formData.theme_id}
                 onChange={handleChange}
-                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light ${
-                  errors.theme_id ? "border-danger" : "border-light"
-                }`}
-              >
-                <option value="">Sélectionnez un thème...</option>
-                {themes.map((theme) => (
-                  <option key={theme.id} value={theme.id}>
-                    {theme.designation}
-                  </option>
-                ))}
-              </select>
+                options={themeOptions}
+                placeholder="Sélectionnez un thème..."
+                error={errors.theme_id}
+                fieldName="theme_id"
+              />
               {errors.theme_id && (
                 <p className="text-danger text-sm mt-1">{errors.theme_id}</p>
               )}

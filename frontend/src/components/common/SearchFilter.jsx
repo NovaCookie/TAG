@@ -1,3 +1,5 @@
+import SelectField from "./dropdown/SelectField";
+
 const SearchFilter = ({
   filters,
   onFilterChange,
@@ -17,21 +19,18 @@ const SearchFilter = ({
         />
       </div>
 
-      {/* Filter Group */}
+      {/* Filter Group avec le nouveau SelectField */}
       <div className="flex gap-4">
         {filterConfig.map((filter) => (
-          <select
-            key={filter.key}
-            value={filters[filter.key]}
-            onChange={(e) => onFilterChange(filter.key, e.target.value)}
-            className="px-4 py-3 border border-light-gray rounded-lg bg-white focus:outline-none focus:border-primary"
-          >
-            {filter.options.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+          <div key={filter.key} className="min-w-40">
+            <SelectField
+              value={filters[filter.key]}
+              onChange={(e) => onFilterChange(filter.key, e.target.value)}
+              options={filter.options}
+              placeholder={filter.placeholder || `Sélectionnez...`}
+              fieldName={filter.key}
+            />
+          </div>
         ))}
       </div>
     </div>

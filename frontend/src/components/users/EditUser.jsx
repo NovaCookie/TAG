@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import Layout from "../layout/Layout";
 import { usersAPI } from "../../services/api";
-import SelectFieldRole from "../common/dropdown/SelectFieldRole";
+import SelectField from "../common/dropdown/SelectField";
 import SelectFieldCommune from "../common/dropdown/SelectFieldCommune";
 
 const EditUser = () => {
@@ -318,12 +318,19 @@ const EditUser = () => {
             )}
           </div>
 
-          {/* Rôle et Commune - TOUJOURS REQUIS */}
+          {/* Rôle et Commune */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <SelectFieldRole
+            <SelectField
               value={formData.role}
               onChange={handleChange}
+              options={[
+                { value: "commune", label: "Commune" },
+                { value: "juriste", label: "Juriste" },
+                { value: "admin", label: "Administrateur" },
+              ]}
+              label="Rôle *"
               error={!formData.role ? "Le rôle est requis" : ""}
+              fieldName="role"
             />
 
             <SelectFieldCommune

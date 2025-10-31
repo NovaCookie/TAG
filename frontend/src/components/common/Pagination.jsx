@@ -1,5 +1,3 @@
-import React from "react";
-
 const Pagination = ({ pagination, onPageChange }) => {
   const { page, totalPages } = pagination;
 

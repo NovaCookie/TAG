@@ -5,7 +5,10 @@ import Layout from "./layout/Layout";
 import StatusBadge from "./common/StatusBadge";
 import Pagination from "./common/Pagination";
 import { formatDate } from "../utils/helpers";
+import SearchFilter from "./common/SearchFilter";
+import SelectField from "./common/dropdown/SelectField";
 import { interventionsAPI, themesAPI, usersAPI } from "../services/api";
+import AlertMessage from "./common/feedback/AlertMessage";
 
 const Interventions = () => {
   const { user } = useAuth();
@@ -13,6 +16,8 @@ const Interventions = () => {
   const [themes, setThemes] = useState([]);
   const [communes, setCommunes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [successMessage, setSuccessMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
   const [filters, setFilters] = useState({
     search: "",
     status: "all",
@@ -59,6 +64,7 @@ const Interventions = () => {
       }));
     } catch (error) {
       console.error("Erreur chargement interventions:", error);
+      setErrorMessage("Erreur lors du chargement des interventions");
     } finally {
       setLoading(false);
     }
@@ -175,6 +181,19 @@ const Interventions = () => {
 
   return (
     <Layout activePage="interventions">
+      <AlertMessage
+        type="success"
+        message={successMessage}
+        onClose={() => setSuccessMessage("")}
+        autoClose
+      />
+
+      <AlertMessage
+        type="error"
+        message={errorMessage}
+        onClose={() => setErrorMessage("")}
+        autoClose
+      />
       {/* En-tête de page */}
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-2xl font-semibold text-primary">
@@ -211,17 +230,13 @@ const Interventions = () => {
             <label className="block text-sm font-medium text-secondary mb-2">
               Statut
             </label>
-            <select
-              className="w-full px-4 py-2 border border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light"
+            <SelectField
               value={filters.status}
               onChange={(e) => handleFilterChange("status", e.target.value)}
-            >
-              {statusOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+              options={statusOptions}
+              placeholder="Tous les statuts"
+              fieldName="status"
+            />
           </div>
 
           {/* Filtre thème */}
@@ -229,17 +244,12 @@ const Interventions = () => {
             <label className="block text-sm font-medium text-secondary mb-2">
               Thème
             </label>
-            <select
-              className="w-full px-4 py-2 border border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light"
+            <SelectField
               value={filters.theme}
               onChange={(e) => handleFilterChange("theme", e.target.value)}
-            >
-              {themeOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+              options={themeOptions}
+              placeholder="Tous les thèmes"
+            />
           </div>
 
           {/* Filtre commune (seulement pour admin/juriste) */}
@@ -248,17 +258,12 @@ const Interventions = () => {
               <label className="block text-sm font-medium text-secondary mb-2">
                 Commune
               </label>
-              <select
-                className="w-full px-4 py-2 border border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light"
+              <SelectField
                 value={filters.commune}
                 onChange={(e) => handleFilterChange("commune", e.target.value)}
-              >
-                {communeOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+                options={communeOptions}
+                placeholder="Toutes les communes"
+              />
             </div>
           )}
         </div>

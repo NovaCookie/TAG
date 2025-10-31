@@ -1,8 +1,8 @@
-import React from 'react';
-
-const ToggleSwitch = ({ checked, onChange, className = '' }) => {
+const ToggleSwitch = ({ checked, onChange, className = "" }) => {
   return (
-    <label className={`relative inline-flex items-center cursor-pointer ${className}`}>
+    <label
+      className={`relative inline-flex items-center cursor-pointer ${className}`}
+    >
       <input
         type="checkbox"
         checked={checked}
