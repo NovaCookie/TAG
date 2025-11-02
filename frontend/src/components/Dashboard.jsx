@@ -1,27 +1,33 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import Layout from "./layout/Layout";
+import StatBlock from "./stats/StatBlock";
 import { formatDate } from "../utils/helpers";
 import { interventionsAPI, usersAPI } from "../services/api";
 
-const TableauDeBord = () => {
+const Dashboard = () => {
   const { user } = useAuth();
 
   const [statistiques, setStatistiques] = useState({
     totalQuestions: 0,
     questionsEnAttente: 0,
     questionsRepondues: 0,
+    totalCommunes: 0,
+    totalUtilisateurs: 0,
+    satisfactionMoyenne: 0,
+    tauxReponse: 0,
+    questionsParCommune: [],
+    questionsParTheme: [],
+    questionsParStrate: [],
+    satisfactionParCommune: [],
+    satisfactionParStrate: [],
   });
 
   const [dernieresQuestions, setDernieresQuestions] = useState([]);
   const [chargement, setChargement] = useState(true);
 
-  useEffect(() => {
-    chargerDonneesTableauDeBord();
-  }, [user]);
-
-  const chargerDonneesTableauDeBord = async () => {
+  const chargerDonneesTableauDeBord = useCallback(async () => {
     try {
       setChargement(true);
       await Promise.all([
@@ -33,87 +39,114 @@ const TableauDeBord = () => {
     } finally {
       setChargement(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    chargerDonneesTableauDeBord();
+  }, [chargerDonneesTableauDeBord]);
 
   const chargerStatistiquesUtilisateur = async () => {
     try {
-      let donnees = {};
+      let donnees = {
+        totalQuestions: 0,
+        questionsEnAttente: 0,
+        questionsRepondues: 0,
+        totalCommunes: 0,
+        totalUtilisateurs: 0,
+        satisfactionMoyenne: 0,
+        tauxReponse: 0,
+      };
 
       if (user?.role === "commune") {
         const reponse = await interventionsAPI.getAll({ limit: 1000 });
-        const interventions = reponse.data.interventions;
+        const interventions = reponse.data.interventions || [];
 
         donnees = {
+          ...donnees,
           totalQuestions: interventions.length,
           questionsEnAttente: interventions.filter((i) => !i.reponse).length,
           questionsRepondues: interventions.filter((i) => i.reponse).length,
         };
       } else if (user?.role === "juriste") {
         const reponse = await interventionsAPI.getAll({ limit: 1000 });
-        const interventions = reponse.data.interventions;
+        const interventions = reponse.data.interventions || [];
 
         donnees = {
+          ...donnees,
           totalQuestions: interventions.filter((i) => !i.reponse).length,
           questionsEnAttente: interventions.filter((i) => !i.reponse).length,
           questionsRepondues: interventions.filter((i) => i.reponse).length,
         };
       } else if (user?.role === "admin") {
         try {
-          const [statsInterventions, statsUtilisateurs] = await Promise.all([
-            interventionsAPI.getStats(),
-            usersAPI.getStats(),
+          const [statsUtilisateurs, statsAvancees] = await Promise.all([
+            usersAPI.getStats().catch(() => ({ data: {} })),
+            interventionsAPI.getAdvancedStats().catch(() => ({ data: {} })),
           ]);
 
           const reponseToutes = await interventionsAPI.getAll({ limit: 1000 });
-          const toutesInterventions = reponseToutes.data.interventions;
+          const toutesInterventions = reponseToutes.data.interventions || [];
 
           const enAttente = toutesInterventions.filter((i) => !i.reponse);
           const repondues = toutesInterventions.filter((i) => i.reponse);
+
+          const interventionsAvecSatisfaction = toutesInterventions.filter(
+            (i) => i.satisfaction
+          );
+          const moyenneSatisfaction =
+            interventionsAvecSatisfaction.length > 0
+              ? interventionsAvecSatisfaction.reduce(
+                  (acc, i) => acc + i.satisfaction,
+                  0
+                ) / interventionsAvecSatisfaction.length
+              : 0;
 
           donnees = {
             totalQuestions: toutesInterventions.length,
             questionsEnAttente: enAttente.length,
             questionsRepondues: repondues.length,
-            totalCommunes: statsUtilisateurs.data.totalCommunes,
-            totalUtilisateurs: statsUtilisateurs.data.totalUtilisateurs || 0,
-            satisfactionMoyenne:
-              statsInterventions.data.satisfactionParStrate?.[0]
-                ?.satisfaction_moyenne || 0,
+            totalCommunes: statsUtilisateurs.data?.totalCommunes || 0,
+            totalUtilisateurs: statsUtilisateurs.data?.totalUtilisateurs || 0,
+            satisfactionMoyenne: parseFloat(moyenneSatisfaction.toFixed(1)),
             tauxReponse:
               toutesInterventions.length > 0
                 ? Math.round(
                     (repondues.length / toutesInterventions.length) * 100
                   )
                 : 0,
+            questionsParCommune: statsAvancees.data?.questionsParCommune || [],
+            questionsParTheme: statsAvancees.data?.questionsParTheme || [],
+            questionsParStrate: statsAvancees.data?.questionsParStrate || [],
+            satisfactionParCommune:
+              statsAvancees.data?.satisfactionParCommune || [],
+            satisfactionParStrate:
+              statsAvancees.data?.satisfactionParStrate || [],
           };
         } catch (erreur) {
-          console.error(
-            "Stats avancées non disponibles, fallback aux stats basiques"
-          );
-
+          console.error("Erreur stats avancées:", erreur);
           const reponseToutes = await interventionsAPI.getAll({ limit: 1000 });
-          const toutesInterventions = reponseToutes.data.interventions;
+          const toutesInterventions = reponseToutes.data.interventions || [];
 
           const enAttente = toutesInterventions.filter((i) => !i.reponse);
           const repondues = toutesInterventions.filter((i) => i.reponse);
-
-          const statsUtilisateurs = await usersAPI.getStats().catch(() => ({
-            data: { totalCommunes: "N/A", totalUtilisateurs: 0 },
-          }));
 
           donnees = {
             totalQuestions: toutesInterventions.length,
             questionsEnAttente: enAttente.length,
             questionsRepondues: repondues.length,
-            totalCommunes: statsUtilisateurs.data.totalCommunes,
-            totalUtilisateurs: statsUtilisateurs.data.totalUtilisateurs || 0,
+            totalCommunes: 0,
+            totalUtilisateurs: 0,
             satisfactionMoyenne: 0,
             tauxReponse: 0,
+            questionsParCommune: [],
+            questionsParTheme: [],
+            questionsParStrate: [],
+            satisfactionParCommune: [],
+            satisfactionParStrate: [],
           };
         }
       }
 
-      console.log("Statistiques calculées :", donnees);
       setStatistiques(donnees);
     } catch (erreur) {
       console.error("Erreur chargement statistiques utilisateur :", erreur);
@@ -122,49 +155,20 @@ const TableauDeBord = () => {
 
   const chargerDernieresQuestions = async () => {
     try {
-      let parametres = { limit: 5 };
+      let parametres = { limit: 5, order: "desc" };
 
-      if (user?.role === "commune") {
-        parametres.order = "desc";
-      } else if (user?.role === "juriste") {
+      if (user?.role === "juriste") {
         parametres.order = "asc";
-      } else if (user?.role === "admin") {
-        parametres.order = "desc";
+        parametres.sansReponse = true;
       }
 
       const reponse = await interventionsAPI.getAll(parametres);
-      setDernieresQuestions(reponse.data.interventions);
+      setDernieresQuestions(reponse.data.interventions || []);
     } catch (erreur) {
       console.error("Erreur chargement dernières interventions :", erreur);
+      setDernieresQuestions([]);
     }
   };
-
-  const CarteStatistique = ({
-    titre,
-    valeur,
-    couleur,
-    sousTitre,
-    couleurIcone,
-    chargement,
-  }) => (
-    <div className="card card-rounded p-6 transition-transform hover:translate-y-[-2px]">
-      <div className="flex justify-between items-center mb-5">
-        <h3 className="text-lg font-semibold text-secondary">{titre}</h3>
-        <div className={`w-3 h-3 rounded-full ${couleurIcone}`}></div>
-      </div>
-      {chargement ? (
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded mb-2"></div>
-          <div className="h-4 bg-gray-200 rounded"></div>
-        </div>
-      ) : (
-        <>
-          <div className={`text-3xl font-bold ${couleur} mb-2`}>{valeur}</div>
-          <div className="text-tertiary text-sm">{sousTitre}</div>
-        </>
-      )}
-    </div>
-  );
 
   const obtenirDescriptionTableauDeBord = () => {
     switch (user?.role) {
@@ -182,8 +186,8 @@ const TableauDeBord = () => {
   const obtenirTitreCarte = (index) => {
     const titres = {
       commune: ["Mes questions", "En attente", "Répondues"],
-      juriste: ["Total", "En attente", "Répondues"],
-      admin: ["Total", "En attente", "Répondues"],
+      juriste: ["Questions à traiter", "En attente", "Traitées"],
+      admin: ["Total interventions", "En attente", "Répondues"],
     };
     return (
       titres[user?.role]?.[index] || ["Total", "En attente", "Répondues"][index]
@@ -193,8 +197,8 @@ const TableauDeBord = () => {
   const obtenirSousTitreCarte = (index) => {
     const sousTitres = {
       commune: ["Total posées", "Réponse attendue", "Questions traitées"],
-      juriste: ["Intervention", "Réponses à fournir", "Sans note"],
-      admin: ["Interventions", "Sans réponse", "Sans note"],
+      juriste: ["À traiter", "Sans réponse", "Avec réponse"],
+      admin: ["Au total", "Sans réponse", "Avec réponse"],
     };
     return (
       sousTitres[user?.role]?.[index] ||
@@ -209,10 +213,13 @@ const TableauDeBord = () => {
           <div className="h-8 bg-gray-200 rounded w-1/4 mb-8"></div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
             {[...Array(3)].map((_, index) => (
-              <div key={index} className="card card-rounded p-6">
-                <div className="h-8 bg-gray-200 rounded mb-2"></div>
-                <div className="h-4 bg-gray-200 rounded"></div>
-              </div>
+              <StatBlock
+                key={index}
+                title="Chargement..."
+                value="0"
+                subtitle=""
+                loading={true}
+              />
             ))}
           </div>
         </div>
@@ -245,32 +252,32 @@ const TableauDeBord = () => {
         </div>
       </div>
 
+      {/* Cartes principales avec StatBlock */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        {[0, 1, 2].map((i) => (
-          <CarteStatistique
-            key={i}
-            titre={obtenirTitreCarte(i)}
-            valeur={
-              i === 0
-                ? statistiques.totalQuestions
-                : i === 1
-                ? statistiques.questionsEnAttente
-                : statistiques.questionsRepondues
-            }
-            couleur={
-              i === 0
-                ? "text-primary"
-                : i === 1
-                ? "text-warning"
-                : "text-success"
-            }
-            sousTitre={obtenirSousTitreCarte(i)}
-            couleurIcone={
-              i === 0 ? "bg-primary" : i === 1 ? "bg-warning" : "bg-success"
-            }
-            chargement={chargement}
-          />
-        ))}
+        <StatBlock
+          title={obtenirTitreCarte(0)}
+          value={statistiques.totalQuestions}
+          subtitle={obtenirSousTitreCarte(0)}
+          color="primary"
+          icon="📊"
+          loading={chargement}
+        />
+        <StatBlock
+          title={obtenirTitreCarte(1)}
+          value={statistiques.questionsEnAttente}
+          subtitle={obtenirSousTitreCarte(1)}
+          color="warning"
+          icon="⏳"
+          loading={chargement}
+        />
+        <StatBlock
+          title={obtenirTitreCarte(2)}
+          value={statistiques.questionsRepondues}
+          subtitle={obtenirSousTitreCarte(2)}
+          color="success"
+          icon="✅"
+          loading={chargement}
+        />
       </div>
 
       {user?.role === "admin" && (
@@ -280,46 +287,61 @@ const TableauDeBord = () => {
               Statistiques avancées
             </h2>
             <Link
-              to="/admin/statistiques"
-              className="text-primary-light text-sm font-medium hover:text-primary transition-colors"
+              to="/dashboard/advanced"
+              className="bg-primary text-white rounded-lg px-4 py-2 text-sm font-semibold hover:bg-primary-light transition-colors"
             >
-              Voir le détail
+              Voir le détail complet
             </Link>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            <CarteStatistique
-              titre="Communes"
-              valeur={statistiques.totalCommunes || "N/A"}
-              sousTitre="Total"
+
+          {/* Stats principales admin */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <StatBlock
+              title="Communes actives"
+              value={statistiques.totalCommunes}
+              subtitle="Total"
+              color="primary"
+              icon="🏘️"
+              size="small"
             />
-            <CarteStatistique
-              titre="Utilisateurs"
-              valeur={statistiques.totalUtilisateurs || "N/A"}
-              sousTitre="Total"
+            <StatBlock
+              title="Utilisateurs"
+              value={statistiques.totalUtilisateurs}
+              subtitle="Total"
+              color="secondary"
+              icon="👥"
+              size="small"
             />
-            <CarteStatistique
-              titre="Satisfaction"
-              valeur={
-                statistiques.satisfactionMoyenne
+            <StatBlock
+              title="Satisfaction"
+              value={
+                statistiques.satisfactionMoyenne > 0
                   ? `${statistiques.satisfactionMoyenne.toFixed(1)}/5`
                   : "N/A"
               }
-              sousTitre="Moyenne générale"
+              subtitle="Moyenne générale"
+              color="success"
+              icon="⭐"
+              size="small"
             />
-            <CarteStatistique
-              titre="Taux de réponse"
-              valeur={
-                statistiques.tauxReponse
+            <StatBlock
+              title="Taux de réponse"
+              value={
+                statistiques.tauxReponse > 0
                   ? `${statistiques.tauxReponse}%`
-                  : "N/A"
+                  : "0%"
               }
-              sousTitre="Questions traitées"
+              subtitle="Questions traitées"
+              color="warning"
+              icon="📈"
+              size="small"
             />
           </div>
         </div>
       )}
 
-      <div className="card card-rounded p-6">
+      {/* Dernières interventions */}
+      <div className="bg-white rounded-xl shadow-card p-6">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold text-primary">
             {user?.role === "commune"
@@ -341,17 +363,31 @@ const TableauDeBord = () => {
             <Link
               key={question.id}
               to={`/interventions/${question.id}`}
-              className="flex justify-between items-center py-4 border-b border-light last:border-b-0 hover:bg-light/50 rounded-lg px-3 transition-colors cursor-pointer"
+              className="flex justify-between items-center py-4 border-b border-light-gray last:border-b-0 hover:bg-light/50 rounded-lg px-3 transition-colors cursor-pointer"
             >
               <div className="flex-1">
                 <div className="font-medium text-secondary mb-1 line-clamp-2">
-                  {question.titre}
+                  {question.titre || "Sans titre"}
                 </div>
                 <div className="flex items-center gap-4 text-sm text-tertiary">
-                  <span>Posée {formatDate(question.date_question)}</span>
+                  <span>
+                    {question.date_question
+                      ? `Posée ${formatDate(question.date_question)}`
+                      : "Date non précisée"}
+                  </span>
+                  {question.theme && (
+                    <span className="bg-primary/10 text-primary px-2 py-1 rounded text-xs">
+                      {question.theme.designation}
+                    </span>
+                  )}
+                  {!question.reponse && user?.role === "juriste" && (
+                    <span className="bg-warning/10 text-warning px-2 py-1 rounded text-xs">
+                      À traiter
+                    </span>
+                  )}
                 </div>
               </div>
-              <div className="w-8 h-8 rounded-full bg-light text-primary flex items-center justify-center hover:bg-light-gray transition-colors ml-4">
+              <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center hover:bg-primary hover:text-white transition-colors ml-4">
                 <span>→</span>
               </div>
             </Link>
@@ -362,7 +398,7 @@ const TableauDeBord = () => {
               {user?.role === "commune"
                 ? "Aucune question pour le moment"
                 : user?.role === "juriste"
-                ? "Aucune question en attente"
+                ? "Aucune question en attente - Bravo !"
                 : "Aucune intervention récente"}
             </div>
           )}
@@ -373,7 +409,7 @@ const TableauDeBord = () => {
         <div className="mt-6 text-center">
           <Link
             to="/interventions/new"
-            className="bg-primary text-white rounded-lg px-8 py-4 font-semibold hover:bg-primary-light transition-colors shadow-md hover:shadow-lg"
+            className="bg-primary text-white rounded-lg px-8 py-4 font-semibold hover:bg-primary-light transition-colors shadow-md hover:shadow-lg inline-block"
           >
             Poser une nouvelle question
           </Link>
@@ -383,4 +419,4 @@ const TableauDeBord = () => {
   );
 };
 
-export default TableauDeBord;
+export default Dashboard;

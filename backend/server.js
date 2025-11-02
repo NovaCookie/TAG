@@ -9,6 +9,7 @@ const interventionRoutes = require("./routes/interventions");
 const themeRoutes = require("./routes/themes");
 const userRoutes = require("./routes/users");
 const communeRoutes = require("./routes/communes");
+const statsRoutes = require("./routes/stats");
 
 // Middleware
 app.use(cors()); // Permet à React de communiquer avec Express
@@ -20,6 +21,7 @@ app.use("/api/interventions", interventionRoutes);
 app.use("/api/themes", themeRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/communes", communeRoutes);
+app.use("/api/stats", authMiddleware, statsRoutes);
 
 // ==================== ROUTES PROTÉGÉES ====================
 

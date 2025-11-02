@@ -5,7 +5,6 @@ import Layout from "./layout/Layout";
 import StatusBadge from "./common/StatusBadge";
 import Pagination from "./common/Pagination";
 import { formatDate } from "../utils/helpers";
-import SearchFilter from "./common/SearchFilter";
 import SelectField from "./common/dropdown/SelectField";
 import { interventionsAPI, themesAPI, usersAPI } from "../services/api";
 import AlertMessage from "./common/feedback/AlertMessage";

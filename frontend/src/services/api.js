@@ -29,24 +29,22 @@ export const interventionsAPI = {
   create: (data) => api.post("/interventions", data),
   addResponse: (id, data) => api.put(`/interventions/${id}/response`, data),
   delete: (id) => api.delete(`/interventions/${id}`),
-
   rateSatisfaction: (id, satisfaction) =>
     api.put(`/interventions/${id}/satisfaction`, { satisfaction }),
-
   getStats: () => api.get("/interventions/stats/dashboard"),
-
   getSimilarQuestions: (themeId, keywords) =>
-    api.get(`/interventions/theme/${themeId}/similar`, { params: { keywords } }),
-
+    api.get(`/interventions/theme/${themeId}/similar`, {
+      params: { keywords },
+    }),
   uploadAttachments: (interventionId, formData) =>
     api.post(`/interventions/${interventionId}/attachments`, formData, {
       headers: { "Content-Type": "multipart/form-data" },
     }),
-
   downloadAttachment: (attachmentId) =>
     api.get(`/interventions/attachments/${attachmentId}`, {
       responseType: "blob",
     }),
+  getAdvancedStats: (params = "") => api.get(`/stats/advanced?${params}`),
 };
 
 // === Themes ===

@@ -92,7 +92,7 @@ const Communes = () => {
 
   const basculerStatutCommune = async (communeId) => {
     try {
-      const reponse = await communesAPI.toggleStatus(communeId);
+      await communesAPI.toggleStatus(communeId);
 
       setCommunes((prev) =>
         prev.map((commune) =>
@@ -197,7 +197,7 @@ const Communes = () => {
         onClose={() => setSuccessMessage("")}
         autoClose
       />
-      
+
       <AlertMessage
         type="error"
         message={errorMessage}
@@ -269,7 +269,7 @@ const Communes = () => {
         </div>
 
         <DataTable
-          data={communes}
+          data={communes.filter((commune) => commune !== undefined)}
           loading={chargement}
           emptyMessage={
             filtres.search ||
@@ -278,7 +278,13 @@ const Communes = () => {
               ? "Aucune commune trouvée avec ces critères"
               : "Aucune commune dans la base de données"
           }
-          renderItem={LigneCommune}
+          renderItem={(commune) => (
+            <LigneCommune
+              commune={commune}
+              user={user}
+              onToggleStatus={basculerStatutCommune}
+            />
+          )}
         />
       </div>
 

@@ -12,6 +12,7 @@ import { SidebarProvider } from "./context/SidebarContext";
 // === Main Pages ===
 import LoginForm from "./components/LoginForm";
 import Dashboard from "./components/Dashboard";
+import AdvancedStats from "./components/stats/AdvancedStats";
 import Interventions from "./components/Interventions";
 import Users from "./components/Users";
 import Communes from "./components/Communes";
@@ -107,6 +108,14 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <Dashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/dashboard/advanced"
+                  element={
+                    <ProtectedRoute>
+                      <AdvancedStats />
                     </ProtectedRoute>
                   }
                 />
