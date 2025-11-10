@@ -6,23 +6,21 @@ import StatusBadge from "./common/StatusBadge";
 import Pagination from "./common/Pagination";
 import SelectField from "./common/dropdown/SelectField";
 import { interventionsAPI, themesAPI, usersAPI } from "../services/api";
-import AlertMessage from "./common/feedback/AlertMessage";
 
-const Interventions = () => {
-  const { user } = useAuth();
+const Archives = () => {
   const [interventions, setInterventions] = useState([]);
   const [themes, setThemes] = useState([]);
   const [communes, setCommunes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [successMessage, setSuccessMessage] = useState("");
-  const [errorMessage, setErrorMessage] = useState("");
   const [filters, setFilters] = useState({
     search: "",
     status: "all",
     theme: "all",
     commune: "all",
-    dateStart: "",
-    dateEnd: "",
+    dateArchivageDebut: "",
+    dateArchivageFin: "",
+    dateQuestionDebut: "",
+    dateQuestionFin: "",
   });
   const [pagination, setPagination] = useState({
     page: 1,
@@ -31,10 +29,7 @@ const Interventions = () => {
     totalPages: 0,
   });
 
-  const canFilterByCommune = useCallback(() => {
-    return ["admin", "juriste"].includes(user?.role);
-  }, [user]);
-
+  // formate une date en jj/mm/aaaa ; renvoie "-" si invalide/absent
   const formatDateFr = (dateInput) => {
     if (!dateInput) return "-";
     const date = dateInput instanceof Date ? dateInput : new Date(dateInput);
@@ -45,7 +40,7 @@ const Interventions = () => {
     return `${dd}/${mm}/${yyyy}`;
   };
 
-  const fetchInterventions = useCallback(async () => {
+  const fetchArchives = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -57,11 +52,17 @@ const Interventions = () => {
       if (filters.status !== "all") params.status = filters.status;
       if (filters.theme !== "all") params.theme = filters.theme;
       if (filters.commune !== "all") params.commune = filters.commune;
-      if (filters.dateStart) params.dateStart = filters.dateStart;
-      if (filters.dateEnd) params.dateEnd = filters.dateEnd;
+      if (filters.dateArchivageDebut)
+        params.dateArchivageDebut = filters.dateArchivageDebut;
+      if (filters.dateArchivageFin)
+        params.dateArchivageFin = filters.dateArchivageFin;
+      if (filters.dateQuestionDebut)
+        params.dateQuestionDebut = filters.dateQuestionDebut;
+      if (filters.dateQuestionFin)
+        params.dateQuestionFin = filters.dateQuestionFin;
       if (filters.search.trim() !== "") params.search = filters.search;
 
-      const response = await interventionsAPI.getAll(params);
+      const response = await interventionsAPI.getArchives(params);
       const data = response.data;
 
       setInterventions(data.interventions);
@@ -71,8 +72,7 @@ const Interventions = () => {
         totalPages: data.pagination.pages,
       }));
     } catch (error) {
-      console.error("Erreur chargement interventions:", error);
-      setErrorMessage("Erreur lors du chargement des interventions");
+      console.error("Erreur chargement archives:", error);
     } finally {
       setLoading(false);
     }
@@ -97,10 +97,10 @@ const Interventions = () => {
   }, []);
 
   useEffect(() => {
-    fetchInterventions();
+    fetchArchives();
     fetchThemes();
-    if (canFilterByCommune()) fetchCommunes();
-  }, [fetchInterventions, fetchThemes, fetchCommunes, canFilterByCommune]);
+    fetchCommunes();
+  }, [fetchArchives, fetchThemes, fetchCommunes]);
 
   const getInterventionStatus = (intervention) => {
     if (!intervention.reponse) {
@@ -123,13 +123,16 @@ const Interventions = () => {
   const resetDateFilters = () => {
     setFilters((prev) => ({
       ...prev,
-      dateStart: "",
-      dateEnd: "",
+      dateArchivageDebut: "",
+      dateArchivageFin: "",
+      dateQuestionDebut: "",
+      dateQuestionFin: "",
     }));
   };
 
   const renderSatisfactionStars = (satisfaction) => {
     if (!satisfaction) return null;
+
     return (
       <div className="flex items-center gap-1">
         {[1, 2, 3, 4, 5].map((star) => (
@@ -147,7 +150,7 @@ const Interventions = () => {
     );
   };
 
-  const InterventionRow = ({ intervention }) => {
+  const ArchiveRow = ({ intervention }) => {
     const status = getInterventionStatus(intervention);
 
     return (
@@ -172,7 +175,7 @@ const Interventions = () => {
             </div>
           </div>
 
-          {/* Dates formatées */}
+          {/* Dates question et réponse et archive */}
           <div className="flex items-center gap-4 text-sm text-tertiary mb-2">
             <span className="font-medium text-secondary">
               Question posée le :
@@ -182,6 +185,8 @@ const Interventions = () => {
               Réponse donnée le :
             </span>
             <span>{formatDateFr(intervention.date_reponse)}</span>
+            <span className="font-medium text-secondary">Archivée le :</span>
+            <span>{formatDateFr(intervention.date_archivage)}</span>
           </div>
 
           <div className="flex items-center gap-4 text-sm">
@@ -193,21 +198,18 @@ const Interventions = () => {
 
             <span className="text-light">•</span>
 
-            {/* Statut */}
             <div className="flex items-center gap-2">
               <StatusBadge status={status} />
             </div>
 
             <span className="text-light">•</span>
 
-            {/* Thème */}
             <div className="flex items-center gap-2">
               <span className="text-primary-light font-medium">
                 {intervention.theme?.designation}
               </span>
             </div>
 
-            {/* Note de satisfaction */}
             {intervention.satisfaction && (
               <>
                 <span className="text-light">•</span>
@@ -246,40 +248,17 @@ const Interventions = () => {
   ];
 
   return (
-    <Layout activePage="interventions">
-      <AlertMessage
-        type="success"
-        message={successMessage}
-        onClose={() => setSuccessMessage("")}
-        autoClose
-      />
-
-      <AlertMessage
-        type="error"
-        message={errorMessage}
-        onClose={() => setErrorMessage("")}
-        autoClose
-      />
-
-      {/* En-tête de page */}
+    <Layout activePage="archives">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-2xl font-semibold text-primary">
-            {user?.role === "commune" ? "Mes Questions" : "Interventions"}
+          <h1 className="text-2xl font-semibold text-primary mb-2">
+            Archives des interventions
           </h1>
           <p className="text-tertiary">
-            Consultation des interventions - {pagination.total} intervention(s)
-            trouvée(s)
+            Consultation des interventions archivées - {pagination.total}{" "}
+            intervention(s) trouvée(s)
           </p>
         </div>
-        {user?.role === "commune" && (
-          <Link
-            to="/interventions/new"
-            className="bg-primary text-white rounded-lg px-6 py-3 font-semibold text-sm hover:bg-primary-light transition-colors shadow-md hover:shadow-lg"
-          >
-            Poser une nouvelle question
-          </Link>
-        )}
       </div>
 
       {/* Filtres */}
@@ -307,7 +286,7 @@ const Interventions = () => {
               onChange={(e) => handleFilterChange("status", e.target.value)}
               options={statusOptions}
               placeholder="Tous les statuts"
-              fieldName="status"
+              fieldName="statut"
             />
           </div>
 
@@ -323,44 +302,74 @@ const Interventions = () => {
             />
           </div>
 
-          {canFilterByCommune() && (
-            <div>
-              <label className="block text-sm font-medium text-secondary mb-2">
-                Commune
-              </label>
-              <SelectField
-                value={filters.commune}
-                onChange={(e) => handleFilterChange("commune", e.target.value)}
-                options={communeOptions}
-                placeholder="Toutes les communes"
-              />
-            </div>
-          )}
+          <div>
+            <label className="block text-sm font-medium text-secondary mb-2">
+              Commune
+            </label>
+            <SelectField
+              value={filters.commune}
+              onChange={(e) => handleFilterChange("commune", e.target.value)}
+              options={communeOptions}
+              placeholder="Toutes les communes"
+            />
+          </div>
         </div>
 
         {/* Filtres dates */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 pt-4 border-t border-light">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-4 pt-4 border-t border-light">
           <div>
             <label className="block text-sm font-medium text-secondary mb-2">
-              Date de début
+              Date question (début)
             </label>
             <input
               type="date"
               className="w-full px-4 py-2 border border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light"
-              value={filters.dateStart}
-              onChange={(e) => handleFilterChange("dateStart", e.target.value)}
+              value={filters.dateQuestionDebut}
+              onChange={(e) =>
+                handleFilterChange("dateQuestionDebut", e.target.value)
+              }
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-secondary mb-2">
-              Date de fin
+              Date question (fin)
             </label>
             <input
               type="date"
               className="w-full px-4 py-2 border border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light"
-              value={filters.dateEnd}
-              onChange={(e) => handleFilterChange("dateEnd", e.target.value)}
+              value={filters.dateQuestionFin}
+              onChange={(e) =>
+                handleFilterChange("dateQuestionFin", e.target.value)
+              }
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-secondary mb-2">
+              Date archivage (début)
+            </label>
+            <input
+              type="date"
+              className="w-full px-4 py-2 border border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light"
+              value={filters.dateArchivageDebut}
+              onChange={(e) =>
+                handleFilterChange("dateArchivageDebut", e.target.value)
+              }
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-secondary mb-2">
+              Date archivage (fin)
+            </label>
+            <input
+              type="date"
+              className="w-full px-4 py-2 border border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light"
+              value={filters.dateArchivageFin}
+              onChange={(e) =>
+                handleFilterChange("dateArchivageFin", e.target.value)
+              }
             />
           </div>
 
@@ -369,19 +378,17 @@ const Interventions = () => {
               onClick={resetDateFilters}
               className="w-full bg-gray-200 text-gray-700 rounded-lg px-4 py-2 font-medium text-sm hover:bg-gray-300 transition-colors"
             >
-              Effacer les dates
+              Effacer dates
             </button>
           </div>
         </div>
       </div>
 
-      {/* Liste des interventions */}
+      {/* Liste des archives */}
       <div className="card card-rounded p-6 mb-8">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold text-primary">
-            {user?.role === "commune"
-              ? "Mes questions"
-              : "Toutes les interventions"}
+            Liste des archives
           </h2>
           <div className="text-sm">
             <span className="text-tertiary">Page </span>
@@ -419,15 +426,12 @@ const Interventions = () => {
           <div className="space-y-0">
             {interventions.length > 0 ? (
               interventions.map((intervention) => (
-                <InterventionRow
-                  key={intervention.id}
-                  intervention={intervention}
-                />
+                <ArchiveRow key={intervention.id} intervention={intervention} />
               ))
             ) : (
               <div className="text-center py-12">
                 <div className="text-tertiary text-lg mb-2">
-                  Aucune intervention trouvée
+                  Aucune intervention archivée trouvée
                 </div>
                 <p className="text-tertiary text-sm">
                   Ajustez vos filtres pour voir plus de résultats
@@ -448,4 +452,4 @@ const Interventions = () => {
   );
 };
 
-export default Interventions;
+export default Archives;

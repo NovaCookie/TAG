@@ -11,24 +11,26 @@ const InterventionDetail = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  // États principaux
   const [intervention, setIntervention] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Satisfaction
   const [satisfactionNote, setSatisfactionNote] = useState(0);
   const [submittingSatisfaction, setSubmittingSatisfaction] = useState(false);
   const [satisfactionMessage, setSatisfactionMessage] = useState("");
 
-  // Modal suppression
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
 
-  // -------------------------
-  // Fetch: récupérer l'intervention
-  // -------------------------
+  const [archiving, setArchiving] = useState(false);
+  const [archiveMessage, setArchiveMessage] = useState("");
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
+
+  const [restoring, setRestoring] = useState(false);
+  const [restoreMessage, setRestoreMessage] = useState("");
+  const [showRestoreModal, setShowRestoreModal] = useState(false);
+
   const fetchIntervention = useCallback(async () => {
     try {
       setLoading(true);
@@ -61,9 +63,6 @@ const InterventionDetail = () => {
     }
   }, [id, fetchIntervention]);
 
-  // -------------------------
-  // Handlers - suppression
-  // -------------------------
   const handleOpenDeleteModal = () => {
     setShowDeleteModal(true);
     setDeleteError("");
@@ -82,7 +81,6 @@ const InterventionDetail = () => {
     try {
       await interventionsAPI.delete(intervention.id);
 
-      // Redirection vers la liste des interventions avec message de succès
       navigate("/interventions", {
         state: {
           message: "L'intervention a été supprimée avec succès",
@@ -106,14 +104,10 @@ const InterventionDetail = () => {
       setDeleteError(errorMessage);
     } finally {
       setDeleting(false);
-      // garder la modal ouverte pour montrer l'erreur si elle existe
       if (!deleteError) setShowDeleteModal(false);
     }
   };
 
-  // -------------------------
-  // Handlers - satisfaction
-  // -------------------------
   const handleSatisfactionSubmit = async (note) => {
     if (!intervention || submittingSatisfaction) return;
 
@@ -150,9 +144,6 @@ const InterventionDetail = () => {
     }
   };
 
-  // -------------------------
-  // Handlers - téléchargement / preview pièces jointes
-  // -------------------------
   const handleDownload = async (piece) => {
     try {
       const res = await interventionsAPI.downloadPieceJointe(piece.id);
@@ -234,9 +225,112 @@ const InterventionDetail = () => {
     }
   };
 
-  // -------------------------
-  // Helpers / UI helpers
-  // -------------------------
+  const handleOpenArchiveModal = () => {
+    setShowArchiveModal(true);
+    setArchiveMessage("");
+  };
+
+  const handleCloseArchiveModal = () => {
+    setShowArchiveModal(false);
+    setArchiveMessage("");
+  };
+
+  const handleConfirmArchive = async () => {
+    if (!intervention) return;
+
+    setArchiving(true);
+    setArchiveMessage("");
+
+    try {
+      await interventionsAPI.archive(intervention.id);
+
+      setIntervention((prev) => ({
+        ...prev,
+        date_archivage: new Date().toISOString(),
+      }));
+
+      setArchiveMessage("Intervention archivée avec succès");
+      setTimeout(() => {
+        setShowArchiveModal(false);
+        setArchiveMessage("");
+        // Rediriger vers les archives après archivage
+        navigate("/archives", {
+          state: {
+            message: "L'intervention a été archivée avec succès",
+            type: "success",
+          },
+        });
+      }, 2000);
+    } catch (error) {
+      console.error("Erreur archivage:", error);
+
+      let errorMessage = "Erreur lors de l'archivage";
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.response?.status === 403) {
+        errorMessage =
+          "Vous n'avez pas l'autorisation d'archiver cette intervention";
+      }
+
+      setArchiveMessage(errorMessage);
+    } finally {
+      setArchiving(false);
+    }
+  };
+
+  const handleOpenRestoreModal = () => {
+    setShowRestoreModal(true);
+    setRestoreMessage("");
+  };
+
+  const handleCloseRestoreModal = () => {
+    setShowRestoreModal(false);
+    setRestoreMessage("");
+  };
+
+  const handleConfirmRestore = async () => {
+    if (!intervention) return;
+
+    setRestoring(true);
+    setRestoreMessage("");
+
+    try {
+      await interventionsAPI.restore(intervention.id);
+
+      setIntervention((prev) => ({
+        ...prev,
+        date_archivage: null,
+      }));
+
+      setRestoreMessage("Intervention restaurée avec succès");
+      setTimeout(() => {
+        setShowRestoreModal(false);
+        setRestoreMessage("");
+        // Rediriger vers les interventions après restauration
+        navigate("/interventions", {
+          state: {
+            message: "L'intervention a été restaurée avec succès",
+            type: "success",
+          },
+        });
+      }, 2000);
+    } catch (error) {
+      console.error("Erreur restauration:", error);
+
+      let errorMessage = "Erreur lors de la restauration";
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.response?.status === 403) {
+        errorMessage =
+          "Vous n'avez pas l'autorisation de restaurer cette intervention";
+      }
+
+      setRestoreMessage(errorMessage);
+    } finally {
+      setRestoring(false);
+    }
+  };
+
   const canReply = useCallback(() => {
     return (
       (user?.role === "admin" || user?.role === "juriste") &&
@@ -306,9 +400,6 @@ const InterventionDetail = () => {
     );
   };
 
-  // -------------------------
-  // Modal component (interne)
-  // -------------------------
   const DeleteConfirmationModal = () => {
     if (!showDeleteModal) return null;
     if (!intervention) return null;
@@ -317,7 +408,6 @@ const InterventionDetail = () => {
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6">
           <div className="text-center">
-            {/* Icône d'alerte */}
             <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
               <svg
                 className="h-6 w-6 text-red-600"
@@ -383,9 +473,166 @@ const InterventionDetail = () => {
     );
   };
 
-  // -------------------------
-  // Rendu
-  // -------------------------
+  const ArchiveConfirmationModal = () => {
+    if (!showArchiveModal) return null;
+    if (!intervention) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6">
+          <div className="text-center">
+            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-secondary/10 mb-4">
+              <svg
+                className="h-6 w-6 text-secondary"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
+                />
+              </svg>
+            </div>
+
+            <h3 className="text-lg font-semibold text-secondary mb-2">
+              Confirmer l'archivage
+            </h3>
+
+            <p className="text-tertiary mb-6">
+              Êtes-vous sûr de vouloir archiver l'intervention{" "}
+              <strong>n°{intervention.id.toString().padStart(4, "0")}</strong> ?
+              <br />
+              <span className="text-secondary font-medium">
+                L'intervention sera conservée mais ne sera plus visible dans les
+                listes principales.
+              </span>
+            </p>
+
+            {archiveMessage && (
+              <div
+                className={`px-4 py-3 rounded-lg mb-4 text-sm ${
+                  archiveMessage.includes("Erreur")
+                    ? "bg-danger/10 text-danger border border-danger/20"
+                    : "bg-success/10 text-success border border-success/20"
+                }`}
+              >
+                {archiveMessage}
+              </div>
+            )}
+
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={handleCloseArchiveModal}
+                disabled={archiving}
+                className="px-6 py-2 border border-light text-secondary rounded-lg font-semibold hover:bg-light transition-colors disabled:opacity-50"
+              >
+                Annuler
+              </button>
+
+              <button
+                onClick={handleConfirmArchive}
+                disabled={archiving}
+                className="px-6 py-2 bg-secondary text-white rounded-lg font-semibold hover:bg-secondary-light transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {archiving ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Archivage...
+                  </>
+                ) : (
+                  "Confirmer l'archivage"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const RestoreConfirmationModal = () => {
+    if (!showRestoreModal) return null;
+    if (!intervention) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6">
+          <div className="text-center">
+            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-primary/10 mb-4">
+              <svg
+                className="h-6 w-6 text-secondary"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
+            </div>
+
+            <h3 className="text-lg font-semibold text-secondary mb-2">
+              Confirmer la restauration
+            </h3>
+
+            <p className="text-tertiary mb-6">
+              Êtes-vous sûr de vouloir restaurer l'intervention{" "}
+              <strong>n°{intervention.id.toString().padStart(4, "0")}</strong> ?
+              <br />
+              <span className="text-secondary font-medium">
+                L'intervention sera à nouveau visible dans les listes
+                principales.
+              </span>
+            </p>
+
+            {restoreMessage && (
+              <div
+                className={`px-4 py-3 rounded-lg mb-4 text-sm ${
+                  restoreMessage.includes("Erreur")
+                    ? "bg-danger/10 text-danger border border-danger/20"
+                    : "bg-success/10 text-success border border-success/20"
+                }`}
+              >
+                {restoreMessage}
+              </div>
+            )}
+
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={handleCloseRestoreModal}
+                disabled={restoring}
+                className="px-6 py-2 border border-light text-secondary rounded-lg font-semibold hover:bg-light transition-colors disabled:opacity-50"
+              >
+                Annuler
+              </button>
+
+              <button
+                onClick={handleConfirmRestore}
+                disabled={restoring}
+                className="px-6 py-2 bg-secondary text-white rounded-lg font-semibold hover:bg-secondary-light transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {restoring ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Restauration...
+                  </>
+                ) : (
+                  "Confirmer la restauration"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <Layout activePage="interventions">
@@ -416,10 +663,13 @@ const InterventionDetail = () => {
             </p>
           </div>
           <Link
-            to="/users"
+            to={intervention?.date_archivage ? "/archives" : "/interventions"}
             className="inline-block bg-primary text-white rounded-lg px-6 py-3 font-semibold text-sm hover:bg-primary-light transition-colors"
           >
-            ← Retour aux interventions
+            ← Retour{" "}
+            {intervention?.date_archivage
+              ? "aux archives"
+              : "aux interventions"}
           </Link>
         </div>
       </Layout>
@@ -427,21 +677,40 @@ const InterventionDetail = () => {
   }
 
   const status = getInterventionStatus(intervention);
+  const isArchived = intervention.date_archivage;
 
   return (
-    <Layout activePage="interventions">
+    <Layout activePage={isArchived ? "archives" : "interventions"}>
       <div className="mb-6">
         <Link
-          to="/interventions"
+          to={isArchived ? "/archives" : "/interventions"}
           className="text-primary hover:text-primary-light mb-4 inline-block"
         >
-          ← Retour aux interventions
+          ← Retour {isArchived ? "aux archives" : "aux interventions"}
         </Link>
 
         <div className="flex justify-between items-start">
           <div>
             <h1 className="text-2xl font-semibold text-primary mb-2">
               Intervention n°{intervention.id.toString().padStart(4, "0")}
+              {isArchived && (
+                <span className="ml-3 bg-gray-500 text-white text-sm px-3 py-1 rounded-full inline-flex items-center gap-1">
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
+                    />
+                  </svg>
+                  Archivée
+                </span>
+              )}
             </h1>
           </div>
 
@@ -457,9 +726,7 @@ const InterventionDetail = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Colonne de gauche - Question et Description */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Bloc Question */}
           <div className="card card-rounded p-6">
             <h2 className="text-lg font-semibold text-primary mb-4 border-b border-light-gray pb-3">
               Question
@@ -471,7 +738,6 @@ const InterventionDetail = () => {
             </div>
           </div>
 
-          {/* Description */}
           {intervention.titre && intervention.description && (
             <div className="card card-rounded p-6">
               <h2 className="text-lg font-semibold text-primary mb-4 border-b border-light-gray pb-3">
@@ -485,7 +751,6 @@ const InterventionDetail = () => {
             </div>
           )}
 
-          {/* Réponse du juriste */}
           {intervention.reponse && (
             <div className="card card-rounded p-6">
               <div className="flex justify-between items-start mb-4">
@@ -553,7 +818,6 @@ const InterventionDetail = () => {
             </div>
           )}
 
-          {/* Satisfaction (communes) */}
           {user?.role === "commune" && intervention.reponse && (
             <div className="card card-rounded p-6">
               <h2 className="text-lg font-semibold text-primary mb-4">
@@ -600,9 +864,7 @@ const InterventionDetail = () => {
           )}
         </div>
 
-        {/* Colonne de droite - Détails et informations */}
         <div className="space-y-6">
-          {/* Détails */}
           <div className="card card-rounded p-6">
             <h3 className="text-lg font-semibold text-primary mb-4 border-b border-light-gray pb-3">
               Détails
@@ -639,7 +901,6 @@ const InterventionDetail = () => {
             </div>
           </div>
 
-          {/* Statut */}
           <div className="card card-rounded p-6">
             <h3 className="text-lg font-semibold text-primary mb-4 border-b border-light-gray pb-3">
               Statut
@@ -648,8 +909,19 @@ const InterventionDetail = () => {
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-tertiary">Statut:</span>
-                <StatusBadge status={status} />
+                <div className="flex items-center gap-2">
+                  <StatusBadge status={status} />
+                </div>
               </div>
+
+              {isArchived && (
+                <div className="flex justify-between">
+                  <span className="text-tertiary">Date d'archivage:</span>
+                  <span className="text-tertiary">
+                    {formatDate(intervention.date_archivage)}
+                  </span>
+                </div>
+              )}
 
               <div className="flex justify-between">
                 <span className="text-tertiary">Date de création:</span>
@@ -692,7 +964,6 @@ const InterventionDetail = () => {
             </div>
           </div>
 
-          {/* Pièces jointes */}
           <div className="card card-rounded p-6">
             <h3 className="text-lg font-semibold text-primary mb-4 border-b border-light-gray pb-3">
               Pièces jointes
@@ -760,7 +1031,6 @@ const InterventionDetail = () => {
             )}
           </div>
 
-          {/* En attente pour les communes */}
           {user?.role === "commune" && !intervention.reponse && (
             <div className="card card-rounded p-6 bg-primary/5 border border-primary/20">
               <h3 className="text-lg font-semibold text-primary mb-2">
@@ -773,7 +1043,6 @@ const InterventionDetail = () => {
             </div>
           )}
 
-          {/* Actions pour admin/juriste */}
           {(user?.role === "admin" || user?.role === "juriste") && (
             <div className="card card-rounded p-6">
               <h3 className="text-lg font-semibold text-primary mb-4">
@@ -789,12 +1058,29 @@ const InterventionDetail = () => {
                     Répondre
                   </Link>
                 )}
+
+                {!isArchived ? (
+                  <button
+                    onClick={handleOpenArchiveModal}
+                    className="block w-full text-center bg-secondary text-white py-2 px-4 rounded-lg font-semibold hover:bg-secondary-light transition-colors"
+                  >
+                    Archiver
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleOpenRestoreModal}
+                    className="block w-full text-center bg-secondary text-white py-2 px-4 rounded-lg font-semibold hover:bg-secondary-light transition-colors"
+                  >
+                    Restaurer
+                  </button>
+                )}
+
                 {user.role === "admin" && (
                   <button
                     onClick={handleOpenDeleteModal}
                     className="block w-full text-center bg-danger text-white py-2 px-4 rounded-lg font-semibold hover:bg-red-400 transition-colors"
                   >
-                    supprimer
+                    Supprimer
                   </button>
                 )}
               </div>
@@ -802,6 +1088,8 @@ const InterventionDetail = () => {
           )}
 
           <DeleteConfirmationModal />
+          <ArchiveConfirmationModal />
+          <RestoreConfirmationModal />
         </div>
       </div>
     </Layout>

@@ -9,168 +9,150 @@ import { interventionsAPI, usersAPI } from "../services/api";
 const Dashboard = () => {
   const { user } = useAuth();
 
-  const [statistiques, setStatistiques] = useState({
+  const [statistics, setStatistics] = useState({
     totalQuestions: 0,
-    questionsEnAttente: 0,
-    questionsRepondues: 0,
+    pendingQuestions: 0,
+    answeredQuestions: 0,
     totalCommunes: 0,
-    totalUtilisateurs: 0,
-    satisfactionMoyenne: 0,
-    tauxReponse: 0,
-    questionsParCommune: [],
-    questionsParTheme: [],
-    questionsParStrate: [],
-    satisfactionParCommune: [],
-    satisfactionParStrate: [],
+    totalUsers: 0,
+    averageSatisfaction: 0,
+    responseRate: 0,
+    questionsByTheme: [],
   });
 
-  const [dernieresQuestions, setDernieresQuestions] = useState([]);
-  const [chargement, setChargement] = useState(true);
+  const [recentQuestions, setRecentQuestions] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const chargerDonneesTableauDeBord = useCallback(async () => {
+  const loadUserStatistics = useCallback(async () => {
     try {
-      setChargement(true);
-      await Promise.all([
-        chargerStatistiquesUtilisateur(),
-        chargerDernieresQuestions(),
-      ]);
-    } catch (erreur) {
-      console.error("Erreur chargement tableau de bord :", erreur);
-    } finally {
-      setChargement(false);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    chargerDonneesTableauDeBord();
-  }, [chargerDonneesTableauDeBord]);
-
-  const chargerStatistiquesUtilisateur = async () => {
-    try {
-      let donnees = {
+      let data = {
         totalQuestions: 0,
-        questionsEnAttente: 0,
-        questionsRepondues: 0,
+        pendingQuestions: 0,
+        answeredQuestions: 0,
         totalCommunes: 0,
-        totalUtilisateurs: 0,
-        satisfactionMoyenne: 0,
-        tauxReponse: 0,
+        totalUsers: 0,
+        averageSatisfaction: 0,
+        responseRate: 0,
+        questionsByTheme: [],
       };
 
       if (user?.role === "commune") {
-        const reponse = await interventionsAPI.getAll({ limit: 1000 });
-        const interventions = reponse.data.interventions || [];
+        const response = await interventionsAPI.getAll({ limit: 1000 });
+        const interventions = response.data.interventions || [];
 
-        donnees = {
-          ...donnees,
+        data = {
+          ...data,
           totalQuestions: interventions.length,
-          questionsEnAttente: interventions.filter((i) => !i.reponse).length,
-          questionsRepondues: interventions.filter((i) => i.reponse).length,
+          pendingQuestions: interventions.filter((i) => !i.reponse).length,
+          answeredQuestions: interventions.filter((i) => i.reponse).length,
         };
       } else if (user?.role === "juriste") {
-        const reponse = await interventionsAPI.getAll({ limit: 1000 });
-        const interventions = reponse.data.interventions || [];
+        const response = await interventionsAPI.getAll({ limit: 1000 });
+        const interventions = response.data.interventions || [];
 
-        donnees = {
-          ...donnees,
+        data = {
+          ...data,
           totalQuestions: interventions.filter((i) => !i.reponse).length,
-          questionsEnAttente: interventions.filter((i) => !i.reponse).length,
-          questionsRepondues: interventions.filter((i) => i.reponse).length,
+          pendingQuestions: interventions.filter((i) => !i.reponse).length,
+          answeredQuestions: interventions.filter((i) => i.reponse).length,
         };
       } else if (user?.role === "admin") {
         try {
-          const [statsUtilisateurs, statsAvancees] = await Promise.all([
+          const [usersStats, advancedStats] = await Promise.all([
             usersAPI.getStats().catch(() => ({ data: {} })),
             interventionsAPI.getAdvancedStats().catch(() => ({ data: {} })),
           ]);
 
-          const reponseToutes = await interventionsAPI.getAll({ limit: 1000 });
-          const toutesInterventions = reponseToutes.data.interventions || [];
+          const allResponse = await interventionsAPI.getAll({ limit: 1000 });
+          const allInterventions = allResponse.data.interventions || [];
 
-          const enAttente = toutesInterventions.filter((i) => !i.reponse);
-          const repondues = toutesInterventions.filter((i) => i.reponse);
+          const pending = allInterventions.filter((i) => !i.reponse);
+          const answered = allInterventions.filter((i) => i.reponse);
 
-          const interventionsAvecSatisfaction = toutesInterventions.filter(
+          const interventionsWithSatisfaction = allInterventions.filter(
             (i) => i.satisfaction
           );
-          const moyenneSatisfaction =
-            interventionsAvecSatisfaction.length > 0
-              ? interventionsAvecSatisfaction.reduce(
+          const satisfactionAverage =
+            interventionsWithSatisfaction.length > 0
+              ? interventionsWithSatisfaction.reduce(
                   (acc, i) => acc + i.satisfaction,
                   0
-                ) / interventionsAvecSatisfaction.length
+                ) / interventionsWithSatisfaction.length
               : 0;
 
-          donnees = {
-            totalQuestions: toutesInterventions.length,
-            questionsEnAttente: enAttente.length,
-            questionsRepondues: repondues.length,
-            totalCommunes: statsUtilisateurs.data?.totalCommunes || 0,
-            totalUtilisateurs: statsUtilisateurs.data?.totalUtilisateurs || 0,
-            satisfactionMoyenne: parseFloat(moyenneSatisfaction.toFixed(1)),
-            tauxReponse:
-              toutesInterventions.length > 0
-                ? Math.round(
-                    (repondues.length / toutesInterventions.length) * 100
-                  )
+          data = {
+            totalQuestions: allInterventions.length,
+            pendingQuestions: pending.length,
+            answeredQuestions: answered.length,
+            totalCommunes: usersStats.data?.totalCommunes || 0,
+            totalUsers: usersStats.data?.totalUsers || 0,
+            averageSatisfaction: parseFloat(satisfactionAverage.toFixed(1)),
+            responseRate:
+              allInterventions.length > 0
+                ? Math.round((answered.length / allInterventions.length) * 100)
                 : 0,
-            questionsParCommune: statsAvancees.data?.questionsParCommune || [],
-            questionsParTheme: statsAvancees.data?.questionsParTheme || [],
-            questionsParStrate: statsAvancees.data?.questionsParStrate || [],
-            satisfactionParCommune:
-              statsAvancees.data?.satisfactionParCommune || [],
-            satisfactionParStrate:
-              statsAvancees.data?.satisfactionParStrate || [],
+            questionsByTheme: advancedStats.data?.questionsByTheme || [],
           };
-        } catch (erreur) {
-          console.error("Erreur stats avancées:", erreur);
-          const reponseToutes = await interventionsAPI.getAll({ limit: 1000 });
-          const toutesInterventions = reponseToutes.data.interventions || [];
+        } catch (error) {
+          console.error("Erreur stats avancées:", error);
+          const allResponse = await interventionsAPI.getAll({ limit: 1000 });
+          const allInterventions = allResponse.data.interventions || [];
 
-          const enAttente = toutesInterventions.filter((i) => !i.reponse);
-          const repondues = toutesInterventions.filter((i) => i.reponse);
+          const pending = allInterventions.filter((i) => !i.reponse);
+          const answered = allInterventions.filter((i) => i.reponse);
 
-          donnees = {
-            totalQuestions: toutesInterventions.length,
-            questionsEnAttente: enAttente.length,
-            questionsRepondues: repondues.length,
+          data = {
+            totalQuestions: allInterventions.length,
+            pendingQuestions: pending.length,
+            answeredQuestions: answered.length,
             totalCommunes: 0,
-            totalUtilisateurs: 0,
-            satisfactionMoyenne: 0,
-            tauxReponse: 0,
-            questionsParCommune: [],
-            questionsParTheme: [],
-            questionsParStrate: [],
-            satisfactionParCommune: [],
-            satisfactionParStrate: [],
+            totalUsers: 0,
+            averageSatisfaction: 0,
+            responseRate: 0,
+            questionsByTheme: [],
           };
         }
       }
 
-      setStatistiques(donnees);
-    } catch (erreur) {
-      console.error("Erreur chargement statistiques utilisateur :", erreur);
+      setStatistics(data);
+    } catch (error) {
+      console.error("Erreur chargement statistiques utilisateur :", error);
     }
-  };
+  }, [user]);
 
-  const chargerDernieresQuestions = async () => {
+  const loadRecentQuestions = useCallback(async () => {
     try {
-      let parametres = { limit: 5, order: "desc" };
+      let parameters = { limit: 5, order: "desc" };
 
       if (user?.role === "juriste") {
-        parametres.order = "asc";
-        parametres.sansReponse = true;
+        parameters.order = "asc";
+        parameters.sansReponse = true;
       }
 
-      const reponse = await interventionsAPI.getAll(parametres);
-      setDernieresQuestions(reponse.data.interventions || []);
-    } catch (erreur) {
-      console.error("Erreur chargement dernières interventions :", erreur);
-      setDernieresQuestions([]);
+      const response = await interventionsAPI.getAll(parameters);
+      setRecentQuestions(response.data.interventions || []);
+    } catch (error) {
+      console.error("Erreur chargement dernières interventions :", error);
+      setRecentQuestions([]);
     }
-  };
+  }, [user]);
 
-  const obtenirDescriptionTableauDeBord = () => {
+  const loadDashboardData = useCallback(async () => {
+    try {
+      setLoading(true);
+      await Promise.all([loadUserStatistics(), loadRecentQuestions()]);
+    } catch (error) {
+      console.error("Erreur chargement tableau de bord :", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [loadUserStatistics, loadRecentQuestions]);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, [loadDashboardData]);
+
+  const getDashboardDescription = () => {
     switch (user?.role) {
       case "commune":
         return `Bienvenue ${user?.prenom} ! Suivez vos questions juridiques.`;
@@ -183,30 +165,30 @@ const Dashboard = () => {
     }
   };
 
-  const obtenirTitreCarte = (index) => {
-    const titres = {
+  const getCardTitle = (index) => {
+    const titles = {
       commune: ["Mes questions", "En attente", "Répondues"],
       juriste: ["Questions à traiter", "En attente", "Traitées"],
       admin: ["Total interventions", "En attente", "Répondues"],
     };
     return (
-      titres[user?.role]?.[index] || ["Total", "En attente", "Répondues"][index]
+      titles[user?.role]?.[index] || ["Total", "En attente", "Répondues"][index]
     );
   };
 
-  const obtenirSousTitreCarte = (index) => {
-    const sousTitres = {
+  const getCardSubtitle = (index) => {
+    const subtitles = {
       commune: ["Total posées", "Réponse attendue", "Questions traitées"],
       juriste: ["À traiter", "Sans réponse", "Avec réponse"],
       admin: ["Au total", "Sans réponse", "Avec réponse"],
     };
     return (
-      sousTitres[user?.role]?.[index] ||
+      subtitles[user?.role]?.[index] ||
       ["Total", "En attente", "Répondu"][index]
     );
   };
 
-  if (chargement) {
+  if (loading) {
     return (
       <Layout activePage="dashboard">
         <div className="animate-pulse">
@@ -219,6 +201,8 @@ const Dashboard = () => {
                 value="0"
                 subtitle=""
                 loading={true}
+                color="secondary"
+                size="medium"
               />
             ))}
           </div>
@@ -234,7 +218,7 @@ const Dashboard = () => {
           <h1 className="text-2xl font-semibold text-primary mb-2">
             Tableau de bord
           </h1>
-          <p className="text-secondary">{obtenirDescriptionTableauDeBord()}</p>
+          <p className="text-secondary">{getDashboardDescription()}</p>
         </div>
         <div className="text-right">
           <div className="text-sm text-tertiary">
@@ -255,28 +239,25 @@ const Dashboard = () => {
       {/* Cartes principales avec StatBlock */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
         <StatBlock
-          title={obtenirTitreCarte(0)}
-          value={statistiques.totalQuestions}
-          subtitle={obtenirSousTitreCarte(0)}
+          title={getCardTitle(0)}
+          value={statistics.totalQuestions}
+          subtitle={getCardSubtitle(0)}
           color="primary"
-          icon="📊"
-          loading={chargement}
+          size="medium"
         />
         <StatBlock
-          title={obtenirTitreCarte(1)}
-          value={statistiques.questionsEnAttente}
-          subtitle={obtenirSousTitreCarte(1)}
+          title={getCardTitle(1)}
+          value={statistics.pendingQuestions}
+          subtitle={getCardSubtitle(1)}
           color="warning"
-          icon="⏳"
-          loading={chargement}
+          size="medium"
         />
         <StatBlock
-          title={obtenirTitreCarte(2)}
-          value={statistiques.questionsRepondues}
-          subtitle={obtenirSousTitreCarte(2)}
+          title={getCardTitle(2)}
+          value={statistics.answeredQuestions}
+          subtitle={getCardSubtitle(2)}
           color="success"
-          icon="✅"
-          loading={chargement}
+          size="medium"
         />
       </div>
 
@@ -284,57 +265,60 @@ const Dashboard = () => {
         <div className="mb-10">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-lg font-semibold text-primary">
-              Statistiques avancées
+              Vue d'ensemble
             </h2>
             <Link
               to="/dashboard/advanced"
               className="bg-primary text-white rounded-lg px-4 py-2 text-sm font-semibold hover:bg-primary-light transition-colors"
             >
-              Voir le détail complet
+              Statistiques détaillées
             </Link>
           </div>
 
           {/* Stats principales admin */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
             <StatBlock
-              title="Communes actives"
-              value={statistiques.totalCommunes}
-              subtitle="Total"
-              color="primary"
-              icon="🏘️"
-              size="small"
+              title="Communes"
+              value={statistics.totalCommunes}
+              subtitle="Nombre de communes"
+              color="secondary"
+              size="medium"
             />
             <StatBlock
               title="Utilisateurs"
-              value={statistiques.totalUtilisateurs}
-              subtitle="Total"
+              value={statistics.totalUsers}
+              subtitle="Nombre d'utilisateurs"
               color="secondary"
-              icon="👥"
-              size="small"
+              size="medium"
             />
             <StatBlock
               title="Satisfaction"
               value={
-                statistiques.satisfactionMoyenne > 0
-                  ? `${statistiques.satisfactionMoyenne.toFixed(1)}/5`
+                statistics.averageSatisfaction > 0
+                  ? `${statistics.averageSatisfaction.toFixed(1)}/5`
                   : "N/A"
               }
               subtitle="Moyenne générale"
-              color="success"
-              icon="⭐"
-              size="small"
+              color="secondary"
+              size="medium"
             />
             <StatBlock
               title="Taux de réponse"
               value={
-                statistiques.tauxReponse > 0
-                  ? `${statistiques.tauxReponse}%`
+                statistics.responseRate > 0
+                  ? `${statistics.responseRate}%`
                   : "0%"
               }
               subtitle="Questions traitées"
-              color="warning"
-              icon="📈"
-              size="small"
+              color="secondary"
+              size="medium"
+            />
+            <StatBlock
+              title="Thèmes"
+              value={statistics.questionsByTheme?.length || 0}
+              subtitle="Nombre de thèmes"
+              color="secondary"
+              size="medium"
             />
           </div>
         </div>
@@ -359,7 +343,7 @@ const Dashboard = () => {
         </div>
 
         <div className="space-y-4">
-          {dernieresQuestions.map((question) => (
+          {recentQuestions.map((question) => (
             <Link
               key={question.id}
               to={`/interventions/${question.id}`}
@@ -393,7 +377,7 @@ const Dashboard = () => {
             </Link>
           ))}
 
-          {dernieresQuestions.length === 0 && (
+          {recentQuestions.length === 0 && (
             <div className="text-center py-8 text-tertiary">
               {user?.role === "commune"
                 ? "Aucune question pour le moment"

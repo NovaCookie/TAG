@@ -45,6 +45,9 @@ export const interventionsAPI = {
       responseType: "blob",
     }),
   getAdvancedStats: (params = "") => api.get(`/stats/advanced?${params}`),
+  archive: (id) => api.put(`/interventions/${id}/archiver`),
+  getArchives: (params) => api.get("/interventions/archives/list", { params }),
+  restore: (id) => api.put(`/interventions/archives/${id}/restaurer`),
 };
 
 // === Themes ===

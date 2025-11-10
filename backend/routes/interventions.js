@@ -1,124 +1,88 @@
 const express = require("express");
 const { PrismaClient } = require("@prisma/client");
 const { authMiddleware, requireRole } = require("../middleware/auth");
+const filterService = require("../services/filterService");
 const prisma = new PrismaClient();
 const router = express.Router();
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 
-// GET /api/interventions - Lister les interventions (avec filtres)
+// GET /api/interventions - Liste des interventions (avec service de filtres)
 router.get("/", authMiddleware, async (req, res) => {
   try {
-    const {
-      page = 1,
-      limit = 10,
-      status,
-      theme,
-      commune,
-      dateDebut,
-      dateFin,
-      search,
-    } = req.query;
-    const where = {};
+    const where = filterService.buildInterventionFilters(
+      req.query,
+      req.user,
+      false
+    );
+    const pagination = filterService.getPaginationOptions(req.query);
+    const include = filterService.getIncludeOptions(false);
 
-    if (req.user.role === "commune") {
-      where.demandeur_id = req.user.id;
-    }
-
-    // Filtre recherche AVEC ET entre les mots
-    if (search && search.trim() !== "") {
-      const mots = search
-        .trim()
-        .split(/\s+/)
-        .filter((mot) => mot.length > 0);
-
-      if (mots.length > 0) {
-        where.AND = mots.map((mot) => ({
-          OR: [
-            { titre: { contains: mot, mode: "insensitive" } },
-            { description: { contains: mot, mode: "insensitive" } },
-            { reponse: { contains: mot, mode: "insensitive" } },
-            { notes: { contains: mot, mode: "insensitive" } },
-            { commune: { nom: { contains: mot, mode: "insensitive" } } },
-          ],
-        }));
-      }
-    }
-
-    // Filtre par statut (si spécifié séparément)
-    if (status && status !== "all") {
-      if (status === "en_attente") {
-        where.reponse = null;
-      } else if (status === "repondu") {
-        where.reponse = { not: null };
-        where.satisfaction = null;
-      } else if (status === "termine") {
-        where.satisfaction = { not: null };
-      }
-    }
-
-    // Filtre par thème
-    if (theme && theme !== "all") {
-      where.theme_id = parseInt(theme);
-    }
-
-    // Filtre par commune
-    if (commune && commune !== "all") {
-      where.commune_id = parseInt(commune);
-    }
-
-    // Filtre par date
-    if (dateDebut || dateFin) {
-      where.date_question = {};
-      if (dateDebut) where.date_question.gte = new Date(dateDebut);
-      if (dateFin)
-        where.date_question.lte = new Date(dateFin + "T23:59:59.999Z");
-    }
-
-    const interventions = await prisma.interventions.findMany({
+    const result = await filterService.findInterventions(
       where,
-      include: {
-        commune: { select: { nom: true } },
-        theme: { select: { designation: true } },
-        demandeur: {
-          select: {
-            nom: true,
-            prenom: true,
-            actif: true,
-          },
-        },
-        juriste: {
-          select: {
-            nom: true,
-            prenom: true,
-            actif: true,
-          },
-        },
-      },
-      orderBy: { date_question: "desc" },
-      skip: (page - 1) * limit,
-      take: parseInt(limit),
-    });
+      pagination,
+      include,
+      { date_question: "desc" }
+    );
 
-    const total = await prisma.interventions.count({ where });
-
-    res.json({
-      interventions,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / limit),
-      },
-    });
+    res.json(result);
   } catch (error) {
     console.error("Erreur liste interventions:", error);
-    res
-      .status(500)
-      .json({ error: "Erreur lors de la récupération des interventions" });
+    res.status(500).json({ error: "Erreur récupération interventions" });
   }
 });
+
+// GET /api/interventions/archives/list - Archives avec filtres unifiés
+router.get(
+  "/archives/list",
+  authMiddleware,
+  requireRole(["admin", "juriste"]),
+  async (req, res) => {
+    try {
+      const where = filterService.buildInterventionFilters(
+        req.query,
+        req.user,
+        true
+      );
+      const pagination = filterService.getPaginationOptions(req.query);
+      const include = filterService.getIncludeOptions(true);
+
+      const result = await filterService.findInterventions(
+        where,
+        pagination,
+        include,
+        { date_archivage: "desc" }
+      );
+
+      // Ajout des stats spécifiques aux archives
+      const stats = await prisma.interventions.groupBy({
+        by: ["theme_id"],
+        where: { date_archivage: { not: null } },
+        _count: { id: true },
+      });
+
+      const totalArchives = await prisma.interventions.count({
+        where: { date_archivage: { not: null } },
+      });
+
+      res.json({
+        ...result,
+        stats: {
+          totalArchives,
+          archivesParTheme: stats.length,
+          derniereArchive:
+            result.interventions.length > 0
+              ? result.interventions[0].date_archivage
+              : null,
+        },
+      });
+    } catch (error) {
+      console.error("Erreur archives:", error);
+      res.status(500).json({ error: "Erreur chargement archives" });
+    }
+  }
+);
 
 // GET /api/interventions/:id - Détail d'une intervention
 router.get("/:id", authMiddleware, async (req, res) => {
@@ -152,57 +116,45 @@ router.get("/:id", authMiddleware, async (req, res) => {
       return res.status(404).json({ error: "Intervention non trouvée" });
     }
 
-    // Vérifier les permissions
     if (
       req.user.role === "commune" &&
       intervention.demandeur_id !== req.user.id
     ) {
-      return res
-        .status(403)
-        .json({ error: "Accès non autorisé à cette intervention" });
+      return res.status(403).json({ error: "Accès non autorisé" });
     }
 
     res.json(intervention);
   } catch (error) {
     console.error("Erreur détail intervention:", error);
-    res
-      .status(500)
-      .json({ error: "Erreur lors de la récupération de l'intervention" });
+    res.status(500).json({ error: "Erreur récupération intervention" });
   }
 });
 
-// POST /api/interventions - Créer une intervention (communes seulement)
+// POST /api/interventions - Créer une intervention
 router.post("/", authMiddleware, requireRole(["commune"]), async (req, res) => {
   try {
     const { titre, description, theme_id } = req.body;
 
-    // VALIDATION DES CHAMPS OBLIGATOIRES
     if (!titre || !description || !theme_id) {
       return res
         .status(400)
-        .json({ error: "Titre, description et thème sont obligatoires" });
+        .json({ error: "Titre, description et thème obligatoires" });
     }
 
-    // VALIDATION DES LONGUEURS
     if (titre.length > 100) {
-      return res
-        .status(400)
-        .json({ error: "Le titre ne peut pas dépasser 100 caractères" });
+      return res.status(400).json({ error: "Titre max 100 caractères" });
     }
 
     if (description.length > 2000) {
-      return res
-        .status(400)
-        .json({ error: "La description ne peut pas dépasser 2000 caractères" });
+      return res.status(400).json({ error: "Description max 2000 caractères" });
     }
 
-    // Récupérer l'utilisateur avec sa commune
     const utilisateur = await prisma.utilisateurs.findUnique({
       where: { id: req.user.id },
       select: { commune_id: true },
     });
 
-    if (!utilisateur || !utilisateur.commune_id) {
+    if (!utilisateur?.commune_id) {
       return res
         .status(400)
         .json({ error: "Utilisateur sans commune associée" });
@@ -229,13 +181,11 @@ router.post("/", authMiddleware, requireRole(["commune"]), async (req, res) => {
     });
   } catch (error) {
     console.error("Erreur création intervention:", error);
-    res
-      .status(500)
-      .json({ error: "Erreur lors de la création de l'intervention" });
+    res.status(500).json({ error: "Erreur création intervention" });
   }
 });
 
-// DELETE /api/interventions/:id - Supprimer une intervention (admin seulement)
+// DELETE /api/interventions/:id - Supprimer une intervention
 router.delete(
   "/:id",
   authMiddleware,
@@ -244,7 +194,6 @@ router.delete(
     try {
       const interventionId = parseInt(req.params.id);
 
-      // Vérifier si l'intervention existe
       const intervention = await prisma.interventions.findUnique({
         where: { id: interventionId },
       });
@@ -253,12 +202,10 @@ router.delete(
         return res.status(404).json({ error: "Intervention non trouvée" });
       }
 
-      // Supprimer d'abord les pièces jointes (contrainte clé étrangère)
       await prisma.piecesJointes.deleteMany({
         where: { intervention_id: interventionId },
       });
 
-      // Puis supprimer l'intervention
       await prisma.interventions.delete({
         where: { id: interventionId },
       });
@@ -275,14 +222,14 @@ router.delete(
       }
 
       res.status(500).json({
-        error: "Erreur lors de la suppression de l'intervention",
+        error: "Erreur suppression intervention",
         details: error.message,
       });
     }
   }
 );
 
-// PUT /api/interventions/:id/response - Répondre à une intervention (juristes seulement)
+// PUT /api/interventions/:id/response - Répondre à une intervention
 router.put(
   "/:id/response",
   authMiddleware,
@@ -292,7 +239,7 @@ router.put(
       const { reponse, notes } = req.body;
 
       if (!reponse) {
-        return res.status(400).json({ error: "La réponse est obligatoire" });
+        return res.status(400).json({ error: "Réponse obligatoire" });
       }
 
       const intervention = await prisma.interventions.update({
@@ -307,20 +254,9 @@ router.put(
           commune: { select: { nom: true } },
           theme: { select: { designation: true } },
           demandeur: {
-            select: {
-              nom: true,
-              prenom: true,
-              email: true,
-              actif: true,
-            },
+            select: { nom: true, prenom: true, email: true, actif: true },
           },
-          juriste: {
-            select: {
-              nom: true,
-              prenom: true,
-              actif: true,
-            },
-          },
+          juriste: { select: { nom: true, prenom: true, actif: true } },
         },
       });
 
@@ -330,14 +266,12 @@ router.put(
       });
     } catch (error) {
       console.error("Erreur réponse intervention:", error);
-      res
-        .status(500)
-        .json({ error: "Erreur lors de l'enregistrement de la réponse" });
+      res.status(500).json({ error: "Erreur enregistrement réponse" });
     }
   }
 );
 
-// PUT /api/interventions/:id/satisfaction - Noter une intervention (communes seulement)
+// PUT /api/interventions/:id/satisfaction - Noter une intervention
 router.put(
   "/:id/satisfaction",
   authMiddleware,
@@ -349,7 +283,7 @@ router.put(
       if (!satisfaction || satisfaction < 1 || satisfaction > 5) {
         return res
           .status(400)
-          .json({ error: "La satisfaction doit être entre 1 et 5" });
+          .json({ error: "Satisfaction doit être entre 1 et 5" });
       }
 
       const intervention = await prisma.interventions.findUnique({
@@ -363,7 +297,7 @@ router.put(
       if (!intervention.reponse) {
         return res
           .status(400)
-          .json({ error: "Impossible de noter une intervention sans réponse" });
+          .json({ error: "Impossible de noter sans réponse" });
       }
 
       const updatedIntervention = await prisma.interventions.update({
@@ -377,41 +311,129 @@ router.put(
       });
     } catch (error) {
       console.error("Erreur notation intervention:", error);
-      res
-        .status(500)
-        .json({ error: "Erreur lors de l'enregistrement de la satisfaction" });
+      res.status(500).json({ error: "Erreur enregistrement satisfaction" });
     }
   }
 );
 
-// GET /api/interventions/stats/dashboard - Tableaux de bord
+// PUT /api/interventions/:id/archiver - Archiver une intervention
+router.put(
+  "/:id/archiver",
+  authMiddleware,
+  requireRole(["admin", "juriste"]),
+  async (req, res) => {
+    try {
+      const interventionId = parseInt(req.params.id);
+
+      const intervention = await prisma.interventions.findUnique({
+        where: { id: interventionId },
+      });
+
+      if (!intervention) {
+        return res.status(404).json({ error: "Intervention non trouvée" });
+      }
+
+      if (
+        req.user.role === "commune" &&
+        intervention.demandeur_id !== req.user.id
+      ) {
+        return res.status(403).json({ error: "Non autorisé" });
+      }
+
+      const interventionArchivee = await prisma.interventions.update({
+        where: { id: interventionId },
+        data: { date_archivage: new Date() },
+      });
+
+      res.json({
+        message: "Intervention archivée avec succès",
+        intervention: interventionArchivee,
+      });
+    } catch (error) {
+      console.error("Erreur archivage:", error);
+      res.status(500).json({ error: "Erreur archivage" });
+    }
+  }
+);
+
+// PUT /api/interventions/archives/:id/restaurer - Restaurer une intervention
+router.put(
+  "/archives/:id/restaurer",
+  authMiddleware,
+  requireRole(["admin"]),
+  async (req, res) => {
+    try {
+      const interventionId = parseInt(req.params.id);
+
+      const intervention = await prisma.interventions.findUnique({
+        where: { id: interventionId },
+        select: { date_archivage: true, notes: true },
+      });
+
+      if (!intervention) {
+        return res.status(404).json({ error: "Intervention non trouvée" });
+      }
+
+      if (!intervention.date_archivage) {
+        return res.status(400).json({ error: "Intervention non archivée" });
+      }
+
+      const interventionRestoree = await prisma.interventions.update({
+        where: { id: interventionId },
+        data: {
+          date_archivage: null,
+          notes: intervention.notes
+            ? `${
+                intervention.notes
+              }\n\n🔓 Restaurée le ${new Date().toLocaleDateString()}`
+            : `🔓 Restaurée le ${new Date().toLocaleDateString()}`,
+        },
+        include: {
+          commune: { select: { nom: true } },
+          theme: { select: { designation: true } },
+          demandeur: { select: { nom: true, prenom: true } },
+        },
+      });
+
+      res.json({
+        message: "Intervention restaurée avec succès",
+        intervention: interventionRestoree,
+      });
+    } catch (error) {
+      console.error("Erreur restauration:", error);
+      res.status(500).json({ error: "Erreur restauration" });
+    }
+  }
+);
+
 router.get(
   "/stats/dashboard",
   authMiddleware,
   requireRole(["admin", "juriste"]),
   async (req, res) => {
     try {
-      // Questions par commune
-      const questionsParCommune = await prisma.interventions.groupBy({
-        by: ["commune_id"],
-        _count: { id: true },
-        where: {
-          date_question: {
-            gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+      const [
+        questionsParCommune,
+        questionsParTheme,
+        satisfactionParStrate,
+        interventionsAvecReponse,
+      ] = await Promise.all([
+        prisma.interventions.groupBy({
+          by: ["commune_id"],
+          _count: { id: true },
+          where: {
+            date_question: {
+              gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+            },
           },
-        },
-        orderBy: { _count: { id: "desc" } },
-      });
-
-      // Questions par thème
-      const questionsParTheme = await prisma.interventions.groupBy({
-        by: ["theme_id"],
-        _count: { id: true },
-        orderBy: { _count: { id: "desc" } },
-      });
-
-      // Satisfaction par strate de commune
-      const satisfactionParStrate = await prisma.$queryRaw`
+          orderBy: { _count: { id: "desc" } },
+        }),
+        prisma.interventions.groupBy({
+          by: ["theme_id"],
+          _count: { id: true },
+          orderBy: { _count: { id: "desc" } },
+        }),
+        prisma.$queryRaw`
         SELECT 
           CASE 
             WHEN c.population < 100 THEN '< 100 habitants'
@@ -423,25 +445,18 @@ router.get(
         FROM "Interventions" i
         JOIN "Communes" c ON i.commune_id = c.id
         GROUP BY strate
-      `;
-
-      // Temps moyen de réponse
-      const interventionsAvecReponse = await prisma.interventions.findMany({
-        where: {
-          date_reponse: { not: null },
-        },
-        select: {
-          date_question: true,
-          date_reponse: true,
-        },
-      });
+      `,
+        prisma.interventions.findMany({
+          where: { date_reponse: { not: null } },
+          select: { date_question: true, date_reponse: true },
+        }),
+      ]);
 
       let totalMs = 0;
       interventionsAvecReponse.forEach((intervention) => {
-        const tempsReponse =
+        totalMs +=
           new Date(intervention.date_reponse) -
           new Date(intervention.date_question);
-        totalMs += tempsReponse;
       });
 
       const tempsMoyenMs =
@@ -464,25 +479,103 @@ router.get(
       });
     } catch (error) {
       console.error("Erreur stats dashboard:", error);
-      res.status(500).json({
-        error: "Erreur lors du calcul des statistiques",
-        details: error.message,
-      });
+      res
+        .status(500)
+        .json({ error: "Erreur calcul statistiques", details: error.message });
     }
   }
 );
 
-// GET /api/interventions/theme/:themeId/similaires - Questions similaires
+router.get(
+  "/archives/stats",
+  authMiddleware,
+  requireRole(["admin", "juriste"]),
+  async (req, res) => {
+    try {
+      const { periode } = req.query;
+      let dateDebut = new Date();
+
+      switch (periode) {
+        case "7j":
+          dateDebut.setDate(dateDebut.getDate() - 7);
+          break;
+        case "30j":
+          dateDebut.setDate(dateDebut.getDate() - 30);
+          break;
+        case "90j":
+          dateDebut.setDate(dateDebut.getDate() - 90);
+          break;
+        case "1an":
+          dateDebut.setFullYear(dateDebut.getFullYear() - 1);
+          break;
+        default:
+          dateDebut = new Date(0);
+      }
+
+      const where = {
+        date_archivage: { not: null, gte: periode ? dateDebut : undefined },
+      };
+
+      const [
+        totalArchives,
+        archivesParTheme,
+        archivesParMois,
+        satisfactionMoyenne,
+      ] = await Promise.all([
+        prisma.interventions.count({ where }),
+        prisma.interventions.groupBy({
+          by: ["theme_id"],
+          where,
+          _count: { id: true },
+          _avg: { satisfaction: true },
+        }),
+        prisma.$queryRaw`
+        SELECT DATE_TRUNC('month', date_archivage) as mois, COUNT(*) as count
+        FROM "Interventions" 
+        WHERE date_archivage IS NOT NULL AND date_archivage >= ${dateDebut}
+        GROUP BY DATE_TRUNC('month', date_archivage)
+        ORDER BY mois DESC LIMIT 12
+      `,
+        prisma.interventions.aggregate({
+          where: { ...where, satisfaction: { not: null } },
+          _avg: { satisfaction: true },
+        }),
+      ]);
+
+      const archivesParThemeAvecDetails = await Promise.all(
+        archivesParTheme.map(async (item) => {
+          const theme = await prisma.themes.findUnique({
+            where: { id: item.theme_id },
+            select: { designation: true },
+          });
+          return {
+            theme: theme?.designation || "Thème inconnu",
+            count: item._count.id,
+            satisfactionMoyenne: item._avg.satisfaction,
+          };
+        })
+      );
+
+      res.json({
+        totalArchives,
+        archivesParTheme: archivesParThemeAvecDetails,
+        archivesParMois,
+        satisfactionMoyenne: satisfactionMoyenne._avg.satisfaction || 0,
+        periode: periode || "toutes",
+      });
+    } catch (error) {
+      console.error("Erreur stats archives:", error);
+      res.status(500).json({ error: "Erreur calcul statistiques archives" });
+    }
+  }
+);
+
 router.get("/theme/:themeId/similaires", authMiddleware, async (req, res) => {
   try {
     const { themeId } = req.params;
-    const { keywords } = req.query;
 
     const interventions = await prisma.interventions.findMany({
-      where: {
-        theme_id: parseInt(themeId),
-        reponse: { not: null },
-      },
+      where: { theme_id: parseInt(themeId), reponse: { not: null } },
       include: {
         commune: { select: { nom: true } },
         theme: { select: { designation: true } },
@@ -497,7 +590,6 @@ router.get("/theme/:themeId/similaires", authMiddleware, async (req, res) => {
   }
 });
 
-// Configuration de multer pour l'upload
 const checkFileType = (file, cb) => {
   const allowedMimes = {
     "application/pdf": [".pdf"],
@@ -512,49 +604,34 @@ const checkFileType = (file, cb) => {
   const fileExtension = path.extname(file.originalname).toLowerCase();
   const mimeType = file.mimetype;
 
-  if (
-    allowedMimes[mimeType] &&
-    allowedMimes[mimeType].includes(fileExtension)
-  ) {
+  if (allowedMimes[mimeType]?.includes(fileExtension)) {
     cb(null, true);
   } else {
-    cb(
-      new Error(`Type de fichier non autorisé: ${mimeType} (${fileExtension})`),
-      false
-    );
+    cb(new Error(`Type non autorisé: ${mimeType} (${fileExtension})`), false);
   }
 };
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadDir = "uploads/pieces-jointes";
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
+    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
     cb(null, uploadDir);
   },
-
   filename: (req, file, cb) => {
     const cleanName = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, "_");
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
     const extension = path.extname(cleanName);
     const nameWithoutExt = path.basename(cleanName, extension);
-
     cb(null, nameWithoutExt + "-" + uniqueSuffix + extension);
   },
 });
 
 const upload = multer({
   storage: storage,
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5Mo limite
-  },
-  fileFilter: (req, file, cb) => {
-    checkFileType(file, cb);
-  },
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => checkFileType(file, cb),
 });
 
-// POST /api/interventions/:id/pieces-jointes - Upload pièces jointes
 router.post(
   "/:id/pieces-jointes",
   authMiddleware,
@@ -563,23 +640,18 @@ router.post(
   async (req, res) => {
     try {
       const interventionId = parseInt(req.params.id);
-
       const intervention = await prisma.interventions.findUnique({
         where: { id: interventionId },
         include: { demandeur: true },
       });
 
-      if (!intervention) {
+      if (!intervention)
         return res.status(404).json({ error: "Intervention non trouvée" });
-      }
-
-      if (intervention.demandeur_id !== req.user.id) {
+      if (intervention.demandeur_id !== req.user.id)
         return res.status(403).json({ error: "Accès non autorisé" });
-      }
 
       const piecesJointes = [];
-
-      if (req.files && req.files.length > 0) {
+      if (req.files?.length > 0) {
         for (const file of req.files) {
           const pieceJointe = await prisma.piecesJointes.create({
             data: {
@@ -599,45 +671,32 @@ router.post(
       });
     } catch (error) {
       console.error("Erreur upload pièces jointes:", error);
-      res
-        .status(500)
-        .json({ error: "Erreur lors de l'upload des pièces jointes" });
+      res.status(500).json({ error: "Erreur upload pièces jointes" });
     }
   }
 );
 
-// GET /api/interventions/pieces-jointes/:id - Télécharger une pièce jointe
 router.get("/pieces-jointes/:id", authMiddleware, async (req, res) => {
   try {
     const pieceId = parseInt(req.params.id);
-
     const pieceJointe = await prisma.piecesJointes.findUnique({
       where: { id: pieceId },
       include: {
-        intervention: {
-          include: {
-            demandeur: true,
-            commune: true,
-          },
-        },
+        intervention: { include: { demandeur: true, commune: true } },
       },
     });
 
-    if (!pieceJointe) {
+    if (!pieceJointe)
       return res.status(404).json({ error: "Pièce jointe non trouvée" });
-    }
 
     const user = req.user;
     const intervention = pieceJointe.intervention;
-
     if (user.role === "commune" && intervention.demandeur_id !== user.id) {
       return res.status(403).json({ error: "Accès non autorisé" });
     }
 
     if (!fs.existsSync(pieceJointe.chemin)) {
-      return res
-        .status(404)
-        .json({ error: "Fichier non trouvé sur le serveur" });
+      return res.status(404).json({ error: "Fichier non trouvé" });
     }
 
     const extension = path.extname(pieceJointe.nom_original).toLowerCase();
@@ -651,28 +710,25 @@ router.get("/pieces-jointes/:id", authMiddleware, async (req, res) => {
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     };
 
-    const mimeType = mimeTypes[extension] || "application/octet-stream";
-
-    res.setHeader("Content-Type", mimeType);
+    res.setHeader(
+      "Content-Type",
+      mimeTypes[extension] || "application/octet-stream"
+    );
     res.setHeader(
       "Content-Disposition",
       `inline; filename="${encodeURIComponent(pieceJointe.nom_original)}"`
     );
 
     const fileStream = fs.createReadStream(pieceJointe.chemin);
-
-    fileStream.on("error", (error) => {
-      if (!res.headersSent) {
-        res.status(500).json({ error: "Erreur lors de la lecture du fichier" });
-      }
+    fileStream.on("error", () => {
+      if (!res.headersSent)
+        res.status(500).json({ error: "Erreur lecture fichier" });
     });
-
     fileStream.pipe(res);
   } catch (error) {
     console.error("Erreur téléchargement pièce jointe:", error);
-    if (!res.headersSent) {
-      res.status(500).json({ error: "Erreur lors du téléchargement" });
-    }
+    if (!res.headersSent)
+      res.status(500).json({ error: "Erreur téléchargement" });
   }
 });
 

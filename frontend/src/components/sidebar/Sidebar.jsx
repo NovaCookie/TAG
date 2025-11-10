@@ -8,12 +8,20 @@ const Sidebar = ({ isOpen, onToggle }) => {
   const location = useLocation();
 
   const isActive = (path) => location.pathname === path;
-  const canViewAll = () => ["admin", "juriste"].includes(user?.role);
-  const canManageUsers = () => user?.role === "admin";
+
+  const isAdmin = () => user?.role === "admin";
+  const isJuriste = () => user?.role === "juriste";
+  const isCommune = () => user?.role === "commune";
+
+  const canViewManagement = () => isAdmin() || isJuriste();
+  const canViewUsers = () => isAdmin(); // Seulement admin pour page utilisateurs
+  const canViewCommunes = () => isAdmin() || isJuriste(); // Admin + juristes pour page communes
+  const canViewArchives = () => isAdmin() || isJuriste(); // Admin + juristes pour page archives
 
   const ICONS = {
     dashboard: "📊",
     interventions: "📝",
+    archives: "📁",
     users: "👥",
     communes: "🏠",
     settings: "⚙️",
@@ -27,7 +35,6 @@ const Sidebar = ({ isOpen, onToggle }) => {
       } overflow-hidden transition-all duration-1000`}
     >
       <div className="p-4">
-        {/* Header + Toggle button */}
         <div className="flex items-center justify-between mb-6">
           {isOpen && (
             <div className="font-medium uppercase text-lg text-tertiary">
@@ -83,16 +90,26 @@ const Sidebar = ({ isOpen, onToggle }) => {
           <SidebarLink
             to="/interventions"
             icon={ICONS.interventions}
-            title={user?.role === "commune" ? "Mes Questions" : "Interventions"}
+            title={isCommune() ? "Mes Questions" : "Interventions"}
             isOpen={isOpen}
             isActive={isActive("/interventions")}
           />
+
+          {canViewArchives() && (
+            <SidebarLink
+              to="/archives"
+              icon={ICONS.archives}
+              title="Archives"
+              isOpen={isOpen}
+              isActive={isActive("/archives")}
+            />
+          )}
         </SidebarSection>
 
         {/* === MANAGEMENT SECTION === */}
-        {(canViewAll() || canManageUsers()) && (
+        {canViewManagement() && (
           <SidebarSection title="Management" isOpen={isOpen}>
-            {canManageUsers() && (
+            {canViewUsers() && (
               <SidebarLink
                 to="/users"
                 icon={ICONS.users}
@@ -101,7 +118,7 @@ const Sidebar = ({ isOpen, onToggle }) => {
                 isActive={isActive("/users")}
               />
             )}
-            {canManageUsers() && (
+            {canViewCommunes() && (
               <SidebarLink
                 to="/communes"
                 icon={ICONS.communes}

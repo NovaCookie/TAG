@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../context/AuthContext";
 import Layout from "../layout/Layout";
-import StatBlock from "./StatBlock";
 import { interventionsAPI } from "../../services/api";
 import PDFExporter from "../../services/pdfExport";
 
@@ -10,8 +9,6 @@ const AdvancedStats = () => {
   const [filtres, setFiltres] = useState({
     dateDebut: "",
     dateFin: "",
-    commune: "",
-    theme: "",
     strate: "",
   });
   const [statistiques, setStatistiques] = useState({
@@ -20,12 +17,6 @@ const AdvancedStats = () => {
     questionsParStrate: [],
     satisfactionParCommune: [],
     satisfactionParStrate: [],
-    resume: {
-      totalCommunes: 0,
-      totalInterventions: 0,
-      totalThemes: 0,
-      satisfactionGlobale: 0,
-    },
   });
   const [chargement, setChargement] = useState(false);
 
@@ -36,8 +27,6 @@ const AdvancedStats = () => {
       const params = new URLSearchParams();
       if (filtres.dateDebut) params.append("dateDebut", filtres.dateDebut);
       if (filtres.dateFin) params.append("dateFin", filtres.dateFin);
-      if (filtres.commune) params.append("commune", filtres.commune);
-      if (filtres.theme) params.append("theme", filtres.theme);
       if (filtres.strate) params.append("strate", filtres.strate);
 
       const response = await interventionsAPI.getAdvancedStats(
@@ -61,8 +50,6 @@ const AdvancedStats = () => {
     setFiltres({
       dateDebut: "",
       dateFin: "",
-      commune: "",
-      theme: "",
       strate: "",
     });
   };
@@ -70,13 +57,9 @@ const AdvancedStats = () => {
   const exporterPDF = () => {
     try {
       setChargement(true);
-
       const exporter = new PDFExporter();
       exporter.exportAdvancedStats(statistiques, filtres);
-
-      setTimeout(() => {
-        setChargement(false);
-      }, 500);
+      setTimeout(() => setChargement(false), 500);
     } catch (error) {
       console.error("Erreur lors de l'export PDF:", error);
       setChargement(false);
@@ -184,46 +167,6 @@ const AdvancedStats = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <StatBlock
-          title="Communes Actives"
-          value={statistiques.resume?.totalCommunes || 0}
-          subtitle="Avec interventions"
-          color="primary"
-          size="small"
-          loading={chargement}
-        />
-        <StatBlock
-          title="Interventions Total"
-          value={statistiques.resume?.totalInterventions || 0}
-          subtitle="Toutes communes"
-          color="success"
-          size="small"
-          loading={chargement}
-        />
-        <StatBlock
-          title="Thèmes Utilisés"
-          value={statistiques.resume?.totalThemes || 0}
-          subtitle="Différents"
-          color="secondary"
-          size="small"
-          loading={chargement}
-        />
-        <StatBlock
-          title="Satisfaction Globale"
-          value={
-            statistiques.resume?.satisfactionGlobale > 0
-              ? `${statistiques.resume.satisfactionGlobale}/5`
-              : "N/A"
-          }
-          subtitle="Moyenne générale"
-          color="warning"
-          size="small"
-          loading={chargement}
-        />
-      </div>
-
-      {/* Filtres */}
       <div className="bg-white rounded-xl shadow-card p-6 mb-6">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-semibold text-primary">Filtres</h3>
@@ -280,7 +223,6 @@ const AdvancedStats = () => {
           </div>
         </div>
 
-        {/* Indicateurs de filtres actifs */}
         {(filtres.dateDebut || filtres.dateFin || filtres.strate) && (
           <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
             <p className="text-sm text-blue-700">
@@ -322,7 +264,6 @@ const AdvancedStats = () => {
             titre="Questions par commune"
             donnees={statistiques.questionsParCommune.map((commune) => ({
               Commune: commune.commune,
-              Population: commune.population?.toLocaleString() || "N/A",
               Questions: commune.nb_questions,
               Répondues: commune.questions_repondues || 0,
               "Taux réponse": commune.taux_reponse
@@ -334,13 +275,11 @@ const AdvancedStats = () => {
             }))}
             colonnes={[
               "Commune",
-              "Population",
               "Questions",
               "Répondues",
               "Taux réponse",
               "Satisfaction",
             ]}
-            messageVide="Aucune intervention trouvée pour les communes actives"
           />
 
           <BlocStatistique
@@ -352,16 +291,8 @@ const AdvancedStats = () => {
               Satisfaction: theme.satisfaction_moyenne
                 ? `${theme.satisfaction_moyenne}/5`
                 : "N/A",
-              Évaluations: theme.nb_evaluations || 0,
             }))}
-            colonnes={[
-              "Thème",
-              "Questions",
-              "Part",
-              "Satisfaction",
-              "Évaluations",
-            ]}
-            messageVide="Aucune intervention trouvée pour les thèmes actifs"
+            colonnes={["Thème", "Questions", "Part", "Satisfaction"]}
           />
 
           <BlocStatistique
@@ -382,7 +313,6 @@ const AdvancedStats = () => {
               "Part",
               "Satisfaction",
             ]}
-            messageVide="Aucune donnée disponible pour les strates"
           />
 
           <BlocStatistique
@@ -391,17 +321,8 @@ const AdvancedStats = () => {
               Commune: commune.commune,
               "Note moyenne": `${commune.satisfaction_moyenne}/5`,
               Évaluations: commune.nb_evaluations,
-              "Taux évaluation": commune.taux_evaluation
-                ? `${commune.taux_evaluation}%`
-                : "0%",
             }))}
-            colonnes={[
-              "Commune",
-              "Note moyenne",
-              "Évaluations",
-              "Taux évaluation",
-            ]}
-            messageVide="Aucune évaluation de satisfaction disponible"
+            colonnes={["Commune", "Note moyenne", "Évaluations"]}
           />
 
           <BlocStatistique
@@ -410,22 +331,13 @@ const AdvancedStats = () => {
               Strate: strate.strate,
               Satisfaction: `${strate.satisfaction_moyenne}/5`,
               Échantillon: strate.nb_evaluations,
-              "Taux évaluation": strate.taux_evaluation
-                ? `${strate.taux_evaluation}%`
-                : "0%",
             }))}
-            colonnes={[
-              "Strate",
-              "Satisfaction",
-              "Échantillon",
-              "Taux évaluation",
-            ]}
-            messageVide="Aucune évaluation de satisfaction par strate"
+            colonnes={["Strate", "Satisfaction", "Échantillon"]}
           />
         </>
       )}
 
-      {!chargement && statistiques.resume?.totalInterventions === 0 && (
+      {!chargement && statistiques.questionsParCommune.length === 0 && (
         <div className="text-center py-12">
           <div className="text-6xl mb-4">📊</div>
           <h3 className="text-xl font-semibold text-secondary mb-2">

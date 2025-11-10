@@ -28,12 +28,15 @@ import InterventionDetail from "./components/interventions/InterventionDetail";
 import ReplyIntervention from "./components/interventions/ReplyIntervention";
 import NewIntervention from "./components/interventions/NewIntervention";
 
+// === Intervention Pages ===
+import Archives from "./components/Archives";
+
 // === User Pages ===
 import NewUser from "./components/users/NewUser";
 import EditUser from "./components/users/EditUser";
 
 // ===================================================================
-// 🔒 Custom Route Wrappers
+// Custom Route Wrappers
 // ===================================================================
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -54,7 +57,7 @@ const AuthRoute = ({ children }) => {
 };
 
 // ===================================================================
-// ⏳ Loading Screen
+// Loading Screen
 // ===================================================================
 const LoadingScreen = ({ message }) => (
   <div className="min-h-screen flex items-center justify-center bg-light dark:bg-gray-900">
@@ -66,7 +69,7 @@ const LoadingScreen = ({ message }) => (
 );
 
 // ===================================================================
-// 🚀 Main Application
+// Main Application
 // ===================================================================
 function App() {
   return (
@@ -151,7 +154,14 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
-
+                <Route
+                  path="/archives"
+                  element={
+                    <ProtectedRoute>
+                      <Archives />
+                    </ProtectedRoute>
+                  }
+                />
                 {/* === User Management === */}
                 <Route
                   path="/users"

@@ -1,4 +1,3 @@
-// backend/prisma/schema.prisma
 generator client {
   provider = "prisma-client-js"
 }
@@ -27,6 +26,7 @@ model Themes {
   date_creation DateTime @default(now())
 
   interventions Interventions[]
+  retentionPolicies RetentionPolicy[]
 }
 
 model Utilisateurs {
@@ -63,6 +63,8 @@ model Interventions {
   notes           String?
   satisfaction    Int?     // 1-5
   date_creation   DateTime @default(now())
+  date_archivage DateTime?
+  date_suppression DateTime?
 
   commune_id      Int
   demandeur_id    Int
@@ -85,4 +87,13 @@ model PiecesJointes {
 
   intervention_id Int
   intervention    Interventions @relation(fields: [intervention_id], references: [id], onDelete: Cascade)
+}
+
+model RetentionPolicy {
+  id          Int      @id @default(autoincrement())
+  theme_id    Int
+  duree_mois  Int      
+  description String
+  
+  theme       Themes   @relation(fields: [theme_id], references: [id])
 }
