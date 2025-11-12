@@ -1,12 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
 import Layout from "./layout/Layout";
-import StatusBadge from "./common/StatusBadge";
 import Pagination from "./common/Pagination";
 import DataTable from "./common/data/DataTable";
 import AlertMessage from "./common/feedback/AlertMessage";
 import { communesAPI } from "../services/api";
 import SelectField from "./common/dropdown/SelectField";
+import { Link } from "react-router-dom";
 
 const Communes = () => {
   const { user } = useAuth();
@@ -43,11 +43,7 @@ const Communes = () => {
     { value: "100+", label: "Plus de 100 interventions" },
   ];
 
-  useEffect(() => {
-    chargerCommunes();
-  }, [pagination.page, filtres]);
-
-  const chargerCommunes = async () => {
+  const chargerCommunes = useCallback(async () => {
     try {
       setChargement(true);
       setErrorMessage("");
@@ -80,7 +76,11 @@ const Communes = () => {
     } finally {
       setChargement(false);
     }
-  };
+  }, [pagination.page, filtres]);
+
+  useEffect(() => {
+    chargerCommunes();
+  }, [chargerCommunes]);
 
   const gererChangementFiltre = (cle, valeur) => {
     setFiltres((prev) => ({
@@ -90,27 +90,8 @@ const Communes = () => {
     setPagination((prev) => ({ ...prev, page: 1 }));
   };
 
-  const basculerStatutCommune = async (communeId) => {
-    try {
-      await communesAPI.toggleStatus(communeId);
-
-      setCommunes((prev) =>
-        prev.map((commune) =>
-          commune.id === communeId
-            ? { ...commune, actif: !commune.actif }
-            : commune
-        )
-      );
-
-      setSuccessMessage("Statut de la commune modifié avec succès");
-    } catch (erreur) {
-      console.error("Erreur changement statut commune:", erreur);
-      setErrorMessage("Erreur lors de la modification du statut");
-    }
-  };
-
   const LigneCommune = ({ commune }) => (
-    <div className="flex items-center justify-between py-4 px-4 border-b border-light-gray last:border-b-0 hover:bg-light/30 transition-colors">
+    <div className="flex items-center justify-between py-4 px-4 border-b border-light last:border-b-0 hover:bg-light/30 transition-colors">
       {/* Informations principales sur une seule ligne */}
       <div className="flex items-center gap-6 flex-1">
         {/* Code postal + Nom */}
@@ -127,64 +108,43 @@ const Communes = () => {
 
         {/* Population */}
         <div className="flex items-center gap-2 min-w-32">
-          <span className="w-3 h-3 rounded-full bg-blue-500"></span>
-          <span className="font-medium text-blue-700">
+          <span className="w-3 h-3 rounded-full bg-primary"></span>
+          <span className="font-medium text-primary">
             {commune.population?.toLocaleString() || 0} hab.
           </span>
         </div>
 
         {/* Utilisateurs */}
         <div className="flex items-center gap-2 min-w-40">
-          <span className="w-3 h-3 rounded-full bg-green-500"></span>
-          <span className="font-medium text-green-700">
-            {commune.stats.nb_utilisateurs} utilisateur
-            {commune.stats.nb_utilisateurs !== 1 ? "s" : ""}
+          <span className="w-3 h-3 rounded-full bg-success"></span>
+          <span className="font-medium text-success">
+            {commune.stats?.nb_utilisateurs || 0} utilisateur
+            {commune.stats?.nb_utilisateurs !== 1 ? "s" : ""}
           </span>
         </div>
 
         {/* Interventions */}
         <div className="flex items-center gap-2 min-w-40">
-          <span className="w-3 h-3 rounded-full bg-orange-500"></span>
-          <span className="font-medium text-orange-700">
-            {commune.stats.nb_interventions} intervention
-            {commune.stats.nb_interventions !== 1 ? "s" : ""}
+          <span className="w-3 h-3 rounded-full bg-warning"></span>
+          <span className="font-medium text-warning">
+            {commune.stats?.nb_interventions || 0} intervention
+            {commune.stats?.nb_interventions !== 1 ? "s" : ""}
           </span>
         </div>
       </div>
 
-      {/* Statut et actions */}
-      <div className="flex items-center gap-4">
-        <StatusBadge
-          status={commune.actif ? "active" : "inactive"}
-          className={
-            commune.actif
-              ? "bg-success/10 text-success border border-success/20"
-              : "bg-danger/10 text-danger border border-danger/20"
-          }
-        />
-
-        {user?.role === "admin" && (
-          <div className="flex gap-2">
-            <button
-              onClick={() => basculerStatutCommune(commune.id)}
-              className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
-                commune.actif
-                  ? "bg-warning/10 text-warning hover:bg-warning hover:text-white"
-                  : "bg-success/10 text-success hover:bg-success hover:text-white"
-              }`}
-              title={commune.actif ? "Désactiver" : "Activer"}
-            >
-              {commune.actif ? "⏸️" : "▶️"}
-            </button>
-            <button
-              className="w-8 h-8 rounded-full bg-light text-primary flex items-center justify-center hover:bg-primary-light hover:text-white transition-colors"
-              title="Modifier"
-            >
-              ✏️
-            </button>
-          </div>
-        )}
-      </div>
+      {/* Actions pour admin */}
+      {user?.role === "admin" && (
+        <div className="flex gap-2">
+          <Link
+            to={`/communes/${commune.id}`}
+            className="w-8 h-8 rounded-full bg-light text-primary flex items-center justify-center hover:bg-primary hover:text-white transition-colors"
+            title="Voir les détails"
+          >
+            👁️
+          </Link>
+        </div>
+      )}
     </div>
   );
 
@@ -208,15 +168,18 @@ const Communes = () => {
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-2xl font-semibold text-primary mb-2">Communes</h1>
-          <p className="text-secondary-light">
+          <p className="text-tertiary">
             {pagination.total} commune{pagination.total !== 1 ? "s" : ""} au
             total
           </p>
         </div>
         {user?.role === "admin" && (
-          <button className="bg-primary text-white rounded-lg px-6 py-3 font-semibold text-sm hover:bg-primary-light transition-colors">
+          <Link
+            to="/communes/new"
+            className="bg-primary text-white rounded-lg px-6 py-3 font-semibold text-sm hover:bg-primary-light transition-colors"
+          >
             Nouvelle commune
-          </button>
+          </Link>
         )}
       </div>
 
@@ -229,7 +192,7 @@ const Communes = () => {
             placeholder="Rechercher une commune..."
             value={filtres.search}
             onChange={(e) => gererChangementFiltre("search", e.target.value)}
-            className="w-full px-4 py-3 border border-light-gray rounded-lg focus:outline-none focus:border-primary"
+            className="w-full px-4 py-3 border border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light"
           />
         </div>
 
@@ -258,12 +221,12 @@ const Communes = () => {
       </div>
 
       {/* Liste des communes */}
-      <div className="bg-white rounded-xl shadow-card p-6 mb-8">
+      <div className="card card-rounded p-6 mb-8">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold text-primary">
             Liste des communes
           </h2>
-          <span className="text-sm text-secondary-light">
+          <span className="text-sm text-tertiary">
             Page {pagination.page} sur {pagination.totalPages}
           </span>
         </div>
@@ -279,11 +242,7 @@ const Communes = () => {
               : "Aucune commune dans la base de données"
           }
           renderItem={(commune) => (
-            <LigneCommune
-              commune={commune}
-              user={user}
-              onToggleStatus={basculerStatutCommune}
-            />
+            <LigneCommune key={commune.id} commune={commune} />
           )}
         />
       </div>

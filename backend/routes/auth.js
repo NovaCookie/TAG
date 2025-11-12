@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const { PrismaClient } = require("@prisma/client");
 const crypto = require("crypto");
 const emailService = require("../services/emailService");
+const archiveService = require("../services/archiveService"); // IMPORTANT
 const prisma = new PrismaClient();
 const router = express.Router();
 
@@ -43,7 +44,11 @@ router.post("/register", async (req, res) => {
       { expiresIn: "24h" }
     );
 
-    await emailService.sendWelcomeEmail(user);
+    try {
+      await emailService.sendWelcomeEmail(user);
+    } catch (emailError) {
+      console.error("Erreur envoi email bienvenue:", emailError);
+    }
 
     res.status(201).json({
       message: "Utilisateur créé avec succès",
@@ -57,18 +62,17 @@ router.post("/register", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Erreur envoi email bienvenue:", error);
+    console.error("Erreur inscription:", error);
     res.status(500).json({ error: "Erreur lors de l'inscription" });
-    res.status(201).json({
-      /* ... */
-    });
   }
 });
 
-// Route de connexion
+// Route de connexion - CRITIQUE : Vérification archivage
 router.post("/login", async (req, res) => {
   try {
     const { email, mot_de_passe } = req.body;
+
+    console.log("🔐 Tentative connexion:", email);
 
     // Trouver l'utilisateur
     const user = await prisma.utilisateurs.findUnique({
@@ -76,13 +80,36 @@ router.post("/login", async (req, res) => {
     });
 
     if (!user) {
+      console.log("❌ Utilisateur non trouvé:", email);
       return res.status(401).json({ error: "Email ou mot de passe incorrect" });
+    }
+
+    // VÉRIFICATION CRITIQUE : Vérifier si l'utilisateur est archivé
+    const archiveStatus = await archiveService.checkArchiveStatus(
+      "utilisateurs",
+      user.id
+    );
+    if (archiveStatus.archived) {
+      console.log("🚫 Utilisateur archivé tentant de se connecter:", email);
+      return res.status(410).json({
+        error: "Compte archivé. Accès refusé.",
+        archive_date: archiveStatus.archive_date,
+      });
+    }
+
+    // Vérifier si le compte est actif
+    if (!user.actif) {
+      console.log("❌ Compte désactivé:", email);
+      return res
+        .status(401)
+        .json({ error: "Compte désactivé. Contactez l'administrateur." });
     }
 
     // Vérifier le mot de passe
     const validPassword = await bcrypt.compare(mot_de_passe, user.mot_de_passe);
 
     if (!validPassword) {
+      console.log("❌ Mot de passe incorrect pour:", email);
       return res.status(401).json({ error: "Email ou mot de passe incorrect" });
     }
 
@@ -93,6 +120,8 @@ router.post("/login", async (req, res) => {
       { expiresIn: "24h" }
     );
 
+    console.log("✅ Connexion réussie pour:", email);
+
     res.json({
       message: "Connexion réussie",
       token,
@@ -102,9 +131,11 @@ router.post("/login", async (req, res) => {
         prenom: user.prenom,
         email: user.email,
         role: user.role,
+        commune_id: user.commune_id,
       },
     });
   } catch (error) {
+    console.error("❌ Erreur connexion:", error);
     res.status(500).json({ error: "Erreur lors de la connexion" });
   }
 });
@@ -125,6 +156,17 @@ router.post("/forgot-password", async (req, res) => {
 
     // Ne pas révéler si l'email existe ou non
     if (!user) {
+      return res.json({
+        message: "Si l'email existe, un lien de réinitialisation a été envoyé",
+      });
+    }
+
+    // Vérifier si l'utilisateur est archivé
+    const archiveStatus = await archiveService.checkArchiveStatus(
+      "utilisateurs",
+      user.id
+    );
+    if (archiveStatus.archived) {
       return res.json({
         message: "Si l'email existe, un lien de réinitialisation a été envoyé",
       });
@@ -151,7 +193,6 @@ router.post("/forgot-password", async (req, res) => {
 
     if (!emailResult.success) {
       console.error("Erreur envoi email :", emailResult.error);
-      // On renvoie quand même le même message pour la sécurité
     }
 
     res.json({
@@ -194,6 +235,17 @@ router.post("/reset-password", async (req, res) => {
     if (!user) {
       return res.status(400).json({
         error: "Token invalide ou expiré",
+      });
+    }
+
+    // Vérifier si l'utilisateur est archivé
+    const archiveStatus = await archiveService.checkArchiveStatus(
+      "utilisateurs",
+      user.id
+    );
+    if (archiveStatus.archived) {
+      return res.status(410).json({
+        error: "Compte archivé. Réinitialisation impossible.",
       });
     }
 

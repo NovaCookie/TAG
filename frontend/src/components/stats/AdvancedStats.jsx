@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../context/AuthContext";
 import Layout from "../layout/Layout";
-import { interventionsAPI } from "../../services/api";
+import { statsAPI } from "../../services/api";
 import PDFExporter from "../../services/pdfExport";
 
 const AdvancedStats = () => {
@@ -17,31 +17,32 @@ const AdvancedStats = () => {
     questionsParStrate: [],
     satisfactionParCommune: [],
     satisfactionParStrate: [],
+    resume: {},
   });
   const [chargement, setChargement] = useState(false);
+  const [erreur, setErreur] = useState(null);
 
   const chargerStatsAvancees = useCallback(async () => {
     try {
       setChargement(true);
+      setErreur(null);
 
-      const params = new URLSearchParams();
-      if (filtres.dateDebut) params.append("dateDebut", filtres.dateDebut);
-      if (filtres.dateFin) params.append("dateFin", filtres.dateFin);
-      if (filtres.strate) params.append("strate", filtres.strate);
+      console.log("Chargement des stats avec filtres:", filtres);
 
-      const response = await interventionsAPI.getAdvancedStats(
-        params.toString()
-      );
+      const response = await statsAPI.getAdvanced(filtres);
+      console.log("Réponse API stats:", response.data);
+
       setStatistiques(response.data);
     } catch (error) {
       console.error("Erreur chargement stats avancées:", error);
+      setErreur("Erreur lors du chargement des statistiques");
     } finally {
       setChargement(false);
     }
   }, [filtres]);
 
   useEffect(() => {
-    if (user?.role === "admin") {
+    if (user?.role === "admin" || user?.role === "juriste") {
       chargerStatsAvancees();
     }
   }, [chargerStatsAvancees, user]);
@@ -54,15 +55,17 @@ const AdvancedStats = () => {
     });
   };
 
+  const appliquerFiltres = () => {
+    chargerStatsAvancees();
+  };
+
   const exporterPDF = () => {
     try {
-      setChargement(true);
       const exporter = new PDFExporter();
       exporter.exportAdvancedStats(statistiques, filtres);
-      setTimeout(() => setChargement(false), 500);
     } catch (error) {
       console.error("Erreur lors de l'export PDF:", error);
-      setChargement(false);
+      setErreur("Erreur lors de l'export PDF");
     }
   };
 
@@ -74,7 +77,7 @@ const AdvancedStats = () => {
   }) => {
     if (!donnees || donnees.length === 0) {
       return (
-        <div className="bg-white rounded-xl shadow-card p-6 mb-6">
+        <div className="card card-rounded p-6 mb-6">
           <h3 className="text-lg font-semibold text-primary mb-4">{titre}</h3>
           <div className="text-center py-8 text-tertiary">{messageVide}</div>
         </div>
@@ -82,12 +85,12 @@ const AdvancedStats = () => {
     }
 
     return (
-      <div className="bg-white rounded-xl shadow-card p-6 mb-6">
+      <div className="card card-rounded p-6 mb-6">
         <h3 className="text-lg font-semibold text-primary mb-4">{titre}</h3>
         <div className="overflow-x-auto">
           <table className="min-w-full">
             <thead>
-              <tr className="border-b border-light-gray">
+              <tr className="border-b border-light">
                 {colonnes.map((col, index) => (
                   <th
                     key={index}
@@ -102,11 +105,13 @@ const AdvancedStats = () => {
               {donnees.map((item, index) => (
                 <tr
                   key={index}
-                  className="border-b border-light-gray last:border-b-0 hover:bg-light/30 transition-colors"
+                  className="border-b border-light last:border-b-0 hover:bg-light/30 transition-colors"
                 >
                   {Object.values(item).map((valeur, i) => (
                     <td key={i} className="py-3 px-4 text-sm text-tertiary">
-                      {valeur}
+                      {typeof valeur === "number" && valeur % 1 !== 0
+                        ? valeur.toFixed(2)
+                        : valeur}
                     </td>
                   ))}
                 </tr>
@@ -118,11 +123,20 @@ const AdvancedStats = () => {
     );
   };
 
-  if (user?.role !== "admin") {
+  // Vérification des permissions
+  if (user?.role !== "admin" && user?.role !== "juriste") {
     return (
       <Layout activePage="stats">
-        <div className="text-center py-8 text-tertiary">
-          Accès réservé aux administrateurs
+        <div className="flex items-center justify-center min-h-96">
+          <div className="text-center">
+            <div className="text-6xl mb-4">🚫</div>
+            <h2 className="text-xl font-semibold text-secondary mb-2">
+              Accès non autorisé
+            </h2>
+            <p className="text-tertiary">
+              Cette page est réservée aux administrateurs et juristes.
+            </p>
+          </div>
         </div>
       </Layout>
     );
@@ -167,16 +181,27 @@ const AdvancedStats = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-card p-6 mb-6">
+      {/* Section Filtres */}
+      <div className="card card-rounded p-6 mb-6">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-semibold text-primary">Filtres</h3>
-          <button
-            onClick={reinitialiserFiltres}
-            className="text-sm text-primary hover:text-primary-light transition-colors"
-          >
-            Tout effacer
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={reinitialiserFiltres}
+              className="text-sm text-tertiary hover:text-secondary transition-colors"
+            >
+              Tout effacer
+            </button>
+            <button
+              onClick={appliquerFiltres}
+              disabled={chargement}
+              className="text-sm bg-primary text-white px-3 py-1 rounded hover:bg-primary-light transition-colors"
+            >
+              Appliquer
+            </button>
+          </div>
         </div>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-secondary mb-2">
@@ -188,7 +213,7 @@ const AdvancedStats = () => {
               onChange={(e) =>
                 setFiltres({ ...filtres, dateDebut: e.target.value })
               }
-              className="w-full px-3 py-2 border border-light-gray rounded-lg focus:outline-none focus:border-primary"
+              className="w-full px-3 py-2 border border-light rounded-lg focus:outline-none focus:border-primary"
             />
           </div>
           <div>
@@ -201,7 +226,7 @@ const AdvancedStats = () => {
               onChange={(e) =>
                 setFiltres({ ...filtres, dateFin: e.target.value })
               }
-              className="w-full px-3 py-2 border border-light-gray rounded-lg focus:outline-none focus:border-primary"
+              className="w-full px-3 py-2 border border-light rounded-lg focus:outline-none focus:border-primary"
             />
           </div>
           <div>
@@ -213,7 +238,7 @@ const AdvancedStats = () => {
               onChange={(e) =>
                 setFiltres({ ...filtres, strate: e.target.value })
               }
-              className="w-full px-3 py-2 border border-light-gray rounded-lg focus:outline-none focus:border-primary"
+              className="w-full px-3 py-2 border border-light rounded-lg focus:outline-none focus:border-primary"
             >
               <option value="">Toutes les strates</option>
               <option value="petite">&lt; 100 habitants</option>
@@ -222,33 +247,21 @@ const AdvancedStats = () => {
             </select>
           </div>
         </div>
-
-        {(filtres.dateDebut || filtres.dateFin || filtres.strate) && (
-          <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-            <p className="text-sm text-blue-700">
-              <strong>Filtres actifs :</strong>
-              {filtres.dateDebut && ` À partir du ${filtres.dateDebut}`}
-              {filtres.dateFin && ` jusqu'au ${filtres.dateFin}`}
-              {filtres.strate &&
-                ` • Strate: ${
-                  filtres.strate === "petite"
-                    ? "< 100 habitants"
-                    : filtres.strate === "moyenne"
-                    ? "100-500 habitants"
-                    : "> 500 habitants"
-                }`}
-            </p>
-          </div>
-        )}
       </div>
+
+      {/* Message d'erreur */}
+      {erreur && (
+        <div className="bg-danger-50 border border-danger-200 rounded-lg p-4 mb-6">
+          <div className="flex items-center">
+            <p className="text-danger-700">{erreur}</p>
+          </div>
+        </div>
+      )}
 
       {chargement ? (
         <div className="space-y-6">
           {[...Array(5)].map((_, i) => (
-            <div
-              key={i}
-              className="bg-white rounded-xl shadow-card p-6 animate-pulse"
-            >
+            <div key={i} className="card card-rounded p-6 animate-pulse">
               <div className="h-6 bg-gray-200 rounded w-1/4 mb-4"></div>
               <div className="space-y-2">
                 {[...Array(5)].map((_, j) => (
@@ -262,19 +275,21 @@ const AdvancedStats = () => {
         <>
           <BlocStatistique
             titre="Questions par commune"
-            donnees={statistiques.questionsParCommune.map((commune) => ({
+            donnees={statistiques.questionsParCommune?.map((commune) => ({
               Commune: commune.commune,
-              Questions: commune.nb_questions,
+              Population: commune.population || 0,
+              Questions: commune.nb_questions || 0,
               Répondues: commune.questions_repondues || 0,
               "Taux réponse": commune.taux_reponse
                 ? `${commune.taux_reponse}%`
                 : "0%",
               Satisfaction: commune.satisfaction_moyenne
-                ? `${commune.satisfaction_moyenne}/5`
+                ? `${commune.satisfaction_moyenne.toFixed(1)}/5`
                 : "N/A",
             }))}
             colonnes={[
               "Commune",
+              "Population",
               "Questions",
               "Répondues",
               "Taux réponse",
@@ -284,12 +299,12 @@ const AdvancedStats = () => {
 
           <BlocStatistique
             titre="Questions par thème"
-            donnees={statistiques.questionsParTheme.map((theme) => ({
+            donnees={statistiques.questionsParTheme?.map((theme) => ({
               Thème: theme.theme,
-              Questions: theme.nb_questions,
+              Questions: theme.nb_questions || 0,
               Part: theme.pourcentage ? `${theme.pourcentage}%` : "0%",
               Satisfaction: theme.satisfaction_moyenne
-                ? `${theme.satisfaction_moyenne}/5`
+                ? `${theme.satisfaction_moyenne.toFixed(1)}/5`
                 : "N/A",
             }))}
             colonnes={["Thème", "Questions", "Part", "Satisfaction"]}
@@ -297,13 +312,13 @@ const AdvancedStats = () => {
 
           <BlocStatistique
             titre="Répartition par strate de commune"
-            donnees={statistiques.questionsParStrate.map((strate) => ({
+            donnees={statistiques.questionsParStrate?.map((strate) => ({
               Strate: strate.strate,
-              Communes: strate.nb_communes,
-              Questions: strate.nb_questions,
+              Communes: strate.nb_communes || 0,
+              Questions: strate.nb_questions || 0,
               Part: strate.pourcentage ? `${strate.pourcentage}%` : "0%",
               Satisfaction: strate.satisfaction_moyenne
-                ? `${strate.satisfaction_moyenne}/5`
+                ? `${strate.satisfaction_moyenne.toFixed(1)}/5`
                 : "N/A",
             }))}
             colonnes={[
@@ -317,37 +332,60 @@ const AdvancedStats = () => {
 
           <BlocStatistique
             titre="Satisfaction par commune"
-            donnees={statistiques.satisfactionParCommune.map((commune) => ({
+            donnees={statistiques.satisfactionParCommune?.map((commune) => ({
               Commune: commune.commune,
-              "Note moyenne": `${commune.satisfaction_moyenne}/5`,
-              Évaluations: commune.nb_evaluations,
+              "Note moyenne": `${
+                commune.satisfaction_moyenne?.toFixed(1) || 0
+              }/5`,
+              Évaluations: commune.nb_evaluations || 0,
+              "Taux évaluation": commune.taux_evaluation
+                ? `${commune.taux_evaluation}%`
+                : "0%",
             }))}
-            colonnes={["Commune", "Note moyenne", "Évaluations"]}
+            colonnes={[
+              "Commune",
+              "Note moyenne",
+              "Évaluations",
+              "Taux évaluation",
+            ]}
           />
 
           <BlocStatistique
             titre="Satisfaction par strate"
-            donnees={statistiques.satisfactionParStrate.map((strate) => ({
+            donnees={statistiques.satisfactionParStrate?.map((strate) => ({
               Strate: strate.strate,
-              Satisfaction: `${strate.satisfaction_moyenne}/5`,
-              Échantillon: strate.nb_evaluations,
+              Satisfaction: `${strate.satisfaction_moyenne?.toFixed(1) || 0}/5`,
+              Échantillon: strate.nb_evaluations || 0,
+              Minimum: strate.note_min || "N/A",
+              Maximum: strate.note_max || "N/A",
             }))}
-            colonnes={["Strate", "Satisfaction", "Échantillon"]}
+            colonnes={[
+              "Strate",
+              "Satisfaction",
+              "Échantillon",
+              "Minimum",
+              "Maximum",
+            ]}
           />
         </>
       )}
 
-      {!chargement && statistiques.questionsParCommune.length === 0 && (
-        <div className="text-center py-12">
-          <div className="text-6xl mb-4">📊</div>
-          <h3 className="text-xl font-semibold text-secondary mb-2">
-            Aucune donnée statistique
-          </h3>
-          <p className="text-tertiary">
-            Aucune intervention n'a été enregistrée pour le moment.
-          </p>
-        </div>
-      )}
+      {!chargement &&
+        (!statistiques.questionsParCommune ||
+          statistiques.questionsParCommune.length === 0) &&
+        (!statistiques.questionsParTheme ||
+          statistiques.questionsParTheme.length === 0) && (
+          <div className="text-center py-12">
+            <div className="text-6xl mb-4">📊</div>
+            <h3 className="text-xl font-semibold text-secondary mb-2">
+              Aucune donnée statistique
+            </h3>
+            <p className="text-tertiary">
+              Aucune intervention n'a été enregistrée pour le moment ou avec les
+              filtres actuels.
+            </p>
+          </div>
+        )}
     </Layout>
   );
 };

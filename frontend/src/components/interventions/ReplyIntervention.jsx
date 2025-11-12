@@ -334,7 +334,7 @@ const ReplyIntervention = () => {
               <div className="flex justify-between items-center">
                 <span className="text-tertiary">Statut:</span>
                 <span className="bg-warning/10 text-warning px-3 py-1 rounded-full text-xs font-medium">
-                  En attente de réponse
+                  En attente
                 </span>
               </div>
 

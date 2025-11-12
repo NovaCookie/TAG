@@ -10,6 +10,7 @@ const themeRoutes = require("./routes/themes");
 const userRoutes = require("./routes/users");
 const communeRoutes = require("./routes/communes");
 const statsRoutes = require("./routes/stats");
+const archiveRoutes = require("./routes/archives")
 
 // Middleware
 app.use(cors()); // Permet à React de communiquer avec Express
@@ -21,14 +22,15 @@ app.use("/api/interventions", interventionRoutes);
 app.use("/api/themes", themeRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/communes", communeRoutes);
-app.use("/api/stats", authMiddleware, statsRoutes);
+app.use("/api/stats", statsRoutes);
+app.use("/api/archives", archiveRoutes);
 
 // ==================== ROUTES PROTÉGÉES ====================
 
 // Route test - accessible à tous les utilisateurs authentifiés
 app.get("/api/profile", authMiddleware, (req, res) => {
   res.json({
-    message: "Accès autorisé! ✅",
+    message: "Accès autorisé! ",
     user: req.user,
     timestamp: new Date().toISOString(),
   });
@@ -84,6 +86,6 @@ app.get(
 // Démarrage du serveur
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`✅ Serveur TAG démarré sur http://localhost:${PORT}`);
+  console.log(` Serveur TAG démarré sur http://localhost:${PORT}`);
   console.log(`🔐 Routes protégées activées`);
 });

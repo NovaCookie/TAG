@@ -1,6 +1,13 @@
 import { useState, useRef, useEffect } from "react";
 
-const SelectFieldCommune = ({ communes = [], value, onChange, error }) => {
+const SelectFieldCommune = ({
+  communes = [],
+  value,
+  onChange,
+  error,
+  required = false,
+  label = "Commune",
+}) => {
   const [listeOuverteCommune, setListeOuverteCommune] = useState(false);
   const [rechercheCommune, setRechercheCommune] = useState("");
   const dropdownRefCommune = useRef(null);
@@ -41,10 +48,31 @@ const SelectFieldCommune = ({ communes = [], value, onChange, error }) => {
     setRechercheCommune("");
   };
 
+  // Fonction pour formater l'affichage de la commune sélectionnée
+  const getDisplayText = () => {
+    if (!communeSelectionnee) {
+      return "Sélectionnez une commune";
+    }
+
+    const parts = [];
+    if (communeSelectionnee.code_postal) {
+      parts.push(communeSelectionnee.code_postal);
+    }
+    parts.push(communeSelectionnee.nom);
+    if (communeSelectionnee.population) {
+      parts.push(`${communeSelectionnee.population.toLocaleString()} hab.`);
+    }
+    if (communeSelectionnee.actif === false) {
+      parts.push("• inactive");
+    }
+
+    return parts.join(" ");
+  };
+
   return (
     <div className="relative" ref={dropdownRefCommune}>
       <label className="block text-sm font-medium text-secondary mb-2">
-        Commune *
+        {label} {required && "*"}
       </label>
       <div
         onClick={toggleListe}
@@ -55,13 +83,7 @@ const SelectFieldCommune = ({ communes = [], value, onChange, error }) => {
         <span
           className={communeSelectionnee ? "text-secondary" : "text-gray-400"}
         >
-          {communeSelectionnee
-            ? `${communeSelectionnee.code_postal || ""} ${
-                communeSelectionnee.nom
-              } • ${
-                communeSelectionnee.population?.toLocaleString() || 0
-              } hab.${!communeSelectionnee.actif ? " • inactive" : ""}`
-            : "Sélectionnez une commune"}
+          {getDisplayText()}
         </span>
         <svg
           className={`fill-current h-4 w-4 text-gray-700 transition-transform duration-200 ${
@@ -152,16 +174,18 @@ const SelectFieldCommune = ({ communes = [], value, onChange, error }) => {
                           </span>
                         </div>
                       </div>
-                      <div
-                        className={`flex-shrink-0 text-xs px-2 py-1 rounded font-semibold
-                          ${
-                            commune.actif
-                              ? "bg-success text-white"
-                              : "bg-warning text-white"
-                          }`}
-                      >
-                        {commune.actif ? "active" : "inactive"}
-                      </div>
+                      {commune.actif !== undefined && (
+                        <div
+                          className={`flex-shrink-0 text-xs px-2 py-1 rounded font-semibold
+                            ${
+                              commune.actif
+                                ? "bg-success text-white"
+                                : "bg-warning text-white"
+                            }`}
+                        >
+                          {commune.actif ? "active" : "inactive"}
+                        </div>
+                      )}
                     </div>
                   </div>
                 );

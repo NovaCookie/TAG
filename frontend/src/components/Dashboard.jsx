@@ -4,149 +4,98 @@ import { useAuth } from "../context/AuthContext";
 import Layout from "./layout/Layout";
 import StatBlock from "./stats/StatBlock";
 import { formatDate } from "../utils/helpers";
-import { interventionsAPI, usersAPI } from "../services/api";
+import { interventionsAPI, statsAPI } from "../services/api";
 
 const Dashboard = () => {
   const { user } = useAuth();
 
   const [statistics, setStatistics] = useState({
-    totalQuestions: 0,
-    pendingQuestions: 0,
-    answeredQuestions: 0,
+    totalInterventions: 0,
+    pendingInterventions: 0,
+    answeredInterventions: 0,
+    responseRate: 0,
+    averageSatisfaction: 0,
+    recentInterventions: [],
     totalCommunes: 0,
     totalUsers: 0,
-    averageSatisfaction: 0,
-    responseRate: 0,
-    questionsByTheme: [],
+    totalThemes: 0,
   });
 
-  const [recentQuestions, setRecentQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Fallback: charger les statistiques utilisateur
   const loadUserStatistics = useCallback(async () => {
     try {
       let data = {
-        totalQuestions: 0,
-        pendingQuestions: 0,
-        answeredQuestions: 0,
-        totalCommunes: 0,
-        totalUsers: 0,
-        averageSatisfaction: 0,
+        totalInterventions: 0,
+        pendingInterventions: 0,
+        answeredInterventions: 0,
         responseRate: 0,
-        questionsByTheme: [],
+        averageSatisfaction: 0,
+        recentInterventions: [],
       };
 
-      if (user?.role === "commune") {
-        const response = await interventionsAPI.getAll({ limit: 1000 });
-        const interventions = response.data.interventions || [];
+      const response = await interventionsAPI.getAll({ limit: 1000 });
+      const interventions = response.data.interventions || [];
 
+      if (user?.role === "commune") {
         data = {
           ...data,
-          totalQuestions: interventions.length,
-          pendingQuestions: interventions.filter((i) => !i.reponse).length,
-          answeredQuestions: interventions.filter((i) => i.reponse).length,
+          totalInterventions: interventions.length,
+          pendingInterventions: interventions.filter((i) => !i.reponse).length,
+          answeredInterventions: interventions.filter((i) => i.reponse).length,
+          recentInterventions: interventions.slice(0, 5),
         };
       } else if (user?.role === "juriste") {
-        const response = await interventionsAPI.getAll({ limit: 1000 });
-        const interventions = response.data.interventions || [];
-
         data = {
           ...data,
-          totalQuestions: interventions.filter((i) => !i.reponse).length,
-          pendingQuestions: interventions.filter((i) => !i.reponse).length,
-          answeredQuestions: interventions.filter((i) => i.reponse).length,
+          totalInterventions: interventions.filter((i) => !i.reponse).length,
+          pendingInterventions: interventions.filter((i) => !i.reponse).length,
+          answeredInterventions: interventions.filter((i) => i.reponse).length,
+          recentInterventions: interventions.slice(0, 5),
         };
-      } else if (user?.role === "admin") {
-        try {
-          const [usersStats, advancedStats] = await Promise.all([
-            usersAPI.getStats().catch(() => ({ data: {} })),
-            interventionsAPI.getAdvancedStats().catch(() => ({ data: {} })),
-          ]);
-
-          const allResponse = await interventionsAPI.getAll({ limit: 1000 });
-          const allInterventions = allResponse.data.interventions || [];
-
-          const pending = allInterventions.filter((i) => !i.reponse);
-          const answered = allInterventions.filter((i) => i.reponse);
-
-          const interventionsWithSatisfaction = allInterventions.filter(
-            (i) => i.satisfaction
-          );
-          const satisfactionAverage =
-            interventionsWithSatisfaction.length > 0
-              ? interventionsWithSatisfaction.reduce(
-                  (acc, i) => acc + i.satisfaction,
-                  0
-                ) / interventionsWithSatisfaction.length
-              : 0;
-
-          data = {
-            totalQuestions: allInterventions.length,
-            pendingQuestions: pending.length,
-            answeredQuestions: answered.length,
-            totalCommunes: usersStats.data?.totalCommunes || 0,
-            totalUsers: usersStats.data?.totalUsers || 0,
-            averageSatisfaction: parseFloat(satisfactionAverage.toFixed(1)),
-            responseRate:
-              allInterventions.length > 0
-                ? Math.round((answered.length / allInterventions.length) * 100)
-                : 0,
-            questionsByTheme: advancedStats.data?.questionsByTheme || [],
-          };
-        } catch (error) {
-          console.error("Erreur stats avancées:", error);
-          const allResponse = await interventionsAPI.getAll({ limit: 1000 });
-          const allInterventions = allResponse.data.interventions || [];
-
-          const pending = allInterventions.filter((i) => !i.reponse);
-          const answered = allInterventions.filter((i) => i.reponse);
-
-          data = {
-            totalQuestions: allInterventions.length,
-            pendingQuestions: pending.length,
-            answeredQuestions: answered.length,
-            totalCommunes: 0,
-            totalUsers: 0,
-            averageSatisfaction: 0,
-            responseRate: 0,
-            questionsByTheme: [],
-          };
-        }
       }
 
       setStatistics(data);
     } catch (error) {
-      console.error("Erreur chargement statistiques utilisateur :", error);
+      console.error("Erreur fallback statistics:", error);
     }
   }, [user]);
 
-  const loadRecentQuestions = useCallback(async () => {
-    try {
-      let parameters = { limit: 5, order: "desc" };
-
-      if (user?.role === "juriste") {
-        parameters.order = "asc";
-        parameters.sansReponse = true;
-      }
-
-      const response = await interventionsAPI.getAll(parameters);
-      setRecentQuestions(response.data.interventions || []);
-    } catch (error) {
-      console.error("Erreur chargement dernières interventions :", error);
-      setRecentQuestions([]);
-    }
-  }, [user]);
-
+  // Charger les données du tableau de bord principal
   const loadDashboardData = useCallback(async () => {
     try {
       setLoading(true);
-      await Promise.all([loadUserStatistics(), loadRecentQuestions()]);
+
+      const dashboardResponse = await statsAPI.getDashboard();
+      const dashboardData = dashboardResponse.data;
+
+      const stats = {
+        totalInterventions: dashboardData.totalInterventions || 0,
+        pendingInterventions: dashboardData.pendingInterventions || 0,
+        answeredInterventions: dashboardData.answeredInterventions || 0,
+        responseRate: dashboardData.responseRate || 0,
+        averageSatisfaction: dashboardData.averageSatisfaction || 0,
+        recentInterventions: dashboardData.recentInterventions || [],
+      };
+
+      if (user?.role === "admin") {
+        const globalResponse = await statsAPI.getGlobal();
+        const globalData = globalResponse.data;
+
+        stats.totalCommunes = globalData.communes?.total || 0;
+        stats.totalUsers = globalData.users?.total || 0;
+        stats.totalThemes = globalData.themes?.total || 0;
+      }
+
+      setStatistics(stats);
     } catch (error) {
-      console.error("Erreur chargement tableau de bord :", error);
+      console.error("Erreur chargement dashboard :", error);
+      await loadUserStatistics();
     } finally {
       setLoading(false);
     }
-  }, [loadUserStatistics, loadRecentQuestions]);
+  }, [user, loadUserStatistics]);
 
   useEffect(() => {
     loadDashboardData();
@@ -236,31 +185,32 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Cartes principales avec StatBlock */}
+      {/* Cartes principales */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
         <StatBlock
           title={getCardTitle(0)}
-          value={statistics.totalQuestions}
+          value={statistics.totalInterventions}
           subtitle={getCardSubtitle(0)}
           color="primary"
           size="medium"
         />
         <StatBlock
           title={getCardTitle(1)}
-          value={statistics.pendingQuestions}
+          value={statistics.pendingInterventions}
           subtitle={getCardSubtitle(1)}
           color="warning"
           size="medium"
         />
         <StatBlock
           title={getCardTitle(2)}
-          value={statistics.answeredQuestions}
+          value={statistics.answeredInterventions}
           subtitle={getCardSubtitle(2)}
           color="success"
           size="medium"
         />
       </div>
 
+      {/* Vue d’ensemble admin */}
       {user?.role === "admin" && (
         <div className="mb-10">
           <div className="flex justify-between items-center mb-6">
@@ -275,8 +225,14 @@ const Dashboard = () => {
             </Link>
           </div>
 
-          {/* Stats principales admin */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
+            <StatBlock
+              title="Utilisateurs"
+              value={statistics.totalUsers}
+              subtitle="Nombre d'utilisateurs"
+              color="secondary"
+              size="medium"
+            />
             <StatBlock
               title="Communes"
               value={statistics.totalCommunes}
@@ -285,9 +241,9 @@ const Dashboard = () => {
               size="medium"
             />
             <StatBlock
-              title="Utilisateurs"
-              value={statistics.totalUsers}
-              subtitle="Nombre d'utilisateurs"
+              title="Thèmes"
+              value={statistics.totalThemes}
+              subtitle="Nombre de thèmes"
               color="secondary"
               size="medium"
             />
@@ -310,13 +266,6 @@ const Dashboard = () => {
                   : "0%"
               }
               subtitle="Questions traitées"
-              color="secondary"
-              size="medium"
-            />
-            <StatBlock
-              title="Thèmes"
-              value={statistics.questionsByTheme?.length || 0}
-              subtitle="Nombre de thèmes"
               color="secondary"
               size="medium"
             />
@@ -343,7 +292,7 @@ const Dashboard = () => {
         </div>
 
         <div className="space-y-4">
-          {recentQuestions.map((question) => (
+          {statistics.recentInterventions.map((question) => (
             <Link
               key={question.id}
               to={`/interventions/${question.id}`}
@@ -377,7 +326,7 @@ const Dashboard = () => {
             </Link>
           ))}
 
-          {recentQuestions.length === 0 && (
+          {statistics.recentInterventions.length === 0 && (
             <div className="text-center py-8 text-tertiary">
               {user?.role === "commune"
                 ? "Aucune question pour le moment"

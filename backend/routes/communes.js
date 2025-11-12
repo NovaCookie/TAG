@@ -1,7 +1,9 @@
 const express = require("express");
 const { PrismaClient } = require("@prisma/client");
 const { authMiddleware, requireRole } = require("../middleware/auth");
+const archiveService = require("../services/archiveService");
 const prisma = new PrismaClient();
+const { checkArchived } = require("../middleware/archived");
 const router = express.Router();
 
 // GET /api/communes - Liste des communes avec recherche par code postal
@@ -32,12 +34,14 @@ router.get("/", authMiddleware, async (req, res) => {
       where.code_postal = { contains: code_postal, mode: "insensitive" };
     }
 
-    // Récupérer toutes les communes d'abord
+    // Récupérer les IDs des communes archivées
+    const archivedCommuneIds = await archiveService.getArchivedIds("communes");
+
+    // Ajouter la condition d'exclusion des archives
+    where.id = { notIn: archivedCommuneIds };
+
     const communes = await prisma.communes.findMany({
-      where: {
-        // On applique les filtres de recherche
-        ...where,
-      },
+      where,
       include: {
         _count: {
           select: {
@@ -102,7 +106,6 @@ router.get("/", authMiddleware, async (req, res) => {
       nom: commune.nom,
       code_postal: commune.code_postal,
       population: commune.population,
-      actif: commune.actif,
       date_creation: commune.date_creation,
       stats: {
         nb_utilisateurs: commune._count.utilisateurs,
@@ -121,9 +124,7 @@ router.get("/", authMiddleware, async (req, res) => {
     });
   } catch (error) {
     console.error("Erreur liste communes:", error);
-    res
-      .status(500)
-      .json({ error: "Erreur lors de la récupération des communes" });
+    res.status(500).json({ error: "Erreur récupération communes" });
   }
 });
 
@@ -135,7 +136,6 @@ router.get("/users/communes/list", authMiddleware, async (req, res) => {
         nom: true,
         code_postal: true,
         population: true,
-        actif: true,
       },
       orderBy: { nom: "asc" },
     });
@@ -143,7 +143,7 @@ router.get("/users/communes/list", authMiddleware, async (req, res) => {
     res.json(communes);
   } catch (error) {
     console.error("Erreur liste communes users:", error);
-    res.status(500).json({ error: "Erreur lors de la récupération des communes" });
+    res.status(500).json({ error: "Erreur chargement communes" });
   }
 });
 
@@ -160,7 +160,6 @@ router.get("/:id", authMiddleware, async (req, res) => {
             prenom: true,
             email: true,
             role: true,
-            actif: true,
           },
         },
         interventions: {
@@ -188,9 +187,7 @@ router.get("/:id", authMiddleware, async (req, res) => {
     res.json(commune);
   } catch (error) {
     console.error("Erreur détail commune:", error);
-    res
-      .status(500)
-      .json({ error: "Erreur lors de la récupération de la commune" });
+    res.status(500).json({ error: "Erreur récupération commune" });
   }
 });
 
@@ -234,95 +231,72 @@ router.post("/", authMiddleware, requireRole(["admin"]), async (req, res) => {
     });
   } catch (error) {
     console.error("Erreur création commune:", error);
-    res.status(500).json({ error: "Erreur lors de la création de la commune" });
+    res.status(500).json({ error: "Erreur création commune" });
   }
 });
 
 // PUT /api/communes/:id - Modifier une commune (Admin seulement)
-router.put("/:id", authMiddleware, requireRole(["admin"]), async (req, res) => {
-  try {
-    const { nom, population, code_postal, actif } = req.body;
-
-    const commune = await prisma.communes.update({
-      where: { id: parseInt(req.params.id) },
-      data: {
-        nom,
-        population: population ? parseInt(population) : undefined,
-        code_postal: code_postal || null,
-        actif,
-      },
-    });
-
-    res.json({
-      message: "Commune modifiée avec succès",
-      commune,
-    });
-  } catch (error) {
-    console.error("Erreur modification commune:", error);
-    res
-      .status(500)
-      .json({ error: "Erreur lors de la modification de la commune" });
-  }
-});
-
-// PATCH /api/communes/:id/toggle-status - Activer/désactiver une commune (Admin seulement)
-router.patch(
-  "/:id/toggle-status",
+router.put(
+  "/:id",
   authMiddleware,
   requireRole(["admin"]),
+  checkArchived("communes"),
   async (req, res) => {
     try {
-      const commune = await prisma.communes.findUnique({
+      const { nom, population, code_postal, actif } = req.body;
+
+      const commune = await prisma.communes.update({
         where: { id: parseInt(req.params.id) },
+        data: {
+          nom,
+          population: population ? parseInt(population) : undefined,
+          code_postal: code_postal || null,
+          actif: actif !== undefined ? actif : undefined,
+        },
+      });
+
+      res.json({
+        message: "Commune modifiée avec succès",
+        commune,
+      });
+    } catch (error) {
+      console.error("Erreur modification commune:", error);
+      res.status(500).json({ error: "Erreur modification commune" });
+    }
+  }
+);
+
+// DELETE /api/communes/:id - Supprimer une commune (Admin seulement)
+router.delete(
+  "/:id",
+  authMiddleware,
+  requireRole(["admin"]),
+  checkArchived("communes"),
+  async (req, res) => {
+    try {
+      const communeId = parseInt(req.params.id);
+
+      const commune = await prisma.communes.findUnique({
+        where: { id: communeId },
       });
 
       if (!commune) {
         return res.status(404).json({ error: "Commune non trouvée" });
       }
 
-      const communeModifiee = await prisma.communes.update({
-        where: { id: parseInt(req.params.id) },
-        data: { actif: !commune.actif },
+      await prisma.communes.delete({
+        where: { id: communeId },
       });
 
       res.json({
-        message: `Commune ${
-          communeModifiee.actif ? "activée" : "désactivée"
-        } avec succès`,
-        commune: communeModifiee,
+        message: "Commune supprimée avec succès",
+        deletedCommuneId: communeId,
       });
     } catch (error) {
-      console.error("Erreur changement statut commune:", error);
-      res.status(500).json({ error: "Erreur lors du changement de statut" });
+      console.error("Erreur suppression commune:", error);
+      res.status(500).json({ error: "Erreur suppression commune" });
     }
   }
 );
-
-// GET /api/communes/stats - Statistiques communes
-router.get("/stats/globales", authMiddleware, async (req, res) => {
-  try {
-    const totalCommunes = await prisma.communes.count({
-      where: { actif: true },
-    });
-
-    const communesAvecInterventions = await prisma.communes.count({
-      where: {
-        actif: true,
-        interventions: { some: {} },
-      },
-    });
-
-    const stats = {
-      totalCommunes,
-      communesAvecInterventions,
-      communesSansInterventions: totalCommunes - communesAvecInterventions,
-    };
-
-    res.json(stats);
-  } catch (error) {
-    console.error("Erreur stats communes:", error);
-    res.status(500).json({ error: "Erreur calcul stats communes" });
-  }
-});
 
 module.exports = router;

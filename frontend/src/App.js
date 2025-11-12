@@ -28,12 +28,14 @@ import InterventionDetail from "./components/interventions/InterventionDetail";
 import ReplyIntervention from "./components/interventions/ReplyIntervention";
 import NewIntervention from "./components/interventions/NewIntervention";
 
-// === Intervention Pages ===
+// === Archive Pages ===
 import Archives from "./components/Archives";
 
 // === User Pages ===
 import NewUser from "./components/users/NewUser";
 import EditUser from "./components/users/EditUser";
+import CommuneDetail from "./components/communes/CommuneDetail";
+import NewCommune from "./components/communes/NewCommune";
 
 // ===================================================================
 // Custom Route Wrappers
@@ -42,6 +44,26 @@ const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return <LoadingScreen message="Loading..." />;
   return user ? children : <Navigate to="/auth/login" />;
+};
+
+const AdminJuristeRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return <LoadingScreen message="Loading..." />;
+  return user && (user.role === "admin" || user.role === "juriste") ? (
+    children
+  ) : (
+    <Navigate to="/dashboard" />
+  );
+};
+
+const AdminRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return <LoadingScreen message="Loading..." />;
+  return user && user.role === "admin" ? (
+    children
+  ) : (
+    <Navigate to="/dashboard" />
+  );
 };
 
 const PublicRoute = ({ children }) => {
@@ -154,37 +176,40 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
+
+                {/* === Archives (Admin et juriste) === */}
                 <Route
                   path="/archives"
                   element={
-                    <ProtectedRoute>
+                    <AdminJuristeRoute>
                       <Archives />
-                    </ProtectedRoute>
+                    </AdminJuristeRoute>
                   }
                 />
-                {/* === User Management === */}
+
+                {/* === User Management (Admin seulement) === */}
                 <Route
                   path="/users"
                   element={
-                    <ProtectedRoute>
+                    <AdminRoute>
                       <Users />
-                    </ProtectedRoute>
+                    </AdminRoute>
                   }
                 />
                 <Route
                   path="/users/new"
                   element={
-                    <ProtectedRoute>
+                    <AdminRoute>
                       <NewUser />
-                    </ProtectedRoute>
+                    </AdminRoute>
                   }
                 />
                 <Route
                   path="/users/edit/:id"
                   element={
-                    <ProtectedRoute>
+                    <AdminRoute>
                       <EditUser />
-                    </ProtectedRoute>
+                    </AdminRoute>
                   }
                 />
 
@@ -195,6 +220,22 @@ function App() {
                     <ProtectedRoute>
                       <Communes />
                     </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/communes/:id"
+                  element={
+                    <ProtectedRoute>
+                      <CommuneDetail />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/communes/new"
+                  element={
+                    <AdminRoute>
+                      <NewCommune />
+                    </AdminRoute>
                   }
                 />
 

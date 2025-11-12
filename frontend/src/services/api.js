@@ -14,6 +14,39 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// === INTERCEPTEUR RÉPONSE - Gestion erreurs globales ===
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    console.error("Erreur API interceptée:", error.response?.status, error.response?.data);
+    
+    // Si erreur 410 (Compte archivé) - Déconnecter immédiatement
+    if (error.response?.status === 410) {
+      
+      // Nettoyer le storage
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      
+      // Rediriger vers login avec message
+      if (window.location.pathname !== "/auth/login") {
+        window.location.href = "/auth/login?error=archived";
+      }
+    }
+    
+    // Si erreur 401/403 (Non autorisé) - Déconnecter
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      
+      if (window.location.pathname !== "/auth/login") {
+        window.location.href = "/auth/login";
+      }
+    }
+    
+    return Promise.reject(error);
+  }
+);
+
 // === Auth ===
 export const authAPI = {
   login: (credentials) => api.post("/auth/login", credentials),
@@ -31,29 +64,33 @@ export const interventionsAPI = {
   delete: (id) => api.delete(`/interventions/${id}`),
   rateSatisfaction: (id, satisfaction) =>
     api.put(`/interventions/${id}/satisfaction`, { satisfaction }),
-  getStats: () => api.get("/interventions/stats/dashboard"),
-  getSimilarQuestions: (themeId, keywords) =>
-    api.get(`/interventions/theme/${themeId}/similar`, {
-      params: { keywords },
-    }),
-  uploadAttachments: (interventionId, formData) =>
-    api.post(`/interventions/${interventionId}/attachments`, formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    }),
-  downloadAttachment: (attachmentId) =>
-    api.get(`/interventions/attachments/${attachmentId}`, {
-      responseType: "blob",
-    }),
-  getAdvancedStats: (params = "") => api.get(`/stats/advanced?${params}`),
-  archive: (id) => api.put(`/interventions/${id}/archiver`),
   getArchives: (params) => api.get("/interventions/archives/list", { params }),
-  restore: (id) => api.put(`/interventions/archives/${id}/restaurer`),
+};
+
+// === Archives ===
+export const archivesAPI = {
+  getAll: (params) => api.get("/archives", { params }),
+  archiveEntity: (table, id, raison) =>
+    api.post(`/archives/${table}/${id}`, { raison }),
+  restoreEntity: (table, id) => api.delete(`/archives/${table}/${id}`),
+  checkStatus: (table, id) => api.get(`/archives/${table}/${id}/status`),
+  getStats: () => api.get("/archives/stats/global"),
+  getCommuneArchives: (params) =>
+    api.get("/archives", { params: { ...params, table_name: "communes" } }),
+  getUserArchives: (params) =>
+    api.get("/archives", { params: { ...params, table_name: "utilisateurs" } }),
+  getInterventionArchives: (params) =>
+    api.get("/archives", {
+      params: { ...params, table_name: "interventions" },
+    }),
 };
 
 // === Themes ===
 export const themesAPI = {
   getAll: () => api.get("/themes"),
+  getAllIncludingInactive: () => api.get("/themes/all"),
   create: (data) => api.post("/themes", data),
+  update: (id, data) => api.put(`/themes/${id}`, data),
 };
 
 // === Users ===
@@ -62,12 +99,11 @@ export const usersAPI = {
   getById: (id) => api.get(`/users/${id}`),
   create: (data) => api.post("/users", data),
   update: (id, data) => api.put(`/users/${id}`, data),
-  toggleStatus: (id) => api.patch(`/users/${id}/toggle-status`),
-  getCommunesList: () => api.get("/users/communes/list"),
   updateInfos: (id, data) => api.put(`/users/${id}/infos`, data),
   updateEmail: (id, data) => api.put(`/users/${id}/email`, data),
   updatePassword: (id, data) => api.put(`/users/${id}/password`, data),
-  getStats: () => api.get("/users/stats"),
+  getCommunesList: () => api.get("/users/communes/list"),
+  confirmEmail: (token) => api.get(`/users/confirm-email/${token}`),
 };
 
 // === Communes ===
@@ -76,6 +112,19 @@ export const communesAPI = {
   getById: (id) => api.get(`/communes/${id}`),
   create: (data) => api.post("/communes", data),
   update: (id, data) => api.put(`/communes/${id}`, data),
-  toggleStatus: (id) => api.patch(`/communes/${id}/toggle-status`),
-  getStats: () => api.get("/communes/stats/global"),
+  delete: (id) => api.delete(`/communes/${id}`),
+  getUsersList: () => api.get("/communes/users/communes/list"),
 };
+
+// === Stats ===
+export const statsAPI = {
+  getGlobal: () => api.get("/stats/global"),
+  getUsers: () => api.get("/stats/utilisateurs"),
+  getCommunes: () => api.get("/stats/communes"),
+  getThemes: () => api.get("/stats/themes"),
+  getAdvanced: (filters = {}) =>
+    api.get("/stats/advanced", { params: filters }),
+  getDashboard: () => api.get("/stats/dashboard"),
+};
+
+export default api;

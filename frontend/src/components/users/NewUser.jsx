@@ -5,6 +5,7 @@ import Layout from "../layout/Layout";
 import { usersAPI } from "../../services/api";
 import SelectFieldCommune from "../common/dropdown/SelectFieldCommune";
 import SelectField from "../common/dropdown/SelectField";
+import PasswordField from "../common/PasswordField";
 
 const NewUser = () => {
   const { user } = useAuth();
@@ -14,6 +15,7 @@ const NewUser = () => {
   const [messageSucces, setMessageSucces] = useState("");
   const [communes, setCommunes] = useState([]);
   const [formSubmitted, setFormSubmitted] = useState(false);
+  const [errors, setErrors] = useState({});
 
   const [formData, setFormData] = useState({
     nom: "",
@@ -49,6 +51,15 @@ const NewUser = () => {
     if (name === "role" && value !== "commune") {
       setFormData((prev) => ({ ...prev, commune_id: "" }));
     }
+
+    // Effacer les erreurs lors de la modification
+    if (errors[name]) {
+      setErrors((prev) => ({
+        ...prev,
+        [name]: "",
+      }));
+    }
+    if (erreur) setErreur("");
   };
 
   const genererMotDePasse = () => {
@@ -67,40 +78,66 @@ const NewUser = () => {
     }));
   };
 
+  const validateForm = () => {
+    const newErrors = {};
+
+    if (!formData.nom.trim()) newErrors.nom = "Le nom est obligatoire";
+    if (!formData.prenom.trim()) newErrors.prenom = "Le prénom est obligatoire";
+    if (!formData.email.trim()) newErrors.email = "L'email est obligatoire";
+    else if (!/\S+@\S+\.\S+/.test(formData.email))
+      newErrors.email = "L'email n'est pas valide";
+
+    if (!formData.role) newErrors.role = "Le rôle est obligatoire";
+
+    // La commune est obligatoire UNIQUEMENT si le rôle est "commune"
+    if (formData.role === "commune" && !formData.commune_id) {
+      newErrors.commune_id =
+        "La commune est obligatoire pour un utilisateur de type commune";
+    }
+
+    // Validation du mot de passe
+    if (!formData.mot_de_passe) {
+      newErrors.mot_de_passe = "Le mot de passe est obligatoire";
+    } else if (formData.mot_de_passe.length < 6) {
+      newErrors.mot_de_passe =
+        "Le mot de passe doit contenir au moins 6 caractères";
+    }
+
+    if (!formData.confirmer_mot_de_passe) {
+      newErrors.confirmer_mot_de_passe =
+        "La confirmation du mot de passe est obligatoire";
+    } else if (formData.mot_de_passe !== formData.confirmer_mot_de_passe) {
+      newErrors.confirmer_mot_de_passe =
+        "Les mots de passe ne correspondent pas";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setFormSubmitted(true);
+
+    if (!validateForm()) return;
+
     setChargement(true);
     setErreur("");
     setMessageSucces("");
-    setFormSubmitted(true);
-
-    if (formData.mot_de_passe !== formData.confirmer_mot_de_passe) {
-      setErreur("Les mots de passe ne correspondent pas");
-      setChargement(false);
-      return;
-    }
-
-    if (formData.mot_de_passe.length < 6) {
-      setErreur("Le mot de passe doit contenir au moins 6 caractères");
-      setChargement(false);
-      return;
-    }
-
-    if (!formData.commune_id) {
-      setErreur("Veuillez sélectionner une commune");
-      setChargement(false);
-      return;
-    }
 
     const donneesUtilisateur = {
       nom: formData.nom.trim(),
       prenom: formData.prenom.trim(),
       email: formData.email.trim(),
       role: formData.role,
-      commune_id: parseInt(formData.commune_id),
       mot_de_passe: formData.mot_de_passe,
       envoyer_email_bienvenue: formData.envoyer_email_bienvenue,
     };
+
+    // Ajouter commune_id seulement si renseigné
+    if (formData.commune_id) {
+      donneesUtilisateur.commune_id = parseInt(formData.commune_id);
+    }
 
     try {
       const response = await usersAPI.create(donneesUtilisateur);
@@ -131,6 +168,7 @@ const NewUser = () => {
     setErreur("");
     setMessageSucces("");
     setFormSubmitted(false);
+    setErrors({});
   };
 
   if (user?.role !== "admin") {
@@ -194,10 +232,15 @@ const NewUser = () => {
                   name="prenom"
                   value={formData.prenom}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-light-gray rounded-lg focus:outline-none focus:border-primary"
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-primary ${
+                    errors.prenom ? "border-danger" : "border-light-gray"
+                  }`}
                   required
                   placeholder="Entrez le prénom"
                 />
+                {errors.prenom && (
+                  <p className="text-danger text-sm mt-1">{errors.prenom}</p>
+                )}
               </div>
 
               <div>
@@ -209,10 +252,15 @@ const NewUser = () => {
                   name="nom"
                   value={formData.nom}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-light-gray rounded-lg focus:outline-none focus:border-primary"
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-primary ${
+                    errors.nom ? "border-danger" : "border-light-gray"
+                  }`}
                   required
                   placeholder="Entrez le nom"
                 />
+                {errors.nom && (
+                  <p className="text-danger text-sm mt-1">{errors.nom}</p>
+                )}
               </div>
             </div>
 
@@ -226,10 +274,15 @@ const NewUser = () => {
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-light-gray rounded-lg focus:outline-none focus:border-primary"
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-primary ${
+                  errors.email ? "border-danger" : "border-light-gray"
+                }`}
                 placeholder="exemple@domaine.com"
                 required
               />
+              {errors.email && (
+                <p className="text-danger text-sm mt-1">{errors.email}</p>
+              )}
             </div>
 
             {/* Rôle et Commune */}
@@ -243,7 +296,7 @@ const NewUser = () => {
                   { value: "admin", label: "Administrateur" },
                 ]}
                 label="Rôle *"
-                error={formData.role ? "" : "Le rôle est requis"}
+                error={errors.role}
                 fieldName="role"
               />
 
@@ -251,11 +304,9 @@ const NewUser = () => {
                 value={formData.commune_id}
                 onChange={handleChange}
                 communes={communes}
-                error={
-                  formSubmitted && !formData.commune_id
-                    ? "La commune est obligatoire"
-                    : ""
-                }
+                error={errors.commune_id}
+                required={formData.role === "commune"}
+                label="Commune"
               />
             </div>
 
@@ -263,7 +314,7 @@ const NewUser = () => {
             <div className="border-t border-light-gray pt-6">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-primary">
-                  Mot de passe
+                  Mot de passe *
                 </h3>
                 <button
                   type="button"
@@ -275,36 +326,25 @@ const NewUser = () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-secondary mb-2">
-                    Mot de passe *
-                  </label>
-                  <input
-                    type="password"
-                    name="mot_de_passe"
-                    value={formData.mot_de_passe}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-light-gray rounded-lg focus:outline-none focus:border-primary"
-                    placeholder="Minimum 6 caractères"
-                    minLength="6"
-                    required
-                  />
-                </div>
+                <PasswordField
+                  value={formData.mot_de_passe}
+                  onChange={handleChange}
+                  error={errors.mot_de_passe}
+                  placeholder="Minimum 6 caractères"
+                  name="mot_de_passe"
+                  label="Mot de passe *"
+                  required={true}
+                />
 
-                <div>
-                  <label className="block text-sm font-medium text-secondary mb-2">
-                    Confirmation *
-                  </label>
-                  <input
-                    type="password"
-                    name="confirmer_mot_de_passe"
-                    value={formData.confirmer_mot_de_passe}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-light-gray rounded-lg focus:outline-none focus:border-primary"
-                    placeholder="Répétez le mot de passe"
-                    required
-                  />
-                </div>
+                <PasswordField
+                  value={formData.confirmer_mot_de_passe}
+                  onChange={handleChange}
+                  error={errors.confirmer_mot_de_passe}
+                  placeholder="Répétez le mot de passe"
+                  name="confirmer_mot_de_passe"
+                  label="Confirmation *"
+                  required={true}
+                />
               </div>
             </div>
 

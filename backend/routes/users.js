@@ -3,19 +3,17 @@ const { PrismaClient } = require("@prisma/client");
 const { authMiddleware, requireRole } = require("../middleware/auth");
 const prisma = new PrismaClient();
 const router = express.Router();
+const archiveService = require("../services/archiveService");
 const emailService = require("../services/emailService");
+const { checkArchived, checkUserArchived } = require("../middleware/archived");
+const bcrypt = require("bcryptjs");
 
 // GET /api/users - Liste des utilisateurs (Admin seulement)
 router.get("/", authMiddleware, requireRole(["admin"]), async (req, res) => {
   try {
-    const { search, role, status, page = 1, limit = 10 } = req.query;
+    const { search, role, page = 1, limit = 10 } = req.query;
 
     const where = {};
-
-    // Filtre par statut actif/inactif
-    if (status && status !== "all") {
-      where.actif = status === "active";
-    }
 
     // Filtre par rôle
     if (role && role !== "all") {
@@ -29,6 +27,19 @@ router.get("/", authMiddleware, requireRole(["admin"]), async (req, res) => {
         { prenom: { contains: search, mode: "insensitive" } },
         { email: { contains: search, mode: "insensitive" } },
       ];
+    }
+
+    // Exclure les utilisateurs archivés
+    const archivesUtilisateurs = await prisma.archive.findMany({
+      where: { table_name: "utilisateurs" },
+      select: { entity_id: true },
+    });
+    const idsUtilisateursArchives = archivesUtilisateurs.map(
+      (archive) => archive.entity_id
+    );
+
+    if (idsUtilisateursArchives.length > 0) {
+      where.id = { notIn: idsUtilisateursArchives };
     }
 
     const users = await prisma.utilisateurs.findMany({
@@ -55,11 +66,9 @@ router.get("/", authMiddleware, requireRole(["admin"]), async (req, res) => {
       prenom: user.prenom,
       email: user.email,
       role: user.role,
-      actif: user.actif,
       date_creation: user.date_creation,
       commune: user.commune,
       avatar: `${user.prenom?.[0] || ""}${user.nom?.[0] || ""}`,
-      status: user.actif ? "online" : "offline",
     }));
 
     res.json({
@@ -73,73 +82,33 @@ router.get("/", authMiddleware, requireRole(["admin"]), async (req, res) => {
     });
   } catch (error) {
     console.error("Erreur liste utilisateurs:", error);
-    res
-      .status(500)
-      .json({ error: "Erreur lors de la récupération des utilisateurs" });
+    res.status(500).json({ error: "Erreur récupération utilisateurs" });
   }
 });
-
-// GET /api/users/stats - Statistiques utilisateurs
-router.get(
-  "/stats",
-  authMiddleware,
-  requireRole(["admin"]),
-  async (req, res) => {
-    try {
-      // Compter TOUS les utilisateurs actifs
-      const totalUtilisateurs = await prisma.utilisateurs.count({
-        where: {
-          actif: true,
-        },
-      });
-
-      // Compter les communes actives
-      const communesActives = await prisma.communes.count({
-        where: {
-          actif: true,
-        },
-      });
-
-      // Statistiques par rôle
-      const statsParRole = await prisma.utilisateurs.groupBy({
-        by: ["role"],
-        where: {
-          actif: true,
-        },
-        _count: {
-          id: true,
-        },
-      });
-
-      // Formater les données
-      const stats = {
-        totalCommunes: communesActives,
-        totalUtilisateurs: totalUtilisateurs,
-        parRole: statsParRole.reduce((acc, item) => {
-          acc[item.role] = item._count.id;
-          return acc;
-        }, {}),
-      };
-
-      res.json(stats);
-    } catch (error) {
-      console.error("Erreur stats utilisateurs:", error);
-      res.status(500).json({ error: "Erreur calcul stats utilisateurs" });
-    }
-  }
-);
 
 // GET /api/users/communes/list - Liste des communes pour les filtres
 router.get("/communes/list", authMiddleware, async (req, res) => {
   try {
+    const archivesCommunes = await prisma.archive.findMany({
+      where: { table_name: "communes" },
+      select: { entity_id: true },
+    });
+    const idsCommunesArchives = archivesCommunes.map(
+      (archive) => archive.entity_id
+    );
+
+    const where = {};
+    if (idsCommunesArchives.length > 0) {
+      where.id = { notIn: idsCommunesArchives };
+    }
+
     const communes = await prisma.communes.findMany({
-      where: { actif: true },
+      where,
       select: {
         id: true,
         code_postal: true,
         nom: true,
         population: true,
-        actif: true,
       },
       orderBy: { nom: "asc" },
     });
@@ -147,7 +116,7 @@ router.get("/communes/list", authMiddleware, async (req, res) => {
     res.json(communes);
   } catch (error) {
     console.error("Erreur chargement communes:", error);
-    res.status(500).json({ error: "Erreur lors du chargement des communes" });
+    res.status(500).json({ error: "Erreur chargement communes" });
   }
 });
 
@@ -155,6 +124,28 @@ router.get("/communes/list", authMiddleware, async (req, res) => {
 router.get("/:id", authMiddleware, requireRole(["admin"]), async (req, res) => {
   try {
     const userId = parseInt(req.params.id);
+
+    // Utiliser ArchiveService pour vérifier le statut
+    const archiveStatus = await archiveService.checkArchiveStatus(
+      "utilisateurs",
+      userId
+    );
+
+    // Si archivé, récupérer depuis les données d'archive
+    if (archiveStatus.archived && archiveStatus.archive) {
+      const userData = archiveStatus.archive.entity_data;
+      return res.json({
+        ...userData,
+        archived: true,
+        archive_info: {
+          date_archivage: archiveStatus.archive.date_archivage,
+          archived_by: archiveStatus.archive.archived_by,
+          raison: archiveStatus.archive.raison,
+        },
+      });
+    }
+
+    // Sinon, récupérer normalement depuis la table utilisateurs
     const user = await prisma.utilisateurs.findUnique({
       where: { id: userId },
       include: {
@@ -172,12 +163,13 @@ router.get("/:id", authMiddleware, requireRole(["admin"]), async (req, res) => {
       return res.status(404).json({ error: "Utilisateur non trouvé" });
     }
 
-    res.json(user);
+    res.json({
+      ...user,
+      archived: false,
+    });
   } catch (error) {
     console.error("Erreur détail utilisateur:", error);
-    res
-      .status(500)
-      .json({ error: "Erreur lors de la récupération de l'utilisateur" });
+    res.status(500).json({ error: "Erreur récupération utilisateur" });
   }
 });
 
@@ -211,7 +203,6 @@ router.post("/", authMiddleware, requireRole(["admin"]), async (req, res) => {
     }
 
     // Hasher le mot de passe
-    const bcrypt = require("bcrypt");
     const saltRounds = 10;
     const motDePasseHash = await bcrypt.hash(mot_de_passe, saltRounds);
 
@@ -241,7 +232,6 @@ router.post("/", authMiddleware, requireRole(["admin"]), async (req, res) => {
         await emailService.sendWelcomeEmail(user);
       } catch (emailError) {
         console.error("Erreur envoi email bienvenue:", emailError);
-        // On continue même si l'email échoue
       }
     }
 
@@ -255,105 +245,139 @@ router.post("/", authMiddleware, requireRole(["admin"]), async (req, res) => {
         prenom: user.prenom,
         email: user.email,
         role: user.role,
-        actif: user.actif,
         commune: user.commune,
       },
     });
   } catch (error) {
     console.error("Erreur création utilisateur:", error);
-    res
-      .status(500)
-      .json({ error: "Erreur lors de la création de l'utilisateur" });
+    res.status(500).json({ error: "Erreur création utilisateur" });
   }
 });
 
-// PUT /api/users/:id - Modifier complètement un utilisateur (NOUVEAU)
-router.put("/:id", authMiddleware, requireRole(["admin"]), async (req, res) => {
-  try {
-    const { nom, prenom, email, role, commune_id, actif } = req.body;
-    const userId = parseInt(req.params.id);
+// PUT /api/users/:id - Modifier complètement un utilisateur
+router.put(
+  "/:id",
+  authMiddleware,
+  requireRole(["admin"]),
+  checkArchived("utilisateurs"),
+  async (req, res) => {
+    try {
+      const {
+        nom,
+        prenom,
+        email,
+        role,
+        commune_id,
+        actif,
+        mot_de_passe,
+        envoyerEmail = false,
+      } = req.body;
+      const userId = parseInt(req.params.id);
 
-    // Vérifier que l'utilisateur existe
-    const utilisateurExistant = await prisma.utilisateurs.findUnique({
-      where: { id: userId },
-    });
-
-    if (!utilisateurExistant) {
-      return res.status(404).json({ error: "Utilisateur non trouvé" });
-    }
-
-    // Vérifier si le nouvel email est déjà utilisé par un autre utilisateur
-    if (email && email !== utilisateurExistant.email) {
-      const emailUtilise = await prisma.utilisateurs.findUnique({
-        where: { email },
+      // Vérifier que l'utilisateur existe et n'est pas archivé
+      const utilisateurExistant = await prisma.utilisateurs.findUnique({
+        where: { id: userId },
       });
 
-      if (emailUtilise && emailUtilise.id !== userId) {
-        return res.status(400).json({ error: "Cet email est déjà utilisé" });
+      if (!utilisateurExistant) {
+        return res.status(404).json({ error: "Utilisateur non trouvé" });
       }
-    }
 
-    // Préparer les données de mise à jour
-    const updateData = {
-      nom: nom || utilisateurExistant.nom,
-      prenom: prenom || utilisateurExistant.prenom,
-      email: email || utilisateurExistant.email,
-      role: role || utilisateurExistant.role,
-      actif: actif !== undefined ? actif : utilisateurExistant.actif,
-    };
-
-    // Gestion de la commune selon le rôle
-    if (role === "commune") {
-      if (!commune_id) {
-        return res.status(400).json({
-          error:
-            "Une commune doit être associée aux utilisateurs de type 'commune'",
+      // Vérifier si le nouvel email est déjà utilisé par un autre utilisateur
+      if (email && email !== utilisateurExistant.email) {
+        const emailUtilise = await prisma.utilisateurs.findUnique({
+          where: { email },
         });
-      }
-      updateData.commune_id = parseInt(commune_id);
-    } else {
-      updateData.commune_id = null;
-    }
 
-    // Mettre à jour l'utilisateur
-    const utilisateur = await prisma.utilisateurs.update({
-      where: { id: userId },
-      data: updateData,
-      include: {
-        commune: {
-          select: {
-            id: true,
-            nom: true,
+        if (emailUtilise && emailUtilise.id !== userId) {
+          return res.status(400).json({ error: "Cet email est déjà utilisé" });
+        }
+      }
+
+      // Préparer les données de mise à jour
+      const updateData = {
+        nom: nom || utilisateurExistant.nom,
+        prenom: prenom || utilisateurExistant.prenom,
+        email: email || utilisateurExistant.email,
+        role: role || utilisateurExistant.role,
+        actif: actif !== undefined ? actif : utilisateurExistant.actif,
+      };
+
+      // Gestion de la commune selon le rôle
+      if (role === "commune") {
+        if (!commune_id) {
+          return res.status(400).json({
+            error:
+              "Une commune doit être associée aux utilisateurs de type 'commune'",
+          });
+        }
+        updateData.commune_id = parseInt(commune_id);
+      } else {
+        updateData.commune_id = null;
+      }
+
+      // Gestion du mot de passe
+      let passwordChanged = false;
+      if (mot_de_passe && mot_de_passe.trim() !== "") {
+        const saltRounds = 10;
+        updateData.mot_de_passe = await bcrypt.hash(mot_de_passe, saltRounds);
+        passwordChanged = true;
+      }
+
+      // Mettre à jour l'utilisateur
+      const utilisateur = await prisma.utilisateurs.update({
+        where: { id: userId },
+        data: updateData,
+        include: {
+          commune: {
+            select: {
+              id: true,
+              nom: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    res.json({
-      message: "Utilisateur modifié avec succès",
-      user: {
-        id: utilisateur.id,
-        nom: utilisateur.nom,
-        prenom: utilisateur.prenom,
-        email: utilisateur.email,
-        role: utilisateur.role,
-        actif: utilisateur.actif,
-        commune: utilisateur.commune,
-      },
-    });
-  } catch (error) {
-    console.error("Erreur modification utilisateur:", error);
-    res
-      .status(500)
-      .json({ error: "Erreur lors de la modification de l'utilisateur" });
+      if (passwordChanged && envoyerEmail) {
+        try {
+          await emailService.sendPasswordChangedNotification(
+            utilisateurExistant
+          );
+        } catch (emailError) {
+          console.error("Erreur envoi notification mot de passe:", emailError);
+          // On continue même si l'email échoue
+        }
+      }
+
+      res.json({
+        message: passwordChanged
+          ? envoyerEmail
+            ? "Utilisateur modifié et notification de changement de mot de passe envoyée"
+            : "Utilisateur et mot de passe modifiés avec succès"
+          : "Utilisateur modifié avec succès",
+        user: {
+          id: utilisateur.id,
+          nom: utilisateur.nom,
+          prenom: utilisateur.prenom,
+          email: utilisateur.email,
+          role: utilisateur.role,
+          actif: utilisateur.actif,
+          commune: utilisateur.commune,
+        },
+      });
+    } catch (error) {
+      console.error("Erreur modification utilisateur:", error);
+      res.status(500).json({ error: "Erreur modification utilisateur" });
+    }
   }
-});
+);
 
 // PUT /api/users/:id/email - Modifier l'email
 router.put(
   "/:id/email",
   authMiddleware,
   requireRole(["admin"]),
+  checkArchived("utilisateurs"),
   async (req, res) => {
     try {
       const { email } = req.body;
@@ -402,7 +426,7 @@ router.put(
       } catch (emailError) {
         console.error("Erreur envoi email confirmation:", emailError);
         return res.status(500).json({
-          error: "Erreur lors de l'envoi de l'email de confirmation",
+          error: "Erreur envoi email confirmation",
         });
       }
 
@@ -413,9 +437,7 @@ router.put(
       });
     } catch (error) {
       console.error("Erreur modification email:", error);
-      res
-        .status(500)
-        .json({ error: "Erreur lors de la modification de l'email" });
+      res.status(500).json({ error: "Erreur modification email" });
     }
   }
 );
@@ -461,9 +483,7 @@ router.get("/confirm-email/:token", async (req, res) => {
     });
   } catch (error) {
     console.error("Erreur confirmation email:", error);
-    res
-      .status(500)
-      .json({ error: "Erreur lors de la confirmation de l'email" });
+    res.status(500).json({ error: "Erreur confirmation email" });
   }
 });
 
@@ -472,9 +492,10 @@ router.put(
   "/:id/password",
   authMiddleware,
   requireRole(["admin"]),
+  checkArchived("utilisateurs"),
   async (req, res) => {
     try {
-      const { nouveauMotDePasse, envoyerEmail } = req.body;
+      const { nouveauMotDePasse, envoyerEmail = false } = req.body;
       const userId = parseInt(req.params.id);
 
       // Vérifier que l'utilisateur existe
@@ -487,7 +508,6 @@ router.put(
       }
 
       // Hasher le nouveau mot de passe
-      const bcrypt = require("bcrypt");
       const saltRounds = 10;
       const motDePasseHash = await bcrypt.hash(nouveauMotDePasse, saltRounds);
 
@@ -516,9 +536,7 @@ router.put(
       });
     } catch (error) {
       console.error("Erreur modification mot de passe:", error);
-      res
-        .status(500)
-        .json({ error: "Erreur lors de la modification du mot de passe" });
+      res.status(500).json({ error: "Erreur modification mot de passe" });
     }
   }
 );
@@ -528,6 +546,7 @@ router.put(
   "/:id/infos",
   authMiddleware,
   requireRole(["admin"]),
+  checkArchived("utilisateurs"),
   async (req, res) => {
     try {
       const { nom, prenom } = req.body;
@@ -562,55 +581,7 @@ router.put(
       });
     } catch (error) {
       console.error("Erreur modification informations:", error);
-      res
-        .status(500)
-        .json({ error: "Erreur lors de la modification des informations" });
-    }
-  }
-);
-
-// PATCH /api/users/:id/toggle-status - Activer/Désactiver un utilisateur
-router.patch(
-  "/:id/toggle-status",
-  authMiddleware,
-  requireRole(["admin"]),
-  async (req, res) => {
-    try {
-      const userId = parseInt(req.params.id);
-
-      // Vérifier que l'utilisateur existe
-      const utilisateur = await prisma.utilisateurs.findUnique({
-        where: { id: userId },
-      });
-
-      if (!utilisateur) {
-        return res.status(404).json({ error: "Utilisateur non trouvé" });
-      }
-
-      // Inverser le statut actif
-      const updatedUser = await prisma.utilisateurs.update({
-        where: { id: userId },
-        data: {
-          actif: !utilisateur.actif,
-        },
-      });
-
-      res.json({
-        message: `Utilisateur ${
-          updatedUser.actif ? "activé" : "désactivé"
-        } avec succès`,
-        user: {
-          id: updatedUser.id,
-          actif: updatedUser.actif,
-        },
-      });
-    } catch (error) {
-      console.error("Erreur changement statut utilisateur:", error);
-      res
-        .status(500)
-        .json({
-          error: "Erreur lors du changement de statut de l'utilisateur",
-        });
+      res.status(500).json({ error: "Erreur modification informations" });
     }
   }
 );

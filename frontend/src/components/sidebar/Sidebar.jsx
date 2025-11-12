@@ -94,21 +94,11 @@ const Sidebar = ({ isOpen, onToggle }) => {
             isOpen={isOpen}
             isActive={isActive("/interventions")}
           />
-
-          {canViewArchives() && (
-            <SidebarLink
-              to="/archives"
-              icon={ICONS.archives}
-              title="Archives"
-              isOpen={isOpen}
-              isActive={isActive("/archives")}
-            />
-          )}
         </SidebarSection>
 
         {/* === MANAGEMENT SECTION === */}
         {canViewManagement() && (
-          <SidebarSection title="Management" isOpen={isOpen}>
+          <SidebarSection title="Gestion" isOpen={isOpen}>
             {canViewUsers() && (
               <SidebarLink
                 to="/users"
@@ -127,11 +117,20 @@ const Sidebar = ({ isOpen, onToggle }) => {
                 isActive={isActive("/communes")}
               />
             )}
+            {canViewArchives() && (
+              <SidebarLink
+                to="/archives"
+                icon={ICONS.archives}
+                title="Archives"
+                isOpen={isOpen}
+                isActive={isActive("/archives")}
+              />
+            )}
           </SidebarSection>
         )}
 
         {/* === ACCOUNT SECTION === */}
-        <SidebarSection title="Account" isOpen={isOpen}>
+        <SidebarSection title="Compte" isOpen={isOpen}>
           <SidebarLink
             to="/settings"
             icon={ICONS.settings}

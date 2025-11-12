@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { Link } from "react-router-dom";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import AlertMessage from "./common/feedback/AlertMessage";
 
 const LoginForm = () => {
@@ -11,6 +11,15 @@ const LoginForm = () => {
   const [error, setError] = useState("");
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // Gérer les erreurs depuis les paramètres d'URL (compte archivé)
+  useEffect(() => {
+    const urlError = searchParams.get("error");
+    if (urlError === "archived") {
+      setError("Compte archivé. Accès refusé.");
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -20,10 +29,14 @@ const LoginForm = () => {
     const result = await login(email, password);
 
     if (result.success) {
-      // Redirection vers le dashboard après connexion réussie
       navigate("/dashboard");
     } else {
-      setError(result.error);
+      // Gérer spécifiquement l'erreur de compte archivé
+      if (result.status === 410) {
+        setError("Compte archivé. Accès refusé.");
+      } else {
+        setError(result.error);
+      }
     }
 
     setLoading(false);

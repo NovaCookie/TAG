@@ -1,4 +1,5 @@
 import { useAuth } from "../../context/AuthContext";
+import UserAvatar from "../common/UserAvatar";
 // import { useTheme } from "../../context/ThemeContext";
 
 const Header = () => {
@@ -38,10 +39,7 @@ const Header = () => {
           </div>
         </div>
 
-        <div className="w-10 h-10 rounded-full bg-primary-light text-white flex items-center justify-center font-semibold">
-          {user?.prenom?.[0]}
-          {user?.nom?.[0]}
-        </div>
+        <UserAvatar prenom={user?.prenom} nom={user?.nom} size="md" />
 
         <button
           onClick={logout}

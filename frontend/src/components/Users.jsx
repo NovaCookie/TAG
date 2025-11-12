@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import Layout from "./layout/Layout";
 import UserAvatar from "./common/UserAvatar";
-import StatusBadge from "./common/StatusBadge";
 import Pagination from "./common/Pagination";
 import SearchFilter from "./common/SearchFilter";
 import DataTable from "./common/data/DataTable";
@@ -18,7 +17,6 @@ const Users = () => {
   const { filters, updateFilter } = useFilters({
     search: "",
     role: "all",
-    status: "all",
   });
 
   const [users, setUsers] = useState([]);
@@ -38,7 +36,6 @@ const Users = () => {
           limit: 10,
           search: filters.search !== "" ? filters.search : undefined,
           role: filters.role !== "all" ? filters.role : undefined,
-          status: filters.status !== "all" ? filters.status : undefined,
         }),
       {
         onSuccess: (data) => {
@@ -55,37 +52,23 @@ const Users = () => {
     );
   };
 
-  const handleToggleStatus = async (userId) => {
-    await callApi(() => usersAPI.toggleStatus(userId), {
-      onSuccess: (response) => {
-        setUsers((prev) =>
-          prev.map((user) =>
-            user.id === userId ? { ...user, actif: !user.actif } : user
-          )
-        );
-        setSuccessMessage(response.message || "Statut modifié avec succès");
-      },
-    });
-  };
-
   // Rendu d'une ligne utilisateur dans le style des communes
   const renderUserRow = (utilisateur) => (
-    <div className="flex items-center justify-between py-4 px-4 border-b border-light-gray last:border-b-0 hover:bg-light/30 transition-colors">
+    <div className="flex items-center justify-between py-4 px-4 border-b border-light last:border-b-0 hover:bg-light/30 transition-colors">
       {/* Informations principales sur une seule ligne */}
       <div className="flex items-center gap-6 flex-1">
         {/* Avatar + Nom */}
         <div className="flex items-center gap-3 min-w-60">
           <UserAvatar
-            name={`${utilisateur.prenom} ${utilisateur.nom}`}
-            size="sm"
+            prenom={utilisateur.prenom}
+            nom={utilisateur.nom}
+            size="md"
           />
           <div>
             <div className="font-semibold text-secondary">
               {utilisateur.prenom} {utilisateur.nom}
             </div>
-            <div className="text-sm text-secondary-light">
-              {utilisateur.email}
-            </div>
+            {/* <div className="text-sm text-tertiary">{utilisateur.email}</div> */}
           </div>
         </div>
 
@@ -99,55 +82,35 @@ const Users = () => {
 
         {/* Rôle */}
         <div className="flex items-center gap-2 min-w-40">
-          <span className="w-3 h-3 rounded-full bg-green-500"></span>
-          <span className="font-medium text-green-700 capitalize">
+          <span className="w-3 h-3 rounded-full bg-success"></span>
+          <span className="font-medium text-success capitalize">
             {utilisateur.role}
           </span>
         </div>
 
-        {/* Statut */}
+        {/* Date de création */}
         <div className="flex items-center gap-2 min-w-40">
-          <span className="w-3 h-3 rounded-full bg-orange-500"></span>
-          <span className="font-medium text-orange-700">
-            {utilisateur.actif ? "Actif" : "Inactif"}
+          <span className="w-3 h-3 rounded-full bg-warning"></span>
+          <span className="font-medium text-warning">
+            {utilisateur.date_creation
+              ? new Date(utilisateur.date_creation).toLocaleDateString("fr-FR")
+              : "Date inconnue"}
           </span>
         </div>
       </div>
 
-      {/* Statut et actions */}
-      <div className="flex items-center gap-4">
-        <StatusBadge
-          status={utilisateur.actif ? "active" : "inactive"}
-          className={
-            utilisateur.actif
-              ? "bg-success/10 text-success border border-success/20"
-              : "bg-danger/10 text-danger border border-danger/20"
-          }
-        />
-
-        {user?.role === "admin" && (
-          <div className="flex gap-2">
-            <button
-              onClick={() => handleToggleStatus(utilisateur.id)}
-              className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
-                utilisateur.actif
-                  ? "bg-warning/10 text-warning hover:bg-warning hover:text-white"
-                  : "bg-success/10 text-success hover:bg-success hover:text-white"
-              }`}
-              title={utilisateur.actif ? "Désactiver" : "Activer"}
-            >
-              {utilisateur.actif ? "⏸️" : "▶️"}
-            </button>
-            <Link
-              to={`/users/edit/${utilisateur.id}`}
-              className="w-8 h-8 rounded-full bg-light text-primary flex items-center justify-center hover:bg-primary-light hover:text-white transition-colors"
-              title="Modifier"
-            >
-              ✏️
-            </Link>
-          </div>
-        )}
-      </div>
+      {/* Actions seulement pour admin */}
+      {user?.role === "admin" && (
+        <div className="flex gap-2">
+          <Link
+            to={`/users/edit/${utilisateur.id}`}
+            className="w-8 h-8 rounded-full bg-light text-primary flex items-center justify-center hover:bg-primary hover:text-white transition-colors"
+            title="Modifier"
+          >
+            ✏️
+          </Link>
+        </div>
+      )}
     </div>
   );
 
@@ -184,7 +147,7 @@ const Users = () => {
           <h1 className="text-2xl font-semibold text-primary mb-2">
             Utilisateurs
           </h1>
-          <p className="text-secondary-light">
+          <p className="text-tertiary">
             {pagination.total} utilisateur{pagination.total !== 1 ? "s" : ""} au
             total
           </p>
@@ -212,24 +175,16 @@ const Users = () => {
               { value: "commune", label: "Commune" },
             ],
           },
-          {
-            key: "status",
-            options: [
-              { value: "all", label: "Tous les statuts" },
-              { value: "active", label: "Actif" },
-              { value: "inactive", label: "Inactif" },
-            ],
-          },
         ]}
       />
 
       {/* Liste des utilisateurs */}
-      <div className="bg-white rounded-xl shadow-card p-6 mb-8">
+      <div className="card card-rounded p-6 mb-8">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold text-primary">
             Liste des utilisateurs
           </h2>
-          <span className="text-sm text-secondary-light">
+          <span className="text-sm text-tertiary">
             Page {pagination.page} sur {pagination.totalPages}
           </span>
         </div>
@@ -238,7 +193,7 @@ const Users = () => {
           data={users}
           loading={loading}
           emptyMessage={
-            filters.search || filters.role !== "all" || filters.status !== "all"
+            filters.search || filters.role !== "all"
               ? "Aucun utilisateur trouvé avec ces critères"
               : "Aucun utilisateur dans la base de données"
           }

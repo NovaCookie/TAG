@@ -2,54 +2,54 @@ const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
 class FilterService {
+  /**
+   * Construit les filtres pour les interventions
+   * @param {Object} query - Paramètres de requête
+   * @param {Object} user - Utilisateur connecté
+   * @param {boolean} isArchive - Si on filtre les archives
+   * @returns {Object} Conditions WHERE pour Prisma
+   */
   buildInterventionFilters(query, user, isArchive = false) {
     const {
       search,
       status,
       theme,
       commune,
-      dateDebut,
-      dateFin,
-      dateArchivageDebut,
-      dateArchivageFin,
-      dateQuestionDebut,
-      dateQuestionFin,
+      dateStart,
+      dateEnd,
+      archiveDateStart,
+      archiveDateEnd,
+      questionDateStart,
+      questionDateEnd,
     } = query;
 
     const where = {};
-
-    // Filtre archivage
-    if (isArchive) {
-      where.date_archivage = { not: null };
-    } else {
-      where.date_archivage = null;
-    }
 
     // Filtre par rôle utilisateur
     if (user.role === "commune") {
       where.demandeur_id = user.id;
     }
 
-    // Filtre recherche
-    this.applySearchFilter(where, search);
+    // Application des filtres de recherche
+    this._applySearchFilter(where, search);
 
-    // Filtre statut
+    // Filtre par statut
     if (status && status !== "all") {
-      this.applyStatusFilter(where, status);
+      this._applyStatusFilter(where, status);
     }
 
-    // Filtres communs
+    // Filtres par entité
     if (theme && theme !== "all") where.theme_id = parseInt(theme);
     if (commune && commune !== "all") where.commune_id = parseInt(commune);
 
-    // Filtres dates
-    this.applyDateFilters(
+    // Filtres par date
+    this._applyDateFilters(
       where,
       {
-        dateDebut: dateDebut || dateQuestionDebut,
-        dateFin: dateFin || dateQuestionFin,
-        dateArchivageDebut,
-        dateArchivageFin,
+        dateStart: dateStart || questionDateStart,
+        dateEnd: dateEnd || questionDateEnd,
+        archiveDateStart,
+        archiveDateEnd,
       },
       isArchive
     );
@@ -57,67 +57,86 @@ class FilterService {
     return where;
   }
 
-  applySearchFilter(where, search) {
+  /**
+   * Applique le filtre de recherche texte
+   * @param {Object} where - Conditions WHERE
+   * @param {string} search - Terme de recherche
+   */
+  _applySearchFilter(where, search) {
     if (search && search.trim() !== "") {
-      const mots = search
+      const searchTerms = search
         .trim()
         .split(/\s+/)
-        .filter((mot) => mot.length > 0);
+        .filter((term) => term.length > 0);
 
-      if (mots.length > 0) {
-        where.AND = mots.map((mot) => ({
+      if (searchTerms.length > 0) {
+        where.AND = searchTerms.map((term) => ({
           OR: [
-            { titre: { contains: mot, mode: "insensitive" } },
-            { description: { contains: mot, mode: "insensitive" } },
-            { reponse: { contains: mot, mode: "insensitive" } },
-            { notes: { contains: mot, mode: "insensitive" } },
-            { commune: { nom: { contains: mot, mode: "insensitive" } } },
-            { theme: { designation: { contains: mot, mode: "insensitive" } } },
+            { titre: { contains: term, mode: "insensitive" } },
+            { description: { contains: term, mode: "insensitive" } },
+            { reponse: { contains: term, mode: "insensitive" } },
+            { notes: { contains: term, mode: "insensitive" } },
+            { commune: { nom: { contains: term, mode: "insensitive" } } },
+            { theme: { designation: { contains: term, mode: "insensitive" } } },
           ],
         }));
       }
     }
   }
 
-  applyStatusFilter(where, status) {
+  /**
+   * Applique le filtre par statut
+   * @param {Object} where - Conditions WHERE
+   * @param {string} status - Statut à filtrer
+   */
+  _applyStatusFilter(where, status) {
     switch (status) {
-      case "en_attente":
+      case "pending":
         where.reponse = null;
         break;
-      case "repondu":
+      case "answered":
         where.reponse = { not: null };
         where.satisfaction = null;
         break;
-      case "termine":
+      case "completed":
         where.reponse = { not: null };
         where.satisfaction = { not: null };
         break;
     }
   }
 
-  applyDateFilters(where, dates, isArchive) {
-    const { dateDebut, dateFin, dateArchivageDebut, dateArchivageFin } = dates;
+  /**
+   * Applique les filtres de date
+   * @param {Object} where - Conditions WHERE
+   * @param {Object} dates - Objet contenant les dates
+   * @param {boolean} isArchive - Si on filtre les archives
+   */
+  _applyDateFilters(where, dates, isArchive) {
+    const { dateStart, dateEnd, archiveDateStart, archiveDateEnd } = dates;
 
-    // Date de question
-    if (dateDebut || dateFin) {
+    // Filtre par date de question
+    if (dateStart || dateEnd) {
       where.date_question = {};
-      if (dateDebut) where.date_question.gte = new Date(dateDebut);
-      if (dateFin)
-        where.date_question.lte = new Date(dateFin + "T23:59:59.999Z");
+      if (dateStart) where.date_question.gte = new Date(dateStart);
+      if (dateEnd)
+        where.date_question.lte = new Date(dateEnd + "T23:59:59.999Z");
     }
 
-    // Date d'archivage (archives seulement)
-    if (isArchive && (dateArchivageDebut || dateArchivageFin)) {
+    // Filtre par date d'archivage (uniquement pour les archives)
+    if (isArchive && (archiveDateStart || archiveDateEnd)) {
       where.date_archivage = where.date_archivage || {};
-      if (dateArchivageDebut)
-        where.date_archivage.gte = new Date(dateArchivageDebut);
-      if (dateArchivageFin)
-        where.date_archivage.lte = new Date(
-          dateArchivageFin + "T23:59:59.999Z"
-        );
+      if (archiveDateStart)
+        where.date_archivage.gte = new Date(archiveDateStart);
+      if (archiveDateEnd)
+        where.date_archivage.lte = new Date(archiveDateEnd + "T23:59:59.999Z");
     }
   }
 
+  /**
+   * Récupère les options de pagination
+   * @param {Object} query - Paramètres de requête
+   * @returns {Object} Options de pagination
+   */
   getPaginationOptions(query) {
     const page = parseInt(query.page) || 1;
     const limit = parseInt(query.limit) || 10;
@@ -130,16 +149,105 @@ class FilterService {
     };
   }
 
-  getIncludeOptions(isArchive = false) {
+  /**
+   * Récupère les options d'inclusion pour Prisma
+   * @returns {Object} Options d'inclusion
+   */
+  getIncludeOptions() {
     return {
-      commune: { select: { id: true, nom: true } },
-      theme: { select: { id: true, designation: true } },
-      demandeur: { select: { id: true, nom: true, prenom: true, actif: true } },
-      juriste: { select: { id: true, nom: true, prenom: true, actif: true } },
+      commune: {
+        select: {
+          id: true,
+          nom: true,
+          population: true,
+        },
+      },
+      theme: {
+        select: {
+          id: true,
+          designation: true,
+        },
+      },
+      demandeur: {
+        select: {
+          id: true,
+          nom: true,
+          prenom: true,
+        },
+      },
+      juriste: {
+        select: {
+          id: true,
+          nom: true,
+          prenom: true,
+        },
+      },
     };
   }
 
-  async findInterventions(where, pagination, include, orderBy) {
+  /**
+   * Recherche les interventions non archivées
+   * @param {Object} where - Conditions WHERE
+   * @param {Object} pagination - Options de pagination
+   * @param {Object} include - Options d'inclusion
+   * @param {Object} orderBy - Options de tri
+   * @returns {Object} Résultats paginés
+   */
+  async findNonArchived(where, pagination, include, orderBy) {
+    // Récupérer les IDs des interventions archivées
+    const archivedInterventions = await prisma.archive.findMany({
+      where: { table_name: "interventions" },
+      select: { entity_id: true },
+    });
+    const archivedIds = archivedInterventions.map(
+      (archive) => archive.entity_id
+    );
+
+    // Exclure les interventions archivées
+    if (archivedIds.length > 0) {
+      where.id = { notIn: archivedIds };
+    }
+
+    return this._findInterventions(where, pagination, include, orderBy);
+  }
+
+  /**
+   * Recherche les interventions archivées
+   * @param {Object} where - Conditions WHERE
+   * @param {Object} pagination - Options de pagination
+   * @param {Object} include - Options d'inclusion
+   * @param {Object} orderBy - Options de tri
+   * @returns {Object} Résultats paginés
+   */
+  async findArchived(where, pagination, include, orderBy) {
+    // Récupérer les IDs des interventions archivées
+    const archivedInterventions = await prisma.archive.findMany({
+      where: { table_name: "interventions" },
+      select: { entity_id: true },
+    });
+    const archivedIds = archivedInterventions.map(
+      (archive) => archive.entity_id
+    );
+
+    // Inclure uniquement les interventions archivées
+    if (archivedIds.length > 0) {
+      where.id = { in: archivedIds };
+    } else {
+      where.id = { in: [] }; // Aucune intervention archivée
+    }
+
+    return this._findInterventions(where, pagination, include, orderBy);
+  }
+
+  /**
+   * Méthode privée pour exécuter la recherche d'interventions
+   * @param {Object} where - Conditions WHERE
+   * @param {Object} pagination - Options de pagination
+   * @param {Object} include - Options d'inclusion
+   * @param {Object} orderBy - Options de tri
+   * @returns {Object} Résultats paginés
+   */
+  async _findInterventions(where, pagination, include, orderBy) {
     const [interventions, total] = await Promise.all([
       prisma.interventions.findMany({
         where,
