@@ -139,11 +139,11 @@ const InterventionArchives = () => {
 
   const getInterventionStatus = (intervention) => {
     if (!intervention.reponse) {
-      return "en_attente";
+      return "pending";
     } else if (intervention.reponse && !intervention.satisfaction) {
-      return "repondu";
+      return "answered";
     } else {
-      return "termine";
+      return "completed";
     }
   };
 
@@ -266,9 +266,9 @@ const InterventionArchives = () => {
 
   const statusOptions = [
     { value: "all", label: "Tous les statuts" },
-    { value: "en_attente", label: "En attente" },
-    { value: "repondu", label: "Répondu" },
-    { value: "termine", label: "Terminé" },
+    { value: "pending", label: "En attente" },
+    { value: "answered", label: "Répondu" },
+    { value: "completed", label: "Terminé" },
   ];
 
   const themeOptions = [

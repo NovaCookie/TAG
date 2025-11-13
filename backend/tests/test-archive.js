@@ -13,15 +13,15 @@ async function testArchiveSystem() {
       1 // ID utilisateur admin
     );
 
-    console.log("✅ Archivage réussi:", archive);
+    console.log("Archivage réussi:", archive);
 
     // 2. Vérifier le statut
     const isArchived = await ArchiveService.isArchived("interventions", 1);
-    console.log("✅ Statut vérifié:", isArchived);
+    console.log("Statut vérifié:", isArchived);
 
     // 3. Lister les archives
     const archives = await ArchiveService.ArchiveListByTable("interventions");
-    console.log("✅ Liste archives:", archives.archives.length, "trouvées");
+    console.log("Liste archives:", archives.archives.length, "trouvées");
   } catch (error) {
     console.log("Test échoué:", error.message);
   }

@@ -20,7 +20,6 @@ const Support = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log("Formulaire soumis:", formData);
     alert("Votre message a été envoyé au support !");
     setFormData({
       nomComplet: "",

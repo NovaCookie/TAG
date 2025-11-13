@@ -4,51 +4,56 @@ const ArchiveService = require("../services/archiveService");
 const router = express.Router();
 
 // GET /api/archives - Liste toutes les archives avec filtres
-router.get("/", authMiddleware, requireRole(["admin"]), async (req, res) => {
-  try {
-    const {
-      table_name,
-      search,
-      role,
-      populationMin,
-      populationMax,
-      dateArchivageDebut,
-      dateArchivageFin,
-      page,
-      limit,
-    } = req.query;
-
-    let result;
-    if (table_name) {
-      // Archives d'une table spécifique avec filtres avancés
-      result = await ArchiveService.getArchivesByTableWithFilters(
+router.get(
+  "/",
+  authMiddleware,
+  requireRole(["admin", "juriste"]),
+  async (req, res) => {
+    try {
+      const {
         table_name,
-        {
-          search,
-          role,
-          populationMin,
-          populationMax,
-          dateArchivageDebut,
-          dateArchivageFin,
-        },
-        parseInt(page) || 1,
-        parseInt(limit) || 20
-      );
-    } else {
-      // Toutes les archives (pourrait nécessiter une implémentation différente)
-      result = await ArchiveService.ArchiveListByTable(
-        "interventions",
-        parseInt(page) || 1,
-        parseInt(limit) || 20
-      );
-    }
+        search,
+        role,
+        populationMin,
+        populationMax,
+        dateArchivageDebut,
+        dateArchivageFin,
+        page,
+        limit,
+      } = req.query;
 
-    res.json(result);
-  } catch (error) {
-    console.error("Erreur liste archives:", error);
-    res.status(500).json({ error: "Erreur lors du chargement des archives" });
+      let result;
+      if (table_name) {
+        // Archives d'une table spécifique avec filtres avancés
+        result = await ArchiveService.getArchivesByTableWithFilters(
+          table_name,
+          {
+            search,
+            role,
+            populationMin,
+            populationMax,
+            dateArchivageDebut,
+            dateArchivageFin,
+          },
+          parseInt(page) || 1,
+          parseInt(limit) || 20
+        );
+      } else {
+        // Toutes les archives (pourrait nécessiter une implémentation différente)
+        result = await ArchiveService.ArchiveListByTable(
+          "interventions",
+          parseInt(page) || 1,
+          parseInt(limit) || 20
+        );
+      }
+
+      res.json(result);
+    } catch (error) {
+      console.error("Erreur liste archives:", error);
+      res.status(500).json({ error: "Erreur lors du chargement des archives" });
+    }
   }
-});
+);
 
 // POST /api/archives/:table/:id - Archiver une entité
 router.post(

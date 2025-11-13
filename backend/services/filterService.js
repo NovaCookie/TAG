@@ -102,6 +102,8 @@ class FilterService {
         where.reponse = { not: null };
         where.satisfaction = { not: null };
         break;
+      default:
+        break;
     }
   }
 

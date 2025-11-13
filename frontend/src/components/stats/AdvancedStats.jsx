@@ -27,10 +27,7 @@ const AdvancedStats = () => {
       setChargement(true);
       setErreur(null);
 
-      console.log("Chargement des stats avec filtres:", filtres);
-
       const response = await statsAPI.getAdvanced(filtres);
-      console.log("Réponse API stats:", response.data);
 
       setStatistiques(response.data);
     } catch (error) {

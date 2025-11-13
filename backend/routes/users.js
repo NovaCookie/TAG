@@ -254,7 +254,7 @@ router.post("/", authMiddleware, requireRole(["admin"]), async (req, res) => {
   }
 });
 
-// PUT /api/users/:id - Modifier complètement un utilisateur
+// PUT /api/users/:id - Modifier complètement un utilisateur (Admin seulement)
 router.put(
   "/:id",
   authMiddleware,
@@ -372,7 +372,7 @@ router.put(
   }
 );
 
-// PUT /api/users/:id/email - Modifier l'email
+// PUT /api/users/:id/email - Modifier l'email (Admin seulement)
 router.put(
   "/:id/email",
   authMiddleware,
@@ -487,7 +487,7 @@ router.get("/confirm-email/:token", async (req, res) => {
   }
 });
 
-// PUT /api/users/:id/password - Modifier le mot de passe
+// PUT /api/users/:id/password - Modifier le mot de passe (Admin seulement)
 router.put(
   "/:id/password",
   authMiddleware,
@@ -541,16 +541,22 @@ router.put(
   }
 );
 
-// PUT /api/users/:id/infos - Modifier les informations basiques
+// PUT /api/users/:id/infos - Modifier les informations basiques (TOUS les utilisateurs)
 router.put(
   "/:id/infos",
   authMiddleware,
-  requireRole(["admin"]),
   checkArchived("utilisateurs"),
   async (req, res) => {
     try {
-      const { nom, prenom } = req.body;
+      const { nom, prenom, telephone, poste } = req.body;
       const userId = parseInt(req.params.id);
+
+      // ✅ SÉCURITÉ : Un utilisateur ne peut modifier que SON PROPRE compte
+      if (req.user.id !== userId) {
+        return res.status(403).json({
+          error: "Vous ne pouvez modifier que votre propre profil",
+        });
+      }
 
       // Vérifier que l'utilisateur existe
       const utilisateurExistant = await prisma.utilisateurs.findUnique({
@@ -567,6 +573,8 @@ router.put(
         data: {
           nom: nom || utilisateurExistant.nom,
           prenom: prenom || utilisateurExistant.prenom,
+          telephone: telephone || undefined,
+          poste: poste || undefined,
         },
       });
 
@@ -577,6 +585,8 @@ router.put(
           nom: utilisateur.nom,
           prenom: utilisateur.prenom,
           email: utilisateur.email,
+          telephone: utilisateur.telephone,
+          poste: utilisateur.poste,
         },
       });
     } catch (error) {

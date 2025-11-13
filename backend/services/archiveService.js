@@ -348,30 +348,25 @@ class ArchiveService {
       return { archived: false };
     }
   }
-}
 
-// Méthode pour filtrer automatiquement les entités archivées dans les listings
-async function excludeArchivedFromQuery(where, table_name) {
-  const archivedIds = await this.getArchivedIds(table_name);
-  if (archivedIds.length > 0) {
-    where.id = where.id
-      ? { ...where.id, notIn: archivedIds }
-      : { notIn: archivedIds };
-  }
-  return where;
-}
+  // // Méthode pour filtrer automatiquement les entités archivées dans les listings
+  // async excludeArchivedFromQuery(where, table_name) {
+  //   const archivedIds = await this.getArchivedIds(table_name);
+  //   if (archivedIds.length > 0) {
+  //     where.id = where.id
+  //       ? { ...where.id, notIn: archivedIds }
+  //       : { notIn: archivedIds };
+  //   }
+  //   return where;
+  // }
 
-// Méthode pour vérifier l'archivage avant action
-async function validateEntityNotArchived(
-  table_name,
-  entity_id,
-  action = "modifier"
-) {
-  const archiveStatus = await this.checkArchiveStatus(table_name, entity_id);
-  if (archiveStatus.archived) {
-    throw new Error(`Impossible de ${action} ${table_name} archivé`);
-  }
-  return true;
+  // // Méthode pour vérifier l'archivage avant action
+  // async F(table_name, entity_id, action = "modifier") {
+  //   const archiveStatus = await this.checkArchiveStatus(table_name, entity_id);
+  //   if (archiveStatus.archived) {
+  //     throw new Error(`Impossible de ${action} ${table_name} archivé`);
+  //   }
+  //   return true;
+  // }
 }
-
 module.exports = new ArchiveService();

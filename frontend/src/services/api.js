@@ -18,31 +18,33 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    console.error("Erreur API interceptée:", error.response?.status, error.response?.data);
-    
+    console.error(
+      "Erreur API interceptée:",
+      error.response?.status,
+      error.response?.data
+    );
+
     // Si erreur 410 (Compte archivé) - Déconnecter immédiatement
     if (error.response?.status === 410) {
-      
       // Nettoyer le storage
       localStorage.removeItem("token");
       localStorage.removeItem("user");
-      
+
       // Rediriger vers login avec message
       if (window.location.pathname !== "/auth/login") {
         window.location.href = "/auth/login?error=archived";
       }
     }
-    
-    // Si erreur 401/403 (Non autorisé) - Déconnecter
-    if (error.response?.status === 401 || error.response?.status === 403) {
+
+    if (error.response?.status === 401) {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
-      
+
       if (window.location.pathname !== "/auth/login") {
         window.location.href = "/auth/login";
       }
     }
-    
+
     return Promise.reject(error);
   }
 );

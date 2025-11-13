@@ -16,7 +16,7 @@ async function main() {
   await prisma.utilisateurs.deleteMany();
   await prisma.communes.deleteMany();
 
-  console.log("✅ Base nettoyée");
+  console.log("Base nettoyée");
 
   // --- COMMUNES ---
   console.log("🏙️ Création des communes...");
@@ -32,7 +32,7 @@ async function main() {
 
   const [nuuk, sisimiut, ilulissat, qaqortoq, aasiaat] =
     await prisma.communes.findMany();
-  console.log(`✅ ${communes.count} communes créées`);
+  console.log(`${communes.count} communes créées`);
 
   // --- THEMES ---
   console.log("📚 Création des thèmes...");
@@ -46,7 +46,7 @@ async function main() {
       { designation: "Finances locales" },
     ],
   });
-  console.log(`✅ ${themes.count} thèmes créés`);
+  console.log(`${themes.count} thèmes créés`);
 
   // --- POLITIQUES DE RETENTION ---
   console.log("📋 Création des politiques de rétention...");
@@ -93,7 +93,7 @@ async function main() {
       },
     ],
   });
-  console.log("✅ Politiques de rétention créées");
+  console.log("Politiques de rétention créées");
 
   // --- UTILISATEURS ---
   console.log("👥 Création des utilisateurs...");
@@ -212,7 +212,7 @@ async function main() {
     juriste3,
     admin,
   ] = users;
-  console.log(`✅ ${users.length} utilisateurs créés`);
+  console.log(`${users.length} utilisateurs créés`);
 
   // --- INTERVENTIONS ---
   console.log("📞 Création des interventions...");
@@ -302,7 +302,7 @@ async function main() {
     }),
   ]);
 
-  console.log(`✅ ${interventions.length} interventions créées`);
+  console.log(`${interventions.length} interventions créées`);
 
   // --- PIECES JOINTES ---
   console.log("📎 Création des pièces jointes...");
@@ -328,7 +328,7 @@ async function main() {
       },
     ],
   });
-  console.log("✅ Pièces jointes créées");
+  console.log("Pièces jointes créées");
 
   // --- ARCHIVES (exemple) ---
   console.log("📁 Création d'exemples d'archives...");
@@ -348,7 +348,7 @@ async function main() {
       archived_by_id: admin.id,
     },
   });
-  console.log("✅ Exemple d'archive créé");
+  console.log("Exemple d'archive créé");
 
   console.log("🎉 Base peuplée avec succès !");
   console.log("📊 Récapitulatif :");

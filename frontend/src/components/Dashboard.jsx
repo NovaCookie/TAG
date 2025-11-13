@@ -117,23 +117,11 @@ const Dashboard = () => {
   const getCardTitle = (index) => {
     const titles = {
       commune: ["Mes questions", "En attente", "Répondues"],
-      juriste: ["Questions à traiter", "En attente", "Traitées"],
+      juriste: ["Total interventions", "En attente", "Traitées"],
       admin: ["Total interventions", "En attente", "Répondues"],
     };
     return (
       titles[user?.role]?.[index] || ["Total", "En attente", "Répondues"][index]
-    );
-  };
-
-  const getCardSubtitle = (index) => {
-    const subtitles = {
-      commune: ["Total posées", "Réponse attendue", "Questions traitées"],
-      juriste: ["À traiter", "Sans réponse", "Avec réponse"],
-      admin: ["Au total", "Sans réponse", "Avec réponse"],
-    };
-    return (
-      subtitles[user?.role]?.[index] ||
-      ["Total", "En attente", "Répondu"][index]
     );
   };
 
@@ -190,21 +178,18 @@ const Dashboard = () => {
         <StatBlock
           title={getCardTitle(0)}
           value={statistics.totalInterventions}
-          subtitle={getCardSubtitle(0)}
           color="primary"
           size="medium"
         />
         <StatBlock
           title={getCardTitle(1)}
           value={statistics.pendingInterventions}
-          subtitle={getCardSubtitle(1)}
           color="warning"
           size="medium"
         />
         <StatBlock
           title={getCardTitle(2)}
           value={statistics.answeredInterventions}
-          subtitle={getCardSubtitle(2)}
           color="success"
           size="medium"
         />

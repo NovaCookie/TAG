@@ -314,7 +314,7 @@ const NewUser = () => {
             <div className="border-t border-light-gray pt-6">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-primary">
-                  Mot de passe *
+                  Mot de passe
                 </h3>
                 <button
                   type="button"
@@ -332,7 +332,7 @@ const NewUser = () => {
                   error={errors.mot_de_passe}
                   placeholder="Minimum 6 caractères"
                   name="mot_de_passe"
-                  label="Mot de passe *"
+                  label="Mot de passe"
                   required={true}
                 />
 
@@ -342,7 +342,7 @@ const NewUser = () => {
                   error={errors.confirmer_mot_de_passe}
                   placeholder="Répétez le mot de passe"
                   name="confirmer_mot_de_passe"
-                  label="Confirmation *"
+                  label="Confirmation"
                   required={true}
                 />
               </div>

@@ -26,7 +26,6 @@ export const AuthProvider = ({ children }) => {
 
     if (token && userData) {
       try {
-        // Vérifier que le token est toujours valide
         const userObj = JSON.parse(userData);
         setUser(userObj);
       } catch (err) {
@@ -37,21 +36,31 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   };
 
+  const updateUser = (updatedData) => {
+    setUser((prevUser) => {
+      if (!prevUser) return prevUser;
+
+      const newUser = {
+        ...prevUser,
+        ...updatedData,
+      };
+
+      localStorage.setItem("user", JSON.stringify(newUser));
+      return newUser;
+    });
+  };
+
   const login = async (email, password) => {
     try {
       setError(null);
-      console.log("Tentative de connexion...", { email });
 
       const response = await authAPI.login({
         email,
         mot_de_passe: password,
       });
 
-      console.log("Connexion réussie!", response.data);
-
       const { token, user } = response.data;
 
-      // Stocker les données
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(user));
       setUser(user);
@@ -72,16 +81,12 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = (message = null) => {
-    console.log("Déconnexion...");
-
-    // Nettoyer le storage
     localStorage.removeItem("token");
     localStorage.removeItem("user");
 
     setUser(null);
     setError(message);
 
-    // Forcer le rechargement pour nettoyer tout état résiduel
     setTimeout(() => {
       window.location.href = "/auth/login";
     }, 100);
@@ -96,6 +101,7 @@ export const AuthProvider = ({ children }) => {
     loading,
     error,
     clearError,
+    updateUser,
     isAuthenticated: !!user,
   };
 

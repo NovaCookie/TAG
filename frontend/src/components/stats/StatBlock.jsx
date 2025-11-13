@@ -1,7 +1,6 @@
 const StatBlock = ({
   title,
   value,
-  subtitle,
   icon,
   color = "primary",
   loading = false,
@@ -18,7 +17,7 @@ const StatBlock = ({
       value: "text-primary",
     },
     secondary: {
-      bg: "bg-white", 
+      bg: "bg-white",
       border: "border border-light-gray",
       text: "text-secondary",
       iconBg: "bg-secondary",
@@ -26,7 +25,7 @@ const StatBlock = ({
     },
     success: {
       bg: "bg-white",
-      border: "border border-light-gray", 
+      border: "border border-light-gray",
       text: "text-success",
       iconBg: "bg-success",
       value: "text-success",
@@ -34,7 +33,7 @@ const StatBlock = ({
     warning: {
       bg: "bg-white",
       border: "border border-light-gray",
-      text: "text-warning", 
+      text: "text-warning",
       iconBg: "bg-warning",
       value: "text-warning",
     },
@@ -52,21 +51,18 @@ const StatBlock = ({
       padding: "p-4",
       title: "text-sm",
       value: "text-xl",
-      subtitle: "text-xs",
       iconSize: "w-2 h-2",
     },
     medium: {
       padding: "p-6",
-      title: "text-lg", 
+      title: "text-lg",
       value: "text-3xl",
-      subtitle: "text-sm",
       iconSize: "w-3 h-3",
     },
     large: {
       padding: "p-8",
       title: "text-xl",
       value: "text-4xl",
-      subtitle: "text-base",
       iconSize: "w-4 h-4",
     },
   };
@@ -107,18 +103,14 @@ const StatBlock = ({
         <h3 className={`font-semibold ${config.text} ${sizeStyle.title}`}>
           {title}
         </h3>
-        <div className={`rounded-full ${config.iconBg} ${sizeStyle.iconSize}`}></div>
+        <div
+          className={`rounded-full ${config.iconBg} ${sizeStyle.iconSize}`}
+        ></div>
       </div>
 
       <div className={`font-bold mb-2 ${config.value} ${sizeStyle.value}`}>
         {value}
       </div>
-
-      {subtitle && (
-        <div className={`text-tertiary ${sizeStyle.subtitle}`}>
-          {subtitle}
-        </div>
-      )}
     </div>
   );
 };

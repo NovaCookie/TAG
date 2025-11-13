@@ -67,12 +67,10 @@ router.post("/register", async (req, res) => {
   }
 });
 
-// Route de connexion - CRITIQUE : Vérification archivage
+// Route de connexion
 router.post("/login", async (req, res) => {
   try {
     const { email, mot_de_passe } = req.body;
-
-    console.log("🔐 Tentative connexion:", email);
 
     // Trouver l'utilisateur
     const user = await prisma.utilisateurs.findUnique({
@@ -80,17 +78,15 @@ router.post("/login", async (req, res) => {
     });
 
     if (!user) {
-      console.log("❌ Utilisateur non trouvé:", email);
       return res.status(401).json({ error: "Email ou mot de passe incorrect" });
     }
 
-    // VÉRIFICATION CRITIQUE : Vérifier si l'utilisateur est archivé
+    // Vérifier si l'utilisateur est archivé
     const archiveStatus = await archiveService.checkArchiveStatus(
       "utilisateurs",
       user.id
     );
     if (archiveStatus.archived) {
-      console.log("🚫 Utilisateur archivé tentant de se connecter:", email);
       return res.status(410).json({
         error: "Compte archivé. Accès refusé.",
         archive_date: archiveStatus.archive_date,
@@ -99,7 +95,6 @@ router.post("/login", async (req, res) => {
 
     // Vérifier si le compte est actif
     if (!user.actif) {
-      console.log("❌ Compte désactivé:", email);
       return res
         .status(401)
         .json({ error: "Compte désactivé. Contactez l'administrateur." });
@@ -109,7 +104,6 @@ router.post("/login", async (req, res) => {
     const validPassword = await bcrypt.compare(mot_de_passe, user.mot_de_passe);
 
     if (!validPassword) {
-      console.log("❌ Mot de passe incorrect pour:", email);
       return res.status(401).json({ error: "Email ou mot de passe incorrect" });
     }
 
@@ -119,8 +113,6 @@ router.post("/login", async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: "24h" }
     );
-
-    console.log("✅ Connexion réussie pour:", email);
 
     res.json({
       message: "Connexion réussie",
@@ -135,7 +127,7 @@ router.post("/login", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("❌ Erreur connexion:", error);
+    console.error("Erreur connexion:", error);
     res.status(500).json({ error: "Erreur lors de la connexion" });
   }
 });

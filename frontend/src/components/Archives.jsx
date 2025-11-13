@@ -4,38 +4,59 @@ import Layout from "./layout/Layout";
 import InterventionArchives from "./archives/InterventionArchives";
 import CommuneArchives from "./archives/CommuneArchives";
 import UserArchives from "./archives/UserArchives";
+import { useAuth } from "../context/AuthContext";
 
 const Archives = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("interventions");
+  const { user } = useAuth();
 
   // Synchroniser l'onglet actif avec les paramètres d'URL
   useEffect(() => {
     const tabFromUrl = searchParams.get("tab");
-    if (
-      tabFromUrl &&
-      ["interventions", "communes", "utilisateurs"].includes(tabFromUrl)
-    ) {
-      setActiveTab(tabFromUrl);
+
+    // Définir les onglets disponibles selon le rôle
+    let availableTabs = ["interventions", "communes"];
+    if (user?.role === "admin") {
+      availableTabs.push("utilisateurs");
     }
-  }, [searchParams]);
+
+    if (tabFromUrl && availableTabs.includes(tabFromUrl)) {
+      setActiveTab(tabFromUrl);
+    } else {
+      setActiveTab(availableTabs[0]);
+      setSearchParams({ tab: availableTabs[0] });
+    }
+  }, [searchParams, user]);
 
   const handleTabChange = (tabId) => {
     setActiveTab(tabId);
-    // Mettre à jour l'URL sans recharger la page
     setSearchParams({ tab: tabId });
   };
 
-  const tabs = [
-    {
-      id: "interventions",
-      label: "Interventions",
-      component: InterventionArchives,
-    },
-    { id: "communes", label: "Communes", component: CommuneArchives },
-    { id: "utilisateurs", label: "Utilisateurs", component: UserArchives },
-  ];
+  // Définir les onglets disponibles selon le rôle
+  const getAvailableTabs = () => {
+    const baseTabs = [
+      {
+        id: "interventions",
+        label: "Interventions",
+        component: InterventionArchives,
+      },
+      { id: "communes", label: "Communes", component: CommuneArchives },
+    ];
 
+    if (user?.role === "admin") {
+      baseTabs.push({
+        id: "utilisateurs",
+        label: "Utilisateurs",
+        component: UserArchives,
+      });
+    }
+
+    return baseTabs;
+  };
+
+  const tabs = getAvailableTabs();
   const ActiveComponent = tabs.find((tab) => tab.id === activeTab)?.component;
 
   return (
