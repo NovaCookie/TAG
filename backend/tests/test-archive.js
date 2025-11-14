@@ -1,30 +1,55 @@
-// backend/test-archive.js
-const ArchiveService = require("./services/archiveService");
+const express = require("express");
+const { authMiddleware, requireRole } = require("../middleware/auth");
+const retentionService = require("../services/retentionService");
+const router = express.Router();
 
-async function testArchiveSystem() {
-  try {
-    console.log("🧪 TEST du nouveau système d'archivage...");
-
-    // 1. Tester l'archivage d'une intervention
-    const archive = await ArchiveService.archiveEntity(
-      "interventions",
-      1,
-      "Test archivage nouveau système",
-      1 // ID utilisateur admin
-    );
-
-    console.log("Archivage réussi:", archive);
-
-    // 2. Vérifier le statut
-    const isArchived = await ArchiveService.isArchived("interventions", 1);
-    console.log("Statut vérifié:", isArchived);
-
-    // 3. Lister les archives
-    const archives = await ArchiveService.ArchiveListByTable("interventions");
-    console.log("Liste archives:", archives.archives.length, "trouvées");
-  } catch (error) {
-    console.log("Test échoué:", error.message);
+// GET /api/test/auto-archive - Tester manuellement l'archivage automatique
+router.get(
+  "/auto-archive",
+  authMiddleware,
+  requireRole(["admin"]),
+  async (req, res) => {
+    try {
+      const result = await retentionService.testAutoArchive();
+      res.json({
+        message: "Test d'archivage automatique terminé",
+        ...result,
+      });
+    } catch (error) {
+      console.error("Erreur test archivage:", error);
+      res.status(500).json({ error: "Erreur test archivage" });
+    }
   }
-}
+);
 
-testArchiveSystem();
+// POST /api/test/force-archive/:id - Forcer l'archivage d'une intervention
+router.post(
+  "/force-archive/:id",
+  authMiddleware,
+  requireRole(["admin"]),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { raison } = req.body;
+
+      const result = await retentionService.forceArchiveIntervention(
+        parseInt(id),
+        raison || "Archivage manuel de test"
+      );
+
+      res.json(result);
+    } catch (error) {
+      console.error("Erreur archivage forcé:", error);
+      res.status(500).json({ error: "Erreur archivage forcé" });
+    }
+  }
+);
+
+module.exports = router;
+
+//  $headers = @{
+// >>     "Authorization" = "Mon bearer token"
+// >>     "Content-Type" = "application/json"
+// >> }
+
+//Invoke-RestMethod -Uri "http://localhost:5000/api/test/auto-archive" -Method GET -Headers $headers

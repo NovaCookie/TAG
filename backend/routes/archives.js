@@ -103,7 +103,7 @@ router.post(
 router.delete(
   "/:table/:id",
   authMiddleware,
-  requireRole(["admin"]),
+  requireRole(["admin", "juriste"]),
   async (req, res) => {
     try {
       const { table, id } = req.params;

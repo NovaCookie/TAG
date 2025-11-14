@@ -304,6 +304,7 @@ const InterventionDetail = () => {
   };
 
   const handleConfirmArchive = async () => {
+    const timeOut = 0;
     if (!intervention) return;
 
     setArchiving(true);
@@ -321,9 +322,13 @@ const InterventionDetail = () => {
 
       setArchiveMessage("Intervention archivée avec succès");
       setTimeout(() => {
-        setShowArchiveModal(false);
-        setArchiveMessage("");
-      }, 2000);
+        navigate("/interventions", {
+          state: {
+            message: "Intervention archivée avec succès",
+            type: "success",
+          },
+        });
+      }, timeOut);
     } catch (error) {
       console.error("Erreur archivage:", error);
 
@@ -364,12 +369,17 @@ const InterventionDetail = () => {
 
       // Recharger les données pour mettre à jour le statut d'archivage
       await fetchIntervention();
+      const timeOut = 0;
 
       setRestoreMessage("Intervention restaurée avec succès");
       setTimeout(() => {
-        setShowRestoreModal(false);
-        setRestoreMessage("");
-      }, 2000);
+        navigate("/archives", {
+          state: {
+            message: "Intervention restaurée avec succès",
+            type: "success",
+          },
+        });
+      }, timeOut);
     } catch (error) {
       console.error("Erreur restauration:", error);
 

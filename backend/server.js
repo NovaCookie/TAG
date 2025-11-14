@@ -10,7 +10,9 @@ const themeRoutes = require("./routes/themes");
 const userRoutes = require("./routes/users");
 const communeRoutes = require("./routes/communes");
 const statsRoutes = require("./routes/stats");
-const archiveRoutes = require("./routes/archives")
+const archiveRoutes = require("./routes/archives");
+const cronService = require("./services/cronService");
+const testArchivesRoutes = require("./tests/test-archive");
 
 // Middleware
 app.use(cors()); // Permet à React de communiquer avec Express
@@ -24,6 +26,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/communes", communeRoutes);
 app.use("/api/stats", statsRoutes);
 app.use("/api/archives", archiveRoutes);
+app.use("/api/test", testArchivesRoutes);
 
 // ==================== ROUTES PROTÉGÉES ====================
 
@@ -88,4 +91,6 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(` Serveur TAG démarré sur http://localhost:${PORT}`);
   console.log(`🔐 Routes protégées activées`);
+
+  cronService.startAutoArchive();
 });

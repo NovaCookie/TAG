@@ -7,6 +7,7 @@ import Pagination from "./common/Pagination";
 import SelectField from "./common/dropdown/SelectField";
 import { interventionsAPI, themesAPI, usersAPI } from "../services/api";
 import AlertMessage from "./common/feedback/AlertMessage";
+import { useDebounce } from "../hooks/useDebounce";
 
 const Interventions = () => {
   const { user } = useAuth();
@@ -16,8 +17,8 @@ const Interventions = () => {
   const [loading, setLoading] = useState(true);
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [searchInput, setSearchInput] = useState("");
   const [filters, setFilters] = useState({
-    search: "",
     status: "all",
     theme: "all",
     commune: "all",
@@ -30,6 +31,8 @@ const Interventions = () => {
     total: 0,
     totalPages: 0,
   });
+
+  const debouncedSearch = useDebounce(searchInput, 500);
 
   const canFilterByCommune = useCallback(() => {
     return ["admin", "juriste"].includes(user?.role);
@@ -45,38 +48,41 @@ const Interventions = () => {
     return `${dd}/${mm}/${yyyy}`;
   };
 
-  const fetchInterventions = useCallback(async () => {
-    try {
-      setLoading(true);
+  const fetchInterventions = useCallback(
+    async (searchTerm = "") => {
+      try {
+        setLoading(true);
 
-      const params = {
-        page: pagination.page,
-        limit: pagination.limit,
-      };
+        const params = {
+          page: pagination.page,
+          limit: pagination.limit,
+        };
 
-      if (filters.status !== "all") params.status = filters.status;
-      if (filters.theme !== "all") params.theme = filters.theme;
-      if (filters.commune !== "all") params.commune = filters.commune;
-      if (filters.dateStart) params.dateStart = filters.dateStart;
-      if (filters.dateEnd) params.dateEnd = filters.dateEnd;
-      if (filters.search.trim() !== "") params.search = filters.search;
+        if (filters.status !== "all") params.status = filters.status;
+        if (filters.theme !== "all") params.theme = filters.theme;
+        if (filters.commune !== "all") params.commune = filters.commune;
+        if (filters.dateStart) params.dateStart = filters.dateStart;
+        if (filters.dateEnd) params.dateEnd = filters.dateEnd;
+        if (searchTerm.trim() !== "") params.search = searchTerm;
 
-      const response = await interventionsAPI.getAll(params);
-      const data = response.data;
+        const response = await interventionsAPI.getAll(params);
+        const data = response.data;
 
-      setInterventions(data.interventions);
-      setPagination((prev) => ({
-        ...prev,
-        total: data.pagination.total,
-        totalPages: data.pagination.pages,
-      }));
-    } catch (error) {
-      console.error("Erreur chargement interventions:", error);
-      setErrorMessage("Erreur lors du chargement des interventions");
-    } finally {
-      setLoading(false);
-    }
-  }, [pagination.page, pagination.limit, filters]);
+        setInterventions(data.interventions);
+        setPagination((prev) => ({
+          ...prev,
+          total: data.pagination.total,
+          totalPages: data.pagination.pages,
+        }));
+      } catch (error) {
+        console.error("Erreur chargement interventions:", error);
+        setErrorMessage("Erreur lors du chargement des interventions");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [pagination.page, pagination.limit, filters]
+  );
 
   const fetchThemes = useCallback(async () => {
     try {
@@ -98,17 +104,40 @@ const Interventions = () => {
 
   useEffect(() => {
     fetchInterventions();
+  }, [fetchInterventions]);
+
+  useEffect(() => {
     fetchThemes();
     if (canFilterByCommune()) fetchCommunes();
-  }, [fetchInterventions, fetchThemes, fetchCommunes, canFilterByCommune]);
+  }, [fetchThemes, fetchCommunes, canFilterByCommune]);
+
+  useEffect(() => {
+    if (debouncedSearch !== undefined) {
+      setPagination((prev) => ({ ...prev, page: 1 }));
+      fetchInterventions(debouncedSearch);
+    }
+  }, [debouncedSearch, fetchInterventions]);
+
+  const handleSearchKeyPress = (e) => {
+    if (e.key === "Enter") {
+      setPagination((prev) => ({ ...prev, page: 1 }));
+      fetchInterventions(searchInput);
+    }
+  };
+
+  const handleSearchReset = () => {
+    setSearchInput("");
+    setPagination((prev) => ({ ...prev, page: 1 }));
+    fetchInterventions("");
+  };
 
   const getInterventionStatus = (intervention) => {
     if (!intervention.reponse) {
-      return "pending";
+      return "en_attente";
     } else if (intervention.reponse && !intervention.satisfaction) {
-      return "answered";
+      return "repondu";
     } else {
-      return "completed";
+      return "termine";
     }
   };
 
@@ -172,7 +201,6 @@ const Interventions = () => {
             </div>
           </div>
 
-          {/* Dates formatées */}
           <div className="flex items-center gap-4 text-sm text-tertiary mb-2">
             <span className="font-medium text-secondary">
               Question posée le :
@@ -193,21 +221,18 @@ const Interventions = () => {
 
             <span className="text-light">•</span>
 
-            {/* Statut */}
             <div className="flex items-center gap-2">
               <StatusBadge status={status} />
             </div>
 
             <span className="text-light">•</span>
 
-            {/* Thème */}
             <div className="flex items-center gap-2">
               <span className="text-primary-light font-medium">
                 {intervention.theme?.designation}
               </span>
             </div>
 
-            {/* Note de satisfaction */}
             {intervention.satisfaction && (
               <>
                 <span className="text-light">•</span>
@@ -261,7 +286,6 @@ const Interventions = () => {
         autoClose
       />
 
-      {/* En-tête de page */}
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-2xl font-semibold text-primary">
@@ -282,20 +306,30 @@ const Interventions = () => {
         )}
       </div>
 
-      {/* Filtres */}
       <div className="card card-rounded p-6 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <label className="block text-sm font-medium text-secondary mb-2">
               Recherche
             </label>
-            <input
-              type="text"
-              placeholder="Titre, description, notes..."
-              className="w-full px-4 py-2 border border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light"
-              value={filters.search}
-              onChange={(e) => handleFilterChange("search", e.target.value)}
-            />
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Titre, description, notes..."
+                className="w-full px-5 py-3 border border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light text-base"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyPress={handleSearchKeyPress}
+              />
+              {searchInput && (
+                <button
+                  onClick={handleSearchReset}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 text-lg"
+                >
+                  ×
+                </button>
+              )}
+            </div>
           </div>
 
           <div>
@@ -338,7 +372,6 @@ const Interventions = () => {
           )}
         </div>
 
-        {/* Filtres dates */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 pt-4 border-t border-light">
           <div>
             <label className="block text-sm font-medium text-secondary mb-2">
@@ -375,7 +408,6 @@ const Interventions = () => {
         </div>
       </div>
 
-      {/* Liste des interventions */}
       <div className="card card-rounded p-6 mb-8">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold text-primary">

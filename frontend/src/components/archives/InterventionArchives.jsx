@@ -139,11 +139,11 @@ const InterventionArchives = () => {
 
   const getInterventionStatus = (intervention) => {
     if (!intervention.reponse) {
-      return "pending";
+      return "en_attente";
     } else if (intervention.reponse && !intervention.satisfaction) {
-      return "answered";
+      return "repondu";
     } else {
-      return "completed";
+      return "termine";
     }
   };
 

@@ -538,6 +538,31 @@ class StatsService {
       satisfactionGlobale: satisfactionGlobale._avg.satisfaction || 0,
     };
   }
+
+  // async getRetentionStats() {
+  //   const policies = await prisma.retentionPolicy.findMany({
+  //     include: {
+  //       theme: true,
+  //       _count: {
+  //         select: {
+  //           theme: {
+  //             interventions: {
+  //               where: {
+  //                 date_reponse: { not: null },
+  //               },
+  //             },
+  //           },
+  //         },
+  //       },
+  //     },
+  //   });
+
+  //   return policies.map((policy) => ({
+  //     theme: policy.theme.designation,
+  //     duree_mois: policy.duree_mois,
+  //     interventions_concernées: policy._count.theme.interventions,
+  //   }));
+  // }
 }
 
 module.exports = new StatsService();

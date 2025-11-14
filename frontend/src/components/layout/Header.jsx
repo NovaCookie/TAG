@@ -1,10 +1,10 @@
 import { useAuth } from "../../context/AuthContext";
 import UserAvatar from "../common/UserAvatar";
-// import { useTheme } from "../../context/ThemeContext";
+import { useTheme } from "../../context/ThemeContext";
 
 const Header = () => {
   const { user, logout } = useAuth();
-  // const { theme, toggleTheme } = useTheme();
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <header className="card-light px-10 py-5 flex justify-between items-center">
@@ -15,13 +15,15 @@ const Header = () => {
 
       <div className="flex items-center gap-4">
         {/* Toggle du thème */}
-        {/* <button
+        <button
           onClick={toggleTheme}
           className="p-2  transition-all duration-300 bg-light text-secondary hover:bg-light-gray dark:bg-dark-card dark:text-dark-tertiary dark:hover:bg-gray-700"
-          title={theme === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre'}
+          title={
+            theme === "dark" ? "Passer en mode clair" : "Passer en mode sombre"
+          }
         >
-          {theme === 'dark' ? '☀️' : '🌙'}
-        </button> */}
+          {theme === "dark" ? "☀️" : "🌙"}
+        </button>
 
         <div className="text-right">
           <div className="font-medium text-secondary">

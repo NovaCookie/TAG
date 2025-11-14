@@ -51,6 +51,9 @@ model Utilisateurs {
   mot_de_passe  String
   actif         Boolean       @default(true)
   date_creation DateTime      @default(now())
+  telephone          String?
+  poste              String?
+  preferences_notifications Json? // Stocke les préf de notification
 
   // Sécurité / gestion de compte
   reset_token                String?
@@ -81,7 +84,6 @@ model Interventions {
   satisfaction    Int?
   date_question   DateTime  @default(now())
   date_reponse    DateTime?
-  date_creation   DateTime  @default(now())
 
   commune_id      Int
   demandeur_id    Int

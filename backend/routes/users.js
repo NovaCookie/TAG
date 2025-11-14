@@ -551,7 +551,7 @@ router.put(
       const { nom, prenom, telephone, poste } = req.body;
       const userId = parseInt(req.params.id);
 
-      // ✅ SÉCURITÉ : Un utilisateur ne peut modifier que SON PROPRE compte
+      // SÉCURITÉ : Un utilisateur ne peut modifier que SON PROPRE compte
       if (req.user.id !== userId) {
         return res.status(403).json({
           error: "Vous ne pouvez modifier que votre propre profil",
