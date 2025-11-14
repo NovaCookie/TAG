@@ -16,6 +16,7 @@ const NewCommune = () => {
     nom: "",
     code_postal: "",
     population: "",
+    actif: true,
   });
 
   const handleChange = (e) => {

@@ -15,8 +15,6 @@ const Sidebar = ({ isOpen, onToggle }) => {
 
   const canViewManagement = () => isAdmin() || isJuriste();
   const canViewUsers = () => isAdmin(); // Seulement admin pour page utilisateurs
-  const canViewCommunes = () => isAdmin() || isJuriste(); // Admin + juristes pour page communes
-  const canViewArchives = () => isAdmin() || isJuriste(); // Admin + juristes pour page archives
 
   const ICONS = {
     dashboard: "📊",
@@ -24,6 +22,7 @@ const Sidebar = ({ isOpen, onToggle }) => {
     archives: "📁",
     users: "👥",
     communes: "🏠",
+    themes: "🏷️",
     settings: "⚙️",
     support: "❔",
   };
@@ -108,24 +107,29 @@ const Sidebar = ({ isOpen, onToggle }) => {
                 isActive={isActive("/users")}
               />
             )}
-            {canViewCommunes() && (
-              <SidebarLink
-                to="/communes"
-                icon={ICONS.communes}
-                title="Communes"
-                isOpen={isOpen}
-                isActive={isActive("/communes")}
-              />
-            )}
-            {canViewArchives() && (
-              <SidebarLink
-                to="/archives"
-                icon={ICONS.archives}
-                title="Archives"
-                isOpen={isOpen}
-                isActive={isActive("/archives")}
-              />
-            )}
+            <SidebarLink
+              to="/communes"
+              icon={ICONS.communes}
+              title="Communes"
+              isOpen={isOpen}
+              isActive={isActive("/communes")}
+            />
+
+            <SidebarLink
+              to="/themes"
+              icon={ICONS.themes}
+              title="Thèmes"
+              isOpen={isOpen}
+              isActive={isActive("/themes")}
+            />
+
+            <SidebarLink
+              to="/archives"
+              icon={ICONS.archives}
+              title="Archives"
+              isOpen={isOpen}
+              isActive={isActive("/archives")}
+            />
           </SidebarSection>
         )}
 

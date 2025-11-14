@@ -107,6 +107,7 @@ router.get("/", authMiddleware, async (req, res) => {
       code_postal: commune.code_postal,
       population: commune.population,
       date_creation: commune.date_creation,
+      actif: commune.actif,
       stats: {
         nb_utilisateurs: commune._count.utilisateurs,
         nb_interventions: commune._count.interventions,
@@ -245,14 +246,19 @@ router.put(
     try {
       const { nom, population, code_postal, actif } = req.body;
 
+      // Construire l'objet de mise à jour dynamiquement
+      const updateData = {};
+
+      if (nom !== undefined) updateData.nom = nom;
+      if (population !== undefined)
+        updateData.population = parseInt(population);
+      if (code_postal !== undefined) updateData.code_postal = code_postal;
+      if (actif !== undefined) updateData.actif = actif;
+
+      // UTILISER updateData dans la requête
       const commune = await prisma.communes.update({
         where: { id: parseInt(req.params.id) },
-        data: {
-          nom,
-          population: population ? parseInt(population) : undefined,
-          code_postal: code_postal || null,
-          actif: actif !== undefined ? actif : undefined,
-        },
+        data: updateData,
       });
 
       res.json({

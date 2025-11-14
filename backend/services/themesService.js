@@ -51,7 +51,10 @@ class ThemesService {
   async updateTheme(id, data) {
     return await prisma.themes.update({
       where: { id: parseInt(id) },
-      data,
+      data: {
+        designation: data.designation,
+        actif: data.actif,
+      },
     });
   }
 }

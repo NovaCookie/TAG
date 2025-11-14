@@ -129,4 +129,10 @@ export const statsAPI = {
   getDashboard: () => api.get("/stats/dashboard"),
 };
 
+export const retentionAPI = {
+  getByTheme: (themeId) => api.get(`/retention-policies/theme/${themeId}`),
+  create: (data) => api.post("/retention-policies", data),
+  update: (id, data) => api.put(`/retention-policies/${id}`, data),
+  delete: (id) => api.delete(`/retention-policies/${id}`),
+};
 export default api;

@@ -7,17 +7,19 @@ import AlertMessage from "./common/feedback/AlertMessage";
 import { communesAPI } from "../services/api";
 import SelectField from "./common/dropdown/SelectField";
 import { Link } from "react-router-dom";
+import ToggleSwitch from "./common/ToggleSwitch";
 
 const Communes = () => {
   const { user } = useAuth();
   const [communes, setCommunes] = useState([]);
-  const [chargement, setChargement] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
-  const [filtres, setFiltres] = useState({
+  const [filters, setFilters] = useState({
     search: "",
-    utilisateurs: "all",
+    users: "all",
     interventions: "all",
+    status: "all",
   });
   const [pagination, setPagination] = useState({
     page: 1,
@@ -25,8 +27,7 @@ const Communes = () => {
     total: 0,
   });
 
-  // Options pour les filtres
-  const utilisateursOptions = [
+  const userOptions = [
     { value: "all", label: "Tous les utilisateurs" },
     { value: "0", label: "Aucun utilisateur" },
     { value: "1-10", label: "1-10 utilisateurs" },
@@ -34,7 +35,7 @@ const Communes = () => {
     { value: "101+", label: "Plus de 100 utilisateurs" },
   ];
 
-  const interventionsOptions = [
+  const interventionOptions = [
     { value: "all", label: "Toutes les interventions" },
     { value: "0", label: "Aucune intervention" },
     { value: "1-10", label: "1-10 interventions" },
@@ -43,99 +44,142 @@ const Communes = () => {
     { value: "100+", label: "Plus de 100 interventions" },
   ];
 
-  const chargerCommunes = useCallback(async () => {
+  const statusOptions = [
+    { value: "all", label: "Tous les statuts" },
+    { value: "active", label: "Actives seulement" },
+    { value: "inactive", label: "Inactives seulement" },
+  ];
+
+  const loadCommunes = useCallback(async () => {
     try {
-      setChargement(true);
+      setIsLoading(true);
       setErrorMessage("");
 
-      const reponse = await communesAPI.getAll({
+      const response = await communesAPI.getAll({
         page: pagination.page,
         limit: 10,
-        search: filtres.search !== "" ? filtres.search : undefined,
-        utilisateurs:
-          filtres.utilisateurs !== "all" ? filtres.utilisateurs : undefined,
+        search: filters.search !== "" ? filters.search : undefined,
+        utilisateurs: filters.users !== "all" ? filters.users : undefined,
         interventions:
-          filtres.interventions !== "all" ? filtres.interventions : undefined,
+          filters.interventions !== "all" ? filters.interventions : undefined,
       });
 
-      if (reponse.data) {
-        setCommunes(reponse.data.communes);
+      if (response.data) {
+        const communesWithDefaultActive = response.data.communes.map(
+          (commune) => ({
+            ...commune,
+            actif: commune.actif !== undefined ? commune.actif : true,
+          })
+        );
 
-        if (reponse.data.pagination) {
+        setCommunes(response.data.communes);
+
+        if (response.data.pagination) {
           setPagination((prev) => ({
             ...prev,
-            page: reponse.data.pagination.page,
-            totalPages: reponse.data.pagination.pages,
-            total: reponse.data.pagination.total,
+            page: response.data.pagination.page,
+            totalPages: response.data.pagination.pages,
+            total: response.data.pagination.total,
           }));
         }
       }
-    } catch (erreur) {
-      console.error("Erreur chargement communes:", erreur);
+    } catch (error) {
+      console.error("Error loading communes:", error);
       setErrorMessage("Erreur lors du chargement des communes");
     } finally {
-      setChargement(false);
+      setIsLoading(false);
     }
-  }, [pagination.page, filtres]);
+  }, [pagination.page, filters]);
 
   useEffect(() => {
-    chargerCommunes();
-  }, [chargerCommunes]);
+    loadCommunes();
+  }, [loadCommunes]);
 
-  const gererChangementFiltre = (cle, valeur) => {
-    setFiltres((prev) => ({
+  const handleFilterChange = (key, value) => {
+    setFilters((prev) => ({
       ...prev,
-      [cle]: valeur,
+      [key]: value,
     }));
     setPagination((prev) => ({ ...prev, page: 1 }));
   };
 
-  const LigneCommune = ({ commune }) => (
-    <div className="flex items-center justify-between py-4 px-4 border-b border-light last:border-b-0 hover:bg-light/30 transition-colors">
-      {/* Informations principales sur une seule ligne */}
-      <div className="flex items-center gap-6 flex-1">
-        {/* Code postal + Nom */}
-        <div className="flex items-center gap-3 min-w-60">
-          {commune.code_postal && (
-            <span className="bg-primary text-white px-3 py-1 rounded text-sm font-semibold">
-              {commune.code_postal}
-            </span>
-          )}
-          <span className="font-semibold text-secondary text-lg">
-            {commune.nom}
-          </span>
-        </div>
+  const handleCommuneStatusChange = async (communeId, newStatus) => {
+    try {
+      setCommunes((prevCommunes) =>
+        prevCommunes.map((commune) =>
+          commune.id === communeId ? { ...commune, actif: newStatus } : commune
+        )
+      );
+      await communesAPI.update(communeId, { actif: newStatus });
+      setSuccessMessage(
+        `Commune ${newStatus ? "activée" : "désactivée"} avec succès`
+      );
+    } catch (error) {
+      console.error("Error updating commune status:", error.message);
+      setErrorMessage("Erreur lors de la modification du statut de la commune");
+    }
+  };
 
-        {/* Population */}
-        <div className="flex items-center gap-2 min-w-32">
-          <span className="w-3 h-3 rounded-full bg-primary"></span>
-          <span className="font-medium text-primary">
-            {commune.population?.toLocaleString() || 0} hab.
+  const CommuneRow = ({ commune }) => (
+    <div className="grid grid-cols-12 gap-6 py-4 px-6 border-b border-light last:border-b-0 hover:bg-light/30 transition-colors items-center">
+      <div className="col-span-1 flex items-center gap-2">
+        {commune.code_postal && (
+          <span className="bg-primary text-white px-2 py-1 rounded text-xs font-semibold">
+            {commune.code_postal}
           </span>
-        </div>
-
-        {/* Utilisateurs */}
-        <div className="flex items-center gap-2 min-w-40">
-          <span className="w-3 h-3 rounded-full bg-success"></span>
-          <span className="font-medium text-success">
-            {commune.stats?.nb_utilisateurs || 0} utilisateur
-            {commune.stats?.nb_utilisateurs !== 1 ? "s" : ""}
-          </span>
-        </div>
-
-        {/* Interventions */}
-        <div className="flex items-center gap-2 min-w-40">
-          <span className="w-3 h-3 rounded-full bg-warning"></span>
-          <span className="font-medium text-warning">
-            {commune.stats?.nb_interventions || 0} intervention
-            {commune.stats?.nb_interventions !== 1 ? "s" : ""}
-          </span>
-        </div>
+        )}
       </div>
 
-      {/* Actions pour admin */}
+      <div className="col-span-2 flex items-center gap-2">
+        <span className="font-semibold text-secondary">{commune.nom}</span>
+      </div>
+
+      <div className="col-span-2 flex items-center gap-2">
+        <span className="w-3 h-3 rounded-full bg-primary"></span>
+        <span className="font-medium text-primary">
+          {commune.population?.toLocaleString() || 0} hab.
+        </span>
+      </div>
+
+      <div className="col-span-2 flex items-center gap-2">
+        <span className="w-3 h-3 rounded-full bg-success"></span>
+        <span className="font-medium text-success">
+          {commune.stats?.nb_utilisateurs || 0} utilisateur
+          {commune.stats?.nb_utilisateurs !== 1 ? "s" : ""}
+        </span>
+      </div>
+
+      <div className="col-span-2 flex items-center gap-2">
+        <span className="w-3 h-3 rounded-full bg-warning"></span>
+        <span className="font-medium text-warning">
+          {commune.stats?.nb_interventions || 0} intervention
+          {commune.stats?.nb_interventions !== 1 ? "s" : ""}
+        </span>
+      </div>
+
+      <div className="col-span-2 flex items-center gap-2">
+        <span
+          className={`w-3 h-3 rounded-full ${
+            commune.actif ? "bg-success" : "bg-secondary"
+          }`}
+        ></span>
+        <span
+          className={`font-medium ${
+            commune.actif ? "text-success" : "text-secondary"
+          }`}
+        >
+          {commune.actif ? "Actif" : "Inactif"}
+        </span>
+      </div>
+
       {user?.role === "admin" && (
-        <div className="flex gap-2">
+        <div className="col-span-1 flex justify-center items-center gap-2">
+          <ToggleSwitch
+            checked={commune.actif}
+            onChange={(checked) =>
+              handleCommuneStatusChange(commune.id, checked)
+            }
+          />
           <Link
             to={`/communes/${commune.id}`}
             className="w-8 h-8 rounded-full bg-light text-primary flex items-center justify-center hover:bg-primary hover:text-white transition-colors"
@@ -148,9 +192,14 @@ const Communes = () => {
     </div>
   );
 
+  const filteredCommunes = communes.filter((commune) => {
+    if (filters.status === "active") return commune.actif;
+    if (filters.status === "inactive") return !commune.actif;
+    return true;
+  });
+
   return (
     <Layout activePage="communes">
-      {/* Messages d'alerte */}
       <AlertMessage
         type="success"
         message={successMessage}
@@ -164,7 +213,6 @@ const Communes = () => {
         onClose={() => setErrorMessage("")}
       />
 
-      {/* En-tête de page */}
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-2xl font-semibold text-primary mb-2">Communes</h1>
@@ -183,44 +231,46 @@ const Communes = () => {
         )}
       </div>
 
-      {/* Filtres */}
-      <div className="flex gap-6 mb-8 items-center">
-        {/* Recherche */}
-        <div className="flex-1">
+      <div className="flex gap-4 mb-8 items-center flex-wrap">
+        <div className="flex-1 min-w-80">
           <input
             type="text"
             placeholder="Rechercher une commune..."
-            value={filtres.search}
-            onChange={(e) => gererChangementFiltre("search", e.target.value)}
+            value={filters.search}
+            onChange={(e) => handleFilterChange("search", e.target.value)}
             className="w-full px-4 py-3 border border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light"
           />
         </div>
 
-        {/* Filtres utilisateurs et interventions avec SelectField */}
-        <div className="flex gap-4">
+        <div className="flex gap-3 flex-wrap">
           <SelectField
-            value={filtres.utilisateurs}
-            onChange={(e) =>
-              gererChangementFiltre("utilisateurs", e.target.value)
-            }
-            options={utilisateursOptions}
+            value={filters.users}
+            onChange={(e) => handleFilterChange("users", e.target.value)}
+            options={userOptions}
             placeholder="Utilisateurs"
-            name="utilisateurs"
+            name="users"
           />
 
           <SelectField
-            value={filtres.interventions}
+            value={filters.interventions}
             onChange={(e) =>
-              gererChangementFiltre("interventions", e.target.value)
+              handleFilterChange("interventions", e.target.value)
             }
-            options={interventionsOptions}
+            options={interventionOptions}
             placeholder="Interventions"
             name="interventions"
+          />
+
+          <SelectField
+            value={filters.status}
+            onChange={(e) => handleFilterChange("status", e.target.value)}
+            options={statusOptions}
+            placeholder="Statut"
+            name="status"
           />
         </div>
       </div>
 
-      {/* Liste des communes */}
       <div className="card card-rounded p-6 mb-8">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold text-primary">
@@ -231,23 +281,33 @@ const Communes = () => {
           </span>
         </div>
 
+        <div className="grid grid-cols-12 gap-6 py-3 px-6 border-b border-light font-semibold text-tertiary text-sm">
+          <div className="col-span-1">Code postal</div>
+          <div className="col-span-2">Nom</div>
+          <div className="col-span-2">Population</div>
+          <div className="col-span-2">Utilisateurs</div>
+          <div className="col-span-2">Interventions</div>
+          <div className="col-span-2">Statut</div>
+          <div className="col-span-1">Actions</div>
+        </div>
+
         <DataTable
-          data={communes.filter((commune) => commune !== undefined)}
-          loading={chargement}
+          data={filteredCommunes.filter((commune) => commune !== undefined)}
+          loading={isLoading}
           emptyMessage={
-            filtres.search ||
-            filtres.utilisateurs !== "all" ||
-            filtres.interventions !== "all"
+            filters.search ||
+            filters.users !== "all" ||
+            filters.interventions !== "all" ||
+            filters.status !== "all"
               ? "Aucune commune trouvée avec ces critères"
               : "Aucune commune dans la base de données"
           }
           renderItem={(commune) => (
-            <LigneCommune key={commune.id} commune={commune} />
+            <CommuneRow key={commune.id} commune={commune} />
           )}
         />
       </div>
 
-      {/* Pagination */}
       <Pagination
         pagination={pagination}
         onPageChange={(page) => setPagination((prev) => ({ ...prev, page }))}

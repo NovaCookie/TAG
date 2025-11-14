@@ -36,6 +36,7 @@ import NewUser from "./components/users/NewUser";
 import EditUser from "./components/users/EditUser";
 import CommuneDetail from "./components/communes/CommuneDetail";
 import NewCommune from "./components/communes/NewCommune";
+import Themes from "./components/Themes";
 
 // ===================================================================
 // Custom Route Wrappers
@@ -177,17 +178,7 @@ function App() {
                   }
                 />
 
-                {/* === Archives (Admin et juriste) === */}
-                <Route
-                  path="/archives"
-                  element={
-                    <AdminJuristeRoute>
-                      <Archives />
-                    </AdminJuristeRoute>
-                  }
-                />
-
-                {/* === User Management (Admin seulement) === */}
+                {/* === User Management === */}
                 <Route
                   path="/users"
                   element={
@@ -213,13 +204,13 @@ function App() {
                   }
                 />
 
-                {/* === Communes === */}
+                {/* === Communes (Admin et juriste) === */}
                 <Route
                   path="/communes"
                   element={
-                    <ProtectedRoute>
+                    <AdminJuristeRoute>
                       <Communes />
-                    </ProtectedRoute>
+                    </AdminJuristeRoute>
                   }
                 />
                 <Route
@@ -236,6 +227,26 @@ function App() {
                     <AdminRoute>
                       <NewCommune />
                     </AdminRoute>
+                  }
+                />
+
+                {/* === Thèmes (Admin et juriste) === */}
+                <Route
+                  path="/themes"
+                  element={
+                    <AdminJuristeRoute>
+                      <Themes />
+                    </AdminJuristeRoute>
+                  }
+                />
+
+                {/* === Archives (Admin et juriste) === */}
+                <Route
+                  path="/archives"
+                  element={
+                    <AdminJuristeRoute>
+                      <Archives />
+                    </AdminJuristeRoute>
                   }
                 />
 
