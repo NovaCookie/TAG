@@ -57,6 +57,17 @@ export const authAPI = {
   resetPassword: (data) => api.post("/auth/reset-password", data),
 };
 
+// === Stats ===
+export const statsAPI = {
+  getGlobal: () => api.get("/stats/global"),
+  getUsers: () => api.get("/stats/utilisateurs"),
+  getCommunes: () => api.get("/stats/communes"),
+  getThemes: () => api.get("/stats/themes"),
+  getAdvanced: (filters = {}) =>
+    api.get("/stats/advanced", { params: filters }),
+  getDashboard: () => api.get("/stats/dashboard"),
+};
+
 // === Interventions ===
 export const interventionsAPI = {
   getAll: (params) => api.get("/interventions", { params }),
@@ -87,14 +98,6 @@ export const archivesAPI = {
     }),
 };
 
-// === Themes ===
-export const themesAPI = {
-  getAll: () => api.get("/themes"),
-  getAllIncludingInactive: () => api.get("/themes/all"),
-  create: (data) => api.post("/themes", data),
-  update: (id, data) => api.put(`/themes/${id}`, data),
-};
-
 // === Users ===
 export const usersAPI = {
   getAll: (params) => api.get("/users", { params }),
@@ -118,15 +121,14 @@ export const communesAPI = {
   getUsersList: () => api.get("/communes/users/communes/list"),
 };
 
-// === Stats ===
-export const statsAPI = {
-  getGlobal: () => api.get("/stats/global"),
-  getUsers: () => api.get("/stats/utilisateurs"),
-  getCommunes: () => api.get("/stats/communes"),
-  getThemes: () => api.get("/stats/themes"),
-  getAdvanced: (filters = {}) =>
-    api.get("/stats/advanced", { params: filters }),
-  getDashboard: () => api.get("/stats/dashboard"),
+// === Themes ===
+export const themesAPI = {
+  getAll: () => api.get("/themes"),
+  getAllIncludingInactive: () => api.get("/themes/all"),
+  getById: (id) => api.get(`/themes/${id}`),
+  create: (data) => api.post("/themes", data),
+  update: (id, data) => api.put(`/themes/${id}`, data),
+  delete: (id) => api.delete(`/themes/${id}`),
 };
 
 export const retentionAPI = {

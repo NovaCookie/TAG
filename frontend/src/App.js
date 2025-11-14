@@ -16,6 +16,7 @@ import AdvancedStats from "./components/stats/AdvancedStats";
 import Interventions from "./components/Interventions";
 import Users from "./components/Users";
 import Communes from "./components/Communes";
+import Themes from "./components/Themes";
 import Settings from "./components/Settings";
 import Support from "./components/Support";
 
@@ -34,9 +35,14 @@ import Archives from "./components/Archives";
 // === User Pages ===
 import NewUser from "./components/users/NewUser";
 import EditUser from "./components/users/EditUser";
+
+// === Communes Pages ===
 import CommuneDetail from "./components/communes/CommuneDetail";
 import NewCommune from "./components/communes/NewCommune";
-import Themes from "./components/Themes";
+
+// === Themes Pages ===
+import EditTheme from "./components/themes/EditTheme";
+import NewTheme from "./components/themes/NewTheme";
 
 // ===================================================================
 // Custom Route Wrappers
@@ -236,6 +242,24 @@ function App() {
                   element={
                     <AdminJuristeRoute>
                       <Themes />
+                    </AdminJuristeRoute>
+                  }
+                />
+
+                <Route
+                  path="/themes/new"
+                  element={
+                    <AdminJuristeRoute>
+                      <NewTheme />
+                    </AdminJuristeRoute>
+                  }
+                />
+
+                <Route
+                  path="/themes/edit/:id"
+                  element={
+                    <AdminJuristeRoute>
+                      <EditTheme />
                     </AdminJuristeRoute>
                   }
                 />

@@ -3,6 +3,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useNavigate, Link } from "react-router-dom";
 import Layout from "../layout/Layout";
 import { communesAPI } from "../../services/api";
+import AlertMessage from "../common/feedback/AlertMessage";
 
 const NewCommune = () => {
   const { user } = useAuth();
@@ -11,6 +12,7 @@ const NewCommune = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
 
   const [formData, setFormData] = useState({
     nom: "",
@@ -111,6 +113,19 @@ const NewCommune = () => {
 
   return (
     <Layout activePage="communes">
+      <AlertMessage
+        type="success"
+        message={successMessage}
+        onClose={() => setSuccessMessage("")}
+        autoClose
+      />
+
+      <AlertMessage
+        type="error"
+        message={errorMessage}
+        onClose={() => setErrorMessage("")}
+      />
+
       <div className="max-w-2xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <div>

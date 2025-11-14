@@ -1,3 +1,4 @@
+// components/users/NewUser.jsx
 import { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate, Link } from "react-router-dom";
@@ -188,7 +189,7 @@ const NewUser = () => {
 
   return (
     <Layout activePage="users">
-      <div className="max-w-4xl mx-auto">
+      <div className="container mx-auto px-6">
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-2xl font-semibold text-primary mb-2">
@@ -219,12 +220,12 @@ const NewUser = () => {
           </div>
         )}
 
-        <div className="bg-white rounded-xl shadow-card p-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="card card-rounded p-8">
+          <form onSubmit={handleSubmit} className="space-y-8">
             {/* Nom et prénom */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <div>
-                <label className="block text-sm font-medium text-secondary mb-2">
+                <label className="block text-sm font-medium text-secondary mb-3">
                   Prénom *
                 </label>
                 <input
@@ -232,8 +233,8 @@ const NewUser = () => {
                   name="prenom"
                   value={formData.prenom}
                   onChange={handleChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-primary ${
-                    errors.prenom ? "border-danger" : "border-light-gray"
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light text-lg ${
+                    errors.prenom ? "border-danger" : "border-light"
                   }`}
                   required
                   placeholder="Entrez le prénom"
@@ -244,7 +245,7 @@ const NewUser = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-secondary mb-2">
+                <label className="block text-sm font-medium text-secondary mb-3">
                   Nom *
                 </label>
                 <input
@@ -252,8 +253,8 @@ const NewUser = () => {
                   name="nom"
                   value={formData.nom}
                   onChange={handleChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-primary ${
-                    errors.nom ? "border-danger" : "border-light-gray"
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light text-lg ${
+                    errors.nom ? "border-danger" : "border-light"
                   }`}
                   required
                   placeholder="Entrez le nom"
@@ -266,7 +267,7 @@ const NewUser = () => {
 
             {/* Email */}
             <div>
-              <label className="block text-sm font-medium text-secondary mb-2">
+              <label className="block text-sm font-medium text-secondary mb-3">
                 Adresse email *
               </label>
               <input
@@ -274,8 +275,8 @@ const NewUser = () => {
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-primary ${
-                  errors.email ? "border-danger" : "border-light-gray"
+                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light text-lg ${
+                  errors.email ? "border-danger" : "border-light"
                 }`}
                 placeholder="exemple@domaine.com"
                 required
@@ -286,7 +287,7 @@ const NewUser = () => {
             </div>
 
             {/* Rôle et Commune */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <SelectField
                 value={formData.role}
                 onChange={handleChange}
@@ -311,21 +312,21 @@ const NewUser = () => {
             </div>
 
             {/* Mot de passe */}
-            <div className="border-t border-light-gray pt-6">
-              <div className="flex justify-between items-center mb-4">
+            <div className="border-t border-light-gray pt-8">
+              <div className="flex justify-between items-center mb-6">
                 <h3 className="text-lg font-semibold text-primary">
                   Mot de passe
                 </h3>
                 <button
                   type="button"
                   onClick={genererMotDePasse}
-                  className="px-3 py-1 bg-light text-primary rounded-lg text-sm hover:bg-primary-light hover:text-white transition-colors"
+                  className="px-4 py-2 bg-light text-primary rounded-lg text-base hover:bg-primary-light hover:text-white transition-colors"
                 >
                   Générer automatiquement
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <PasswordField
                   value={formData.mot_de_passe}
                   onChange={handleChange}
@@ -349,46 +350,45 @@ const NewUser = () => {
             </div>
 
             {/* Email bienvenue */}
-            <div className="border-t border-light-gray pt-6">
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="envoyer_email_bienvenue"
-                  name="envoyer_email_bienvenue"
-                  checked={formData.envoyer_email_bienvenue}
-                  onChange={handleChange}
-                  className="w-4 h-4 text-primary rounded focus:ring-primary"
-                />
-                <label
-                  htmlFor="envoyer_email_bienvenue"
-                  className="ml-2 text-sm text-secondary"
-                >
-                  Envoyer un email de bienvenue avec les informations de
-                  connexion
-                </label>
-              </div>
+            <div className="flex items-center gap-3 p-6 bg-light rounded-lg">
+              <input
+                type="checkbox"
+                id="envoyer_email_bienvenue"
+                name="envoyer_email_bienvenue"
+                checked={formData.envoyer_email_bienvenue}
+                onChange={handleChange}
+                className="w-5 h-5 text-primary rounded focus:ring-primary-light"
+              />
+              <label
+                htmlFor="envoyer_email_bienvenue"
+                className="text-base font-medium text-secondary"
+              >
+                Envoyer un email de bienvenue avec les informations de connexion
+              </label>
             </div>
 
-            {/* Boutons */}
-            <div className="flex justify-between items-center pt-4">
-              <button
-                type="button"
-                onClick={reinitialiserFormulaire}
-                className="px-6 py-3 bg-danger text-white rounded-lg hover:bg-red-600 border border-danger transition-colors"
-              >
-                Réinitialiser
-              </button>
-              <div className="flex gap-4">
+            {/* Actions */}
+            <div className="pt-8 border-t border-light-gray">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <button
+                  type="button"
+                  onClick={reinitialiserFormulaire}
+                  className="w-full text-center px-6 py-4 bg-gray-500 text-white rounded-lg font-semibold hover:bg-gray-600 transition-colors text-base"
+                >
+                  Réinitialiser
+                </button>
+
                 <Link
                   to="/users"
-                  className="px-6 py-3 border border-light text-secondary rounded-lg hover:bg-light transition-colors"
+                  className="w-full text-center px-6 py-4 border border-light text-secondary rounded-lg hover:bg-light transition-colors text-base flex items-center justify-center"
                 >
                   Annuler
                 </Link>
+
                 <button
                   type="submit"
                   disabled={chargement}
-                  className="px-6 py-3 bg-primary text-white rounded-lg font-semibold hover:bg-primary-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-primary text-white rounded-lg font-semibold hover:bg-primary-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed py-4 text-base"
                 >
                   {chargement ? "Création en cours..." : "Créer l'utilisateur"}
                 </button>

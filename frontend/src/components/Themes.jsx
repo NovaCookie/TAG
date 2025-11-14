@@ -225,7 +225,7 @@ const Themes = () => {
             Gestion des thèmes et politiques de conservation automatique
           </p>
         </div>
-        {user?.role === "admin" && (
+        {user?.role != "commune" && (
           <Link
             to="/themes/new"
             className="bg-primary text-white rounded-lg px-6 py-3 font-semibold text-sm hover:bg-primary-light transition-colors"

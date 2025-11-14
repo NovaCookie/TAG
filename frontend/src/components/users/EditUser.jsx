@@ -647,7 +647,7 @@ const EditUser = () => {
 
   return (
     <Layout activePage={isArchived ? "archives" : "users"}>
-      <div className="max-w-4xl mx-auto">
+      <div className="container mx-auto px-6">
         <div className="mb-6">
           <Link
             to={getBackLink("user", isArchived)}
@@ -717,14 +717,13 @@ const EditUser = () => {
           </div>
         )}
 
-        <div className="card card-rounded p-6">
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="card card-rounded p-8">
+          <form onSubmit={handleSubmit} className="space-y-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <div>
                 <label
                   htmlFor="prenom"
-                  className="block text-sm font-medium text-secondary mb-2"
+                  className="block text-sm font-medium text-secondary mb-3"
                 >
                   Prénom *
                 </label>
@@ -735,7 +734,7 @@ const EditUser = () => {
                   value={formData.prenom}
                   onChange={handleChange}
                   disabled={isArchived}
-                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light ${
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light text-lg ${
                     errors.prenom ? "border-danger" : "border-light"
                   } ${isArchived ? "bg-gray-100 cursor-not-allowed" : ""}`}
                 />
@@ -747,7 +746,7 @@ const EditUser = () => {
               <div>
                 <label
                   htmlFor="nom"
-                  className="block text-sm font-medium text-secondary mb-2"
+                  className="block text-sm font-medium text-secondary mb-3"
                 >
                   Nom *
                 </label>
@@ -758,7 +757,7 @@ const EditUser = () => {
                   value={formData.nom}
                   onChange={handleChange}
                   disabled={isArchived}
-                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light ${
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light text-lg ${
                     errors.nom ? "border-danger" : "border-light"
                   } ${isArchived ? "bg-gray-100 cursor-not-allowed" : ""}`}
                 />
@@ -771,7 +770,7 @@ const EditUser = () => {
             <div>
               <label
                 htmlFor="email"
-                className="block text-sm font-medium text-secondary mb-2"
+                className="block text-sm font-medium text-secondary mb-3"
               >
                 Email *
               </label>
@@ -782,7 +781,7 @@ const EditUser = () => {
                 value={formData.email}
                 onChange={handleChange}
                 disabled={isArchived}
-                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light ${
+                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light text-lg ${
                   errors.email ? "border-danger" : "border-light"
                 } ${isArchived ? "bg-gray-100 cursor-not-allowed" : ""}`}
               />
@@ -792,7 +791,7 @@ const EditUser = () => {
             </div>
 
             {/* Rôle et Commune */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <SelectField
                 value={formData.role}
                 onChange={handleChange}
@@ -820,25 +819,25 @@ const EditUser = () => {
 
             {/* SECTION MOT DE PASSE */}
             {!isArchived && (
-              <div className="border-t border-light-gray pt-6">
-                <div className="flex justify-between items-center mb-4">
+              <div className="border-t border-light-gray pt-8">
+                <div className="flex justify-between items-center mb-6">
                   <h3 className="text-lg font-semibold text-primary">
                     Mot de passe
                   </h3>
                   <button
                     type="button"
                     onClick={genererMotDePasse}
-                    className="px-3 py-1 bg-light text-primary rounded-lg text-sm hover:bg-primary-light hover:text-white transition-colors"
+                    className="px-4 py-2 bg-light text-primary rounded-lg text-base hover:bg-primary-light hover:text-white transition-colors"
                   >
                     Générer automatiquement
                   </button>
                 </div>
 
-                <div className="text-sm text-secondary-light mb-4">
+                <div className="text-base text-secondary-light mb-6">
                   Laissez vide pour ne pas modifier le mot de passe actuel
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                   <PasswordField
                     value={formData.mot_de_passe}
                     onChange={handleChange}
@@ -863,7 +862,7 @@ const EditUser = () => {
                 </div>
 
                 {formData.mot_de_passe && (
-                  <div className="flex items-center p-4 bg-light rounded-lg mt-4">
+                  <div className="flex items-center gap-3 p-6 bg-light rounded-lg mt-6">
                     <input
                       type="checkbox"
                       id="envoyerEmail"
@@ -871,11 +870,11 @@ const EditUser = () => {
                       checked={formData.envoyerEmail}
                       onChange={handleChange}
                       disabled={isArchived}
-                      className="w-4 h-4 text-primary bg-white border-light rounded focus:ring-primary-light focus:ring-2"
+                      className="w-5 h-5 text-primary bg-white border-light rounded focus:ring-primary-light focus:ring-2"
                     />
                     <label
                       htmlFor="envoyerEmail"
-                      className="ml-3 text-sm font-medium text-secondary cursor-pointer"
+                      className="text-base font-medium text-secondary cursor-pointer"
                     >
                       Envoyer un email de notification pour le changement de mot
                       de passe
@@ -885,7 +884,7 @@ const EditUser = () => {
               </div>
             )}
 
-            <div className="flex items-center p-4 bg-light rounded-lg">
+            <div className="flex items-center gap-3 p-6 bg-light rounded-lg">
               <input
                 type="checkbox"
                 id="actif"
@@ -893,34 +892,37 @@ const EditUser = () => {
                 checked={formData.actif}
                 onChange={handleChange}
                 disabled={isArchived}
-                className="w-4 h-4 text-primary bg-white border-light rounded focus:ring-primary-light focus:ring-2"
+                className="w-5 h-5 text-primary bg-white border-light rounded focus:ring-primary-light focus:ring-2"
               />
               <label
                 htmlFor="actif"
-                className="ml-3 text-sm font-medium text-secondary cursor-pointer"
+                className="text-base font-medium text-secondary cursor-pointer"
               >
                 Utilisateur actif
               </label>
             </div>
 
-            <div className="flex gap-4 pt-6 border-t border-light-gray">
-              <Link
-                to={getBackLink("user", isArchived)}
-                className="flex-1 text-center px-6 py-3 border border-light text-secondary rounded-lg hover:bg-light transition-colors"
-              >
-                Annuler
-              </Link>
-              <button
-                type="submit"
-                disabled={saving || isArchived}
-                className="flex-1 bg-primary text-white rounded-lg font-semibold hover:bg-primary-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed py-3"
-              >
-                {saving
-                  ? "Enregistrement..."
-                  : isArchived
-                  ? "Modification désactivée"
-                  : "Enregistrer les modifications"}
-              </button>
+            {/* Actions */}
+            <div className="pt-8 border-t border-light-gray">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Link
+                  to={getBackLink("user", isArchived)}
+                  className="w-full text-center px-6 py-4 border border-light text-secondary rounded-lg hover:bg-light transition-colors text-base flex items-center justify-center"
+                >
+                  Annuler
+                </Link>
+                <button
+                  type="submit"
+                  disabled={saving || isArchived}
+                  className="w-full bg-primary text-white rounded-lg font-semibold hover:bg-primary-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed py-4 text-base"
+                >
+                  {saving
+                    ? "Enregistrement..."
+                    : isArchived
+                    ? "Modification désactivée"
+                    : "Enregistrer les modifications"}
+                </button>
+              </div>
             </div>
           </form>
         </div>
