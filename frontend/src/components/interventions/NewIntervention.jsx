@@ -16,7 +16,7 @@ const NewIntervention = () => {
     titre: "",
     description: "",
     theme_id: "",
-    pieces_jointes: [],
+    files: [],
   });
   const [errors, setErrors] = useState({});
 
@@ -56,6 +56,12 @@ const NewIntervention = () => {
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
 
+    if (files.length > 5) {
+      alert("Vous ne pouvez pas sélectionner plus de 5 fichiers");
+      e.target.value = ""; // Réinitialiser l'input
+      return;
+    }
+
     // Vérifier la taille des fichiers (5Mo max)
     const fichiersValides = files.filter((file) => {
       if (file.size > 5 * 1024 * 1024) {
@@ -67,7 +73,7 @@ const NewIntervention = () => {
 
     setFormData((prev) => ({
       ...prev,
-      pieces_jointes: fichiersValides,
+      files: fichiersValides,
     }));
   };
 
@@ -114,10 +120,10 @@ const NewIntervention = () => {
       const response = await interventionsAPI.create(interventionData);
       const interventionId = response.data.intervention.id;
 
-      if (formData.pieces_jointes.length > 0) {
+      if (formData.files.length > 0) {
         const uploadFormData = new FormData();
-        formData.pieces_jointes.forEach((file) => {
-          uploadFormData.append("pieces_jointes", file);
+        formData.files.forEach((file) => {
+          uploadFormData.append("files", file);
         });
 
         await interventionsAPI.uploadPiecesJointes(
@@ -284,14 +290,14 @@ const NewIntervention = () => {
             {/* Pièces jointes */}
             <div>
               <label
-                htmlFor="pieces_jointes"
+                htmlFor="files"
                 className="block text-sm font-medium text-secondary mb-2"
               >
                 Pièces jointes
               </label>
               <input
                 type="file"
-                id="pieces_jointes"
+                id="files"
                 multiple
                 onChange={handleFileChange}
                 className="w-full px-4 py-2 border border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light"
@@ -300,13 +306,13 @@ const NewIntervention = () => {
               <p className="text-tertiary text-sm mt-1">
                 PDF, JPG, PNG, DOC, DOCX (max 5Mo par fichier)
               </p>
-              {formData.pieces_jointes.length > 0 && (
+              {formData.files.length > 0 && (
                 <div className="mt-2">
                   <p className="text-sm text-secondary mb-1">
                     Fichiers sélectionnés :
                   </p>
                   <ul className="text-sm text-tertiary space-y-1">
-                    {formData.pieces_jointes.map((file, index) => (
+                    {formData.files.map((file, index) => (
                       <li key={index} className="flex justify-between">
                         <span className="truncate flex-1">{file.name}</span>
                         <span className="text-xs text-primary ml-2">

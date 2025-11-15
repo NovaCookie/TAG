@@ -78,6 +78,25 @@ export const interventionsAPI = {
   rateSatisfaction: (id, satisfaction) =>
     api.put(`/interventions/${id}/satisfaction`, { satisfaction }),
   getArchives: (params) => api.get("/interventions/archives/list", { params }),
+  downloadPieceJointe: (pieceId) =>
+    api.get(`/interventions/pieces-jointes/${pieceId}/download`, {
+      responseType: "blob",
+    }),
+
+  previewPieceJointe: (pieceId) =>
+    api.get(`/interventions/pieces-jointes/${pieceId}/preview`, {
+      responseType: "blob",
+    }),
+
+  uploadPiecesJointes: (interventionId, formData) =>
+    api.post(`/interventions/${interventionId}/upload`, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }),
+
+  getPiecesJointes: (interventionId) =>
+    api.get(`/interventions/${interventionId}/pieces-jointes`),
 };
 
 // === Archives ===

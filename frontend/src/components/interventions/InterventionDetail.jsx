@@ -224,49 +224,39 @@ const InterventionDetail = () => {
     }
 
     try {
-      const res = await interventionsAPI.downloadPieceJointe(piece.id);
+      const response = await interventionsAPI.downloadPieceJointe(piece.id);
 
-      if (res.headers["content-type"]?.includes("application/json")) {
-        const text = await res.data.text?.();
-        console.error(
-          "Erreur serveur lors du téléchargement:",
-          text || res.data
-        );
-        throw new Error("Erreur serveur");
-      }
-
-      const blob = new Blob([res.data], {
-        type: res.headers["content-type"] || "application/octet-stream",
+      // Créer un blob à partir de la réponse
+      const blob = new Blob([response.data], {
+        type: response.headers["content-type"] || "application/octet-stream",
       });
 
-      if (blob.size === 0) {
-        throw new Error("Fichier vide");
-      }
-
+      // Créer une URL temporaire
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = piece.nom_original;
-      link.style.display = "none";
-
+      link.download = piece.nom_original; // Nom original du fichier
       document.body.appendChild(link);
       link.click();
 
+      // Nettoyer
       setTimeout(() => {
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
       }, 100);
-    } catch (err) {
-      let msg = "Erreur lors du téléchargement du fichier";
-      if (err.response?.status === 404)
-        msg = "Fichier non trouvé sur le serveur";
-      else if (err.response?.status === 403)
-        msg = "Vous n'avez pas accès à ce fichier";
-      else if (err.response?.status === 410)
-        msg = "Fichier inaccessible - intervention archivée";
-      else if (err.message === "Fichier vac")
-        msg = "Le fichier est vide ou corrompu";
-      alert(msg);
+    } catch (error) {
+      console.error("Erreur téléchargement:", error);
+      let errorMessage = "Erreur lors du téléchargement du fichier";
+
+      if (error.response?.status === 404) {
+        errorMessage = "Fichier non trouvé sur le serveur";
+      } else if (error.response?.status === 403) {
+        errorMessage = "Vous n'avez pas accès à ce fichier";
+      } else if (error.response?.status === 410) {
+        errorMessage = "Fichier inaccessible - intervention archivée";
+      }
+
+      alert(errorMessage);
     }
   };
 
@@ -279,38 +269,42 @@ const InterventionDetail = () => {
     }
 
     try {
-      const res = await interventionsAPI.downloadPieceJointe(piece.id);
+      const response = await interventionsAPI.previewPieceJointe(piece.id);
 
-      if (res.headers["content-type"]?.includes("application/json")) {
-        const text = await res.data.text?.();
-        console.error("Erreur serveur lors du preview:", text || res.data);
-        throw new Error("Erreur serveur");
-      }
-
-      const blob = new Blob([res.data], {
-        type: res.headers["content-type"] || "application/octet-stream",
+      // Créer un blob à partir de la réponse
+      const blob = new Blob([response.data], {
+        type: response.headers["content-type"] || "application/octet-stream",
       });
 
-      if (blob.size === 0) {
-        throw new Error("Fichier vide");
-      }
-
+      // Créer une URL temporaire
       const url = window.URL.createObjectURL(blob);
+
+      // Ouvrir dans un nouvel onglet
       const newWindow = window.open(url, "_blank");
 
       if (!newWindow) {
-        throw new Error("Popup bloquée. Autorisez les popups pour ce site.");
+        alert("Popup bloquée. Veuillez autoriser les popups pour ce site.");
+        window.URL.revokeObjectURL(url);
+        return;
       }
-    } catch (err) {
-      let msg = "Impossible d'ouvrir le fichier";
-      if (err.response?.status === 404)
-        msg = "Fichier non trouvé sur le serveur";
-      else if (err.response?.status === 403)
-        msg = "Vous n'avez pas accès à ce fichier";
-      else if (err.response?.status === 410)
-        msg = "Fichier inaccessible - intervention archivée";
-      else if (err.message.includes("Popup")) msg = err.message;
-      alert(msg);
+
+      // Nettoyer l'URL après que la fenêtre soit fermée (estimation)
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+      }, 60000); // 60 secondes
+    } catch (error) {
+      console.error("Erreur prévisualisation:", error);
+      let errorMessage = "Impossible d'ouvrir le fichier";
+
+      if (error.response?.status === 404) {
+        errorMessage = "Fichier non trouvé sur le serveur";
+      } else if (error.response?.status === 403) {
+        errorMessage = "Vous n'avez pas accès à ce fichier";
+      } else if (error.response?.status === 410) {
+        errorMessage = "Fichier inaccessible - intervention archivée";
+      }
+
+      alert(errorMessage);
     }
   };
 

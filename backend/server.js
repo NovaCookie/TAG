@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
 require("dotenv").config();
 
 const app = express();
@@ -17,20 +18,20 @@ const retentionRoutes = require("./routes/retention-policies");
 const suggestionRoutes = require("./routes/suggestions");
 
 // Middleware
-app.use(cors()); // Permet à React de communiquer avec Express
-app.use(express.json()); // Permet de recevoir du JSON dans les requêtes
+app.use(cors());
+app.use(express.json());
 
+// Routes API
 app.use("/api/auth", authRoutes);
 app.use("/api/interventions", interventionRoutes);
-
 app.use("/api/themes", themeRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/communes", communeRoutes);
 app.use("/api/stats", statsRoutes);
 app.use("/api/archives", archiveRoutes);
 app.use("/api/retention-policies", retentionRoutes);
-app.use("/api/test", testArchivesRoutes);
 app.use("/api/suggestions", suggestionRoutes);
+app.use("/api/test", testArchivesRoutes);
 
 // ==================== ROUTES PROTÉGÉES ====================
 

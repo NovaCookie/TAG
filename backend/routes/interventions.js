@@ -1,13 +1,14 @@
 const express = require("express");
 const { PrismaClient } = require("@prisma/client");
-const { authMiddleware, requireRole } = require("../middleware/auth");
-const filterService = require("../services/filterService");
 const prisma = new PrismaClient();
-const router = express.Router();
-const multer = require("multer");
-const path = require("path");
 const fs = require("fs");
+const path = require("path");
+const { authMiddleware, requireRole } = require("../middleware/auth");
 const { checkArchived } = require("../middleware/archived");
+const { upload, handleUploadErrors } = require("../middleware/uploadFiles");
+const router = express.Router();
+const filterService = require("../services/filterService");
+const uploadService = require("../services/uploadService");
 
 // GET /api/interventions - Liste des interventions non archivées
 router.get("/", authMiddleware, async (req, res) => {
@@ -26,7 +27,6 @@ router.get("/", authMiddleware, async (req, res) => {
       include,
       { date_question: "desc" }
     );
-
     res.json(result);
   } catch (error) {
     console.error("Erreur liste interventions:", error);
@@ -55,23 +55,18 @@ router.get(
         include,
         { date_question: "desc" }
       );
-
       const stats = await prisma.archive.groupBy({
         by: ["table_name"],
         where: { table_name: "interventions" },
         _count: { id: true },
       });
-
       const totalArchives = await prisma.archive.count({
         where: { table_name: "interventions" },
       });
 
       res.json({
         ...result,
-        stats: {
-          totalArchives,
-          archivesParTheme: stats.length,
-        },
+        stats: { totalArchives, archivesParTheme: stats.length },
       });
     } catch (error) {
       console.error("Erreur archives:", error);
@@ -84,35 +79,19 @@ router.get(
 router.get("/:id", authMiddleware, async (req, res) => {
   try {
     const interventionId = parseInt(req.params.id);
-
     const intervention = await prisma.interventions.findUnique({
       where: { id: interventionId },
       include: {
         commune: { select: { nom: true, population: true } },
         theme: { select: { designation: true } },
-        demandeur: {
-          select: {
-            nom: true,
-            prenom: true,
-            email: true,
-          },
-        },
-        juriste: {
-          select: {
-            nom: true,
-            prenom: true,
-            email: true,
-          },
-        },
+        demandeur: { select: { nom: true, prenom: true, email: true } },
+        juriste: { select: { nom: true, prenom: true, email: true } },
         pieces_jointes: true,
       },
     });
 
-    if (!intervention) {
+    if (!intervention)
       return res.status(404).json({ error: "Intervention non trouvée" });
-    }
-
-    // Vérifier si l'utilisateur a accès
     if (
       req.user.role === "commune" &&
       intervention.demandeur_id !== req.user.id
@@ -131,31 +110,24 @@ router.get("/:id", authMiddleware, async (req, res) => {
 router.post("/", authMiddleware, requireRole(["commune"]), async (req, res) => {
   try {
     const { titre, description, theme_id } = req.body;
-
     if (!titre || !description || !theme_id) {
       return res
         .status(400)
         .json({ error: "Titre, description et thème obligatoires" });
     }
-
-    if (titre.length > 100) {
+    if (titre.length > 100)
       return res.status(400).json({ error: "Titre max 100 caractères" });
-    }
-
-    if (description.length > 2000) {
+    if (description.length > 2000)
       return res.status(400).json({ error: "Description max 2000 caractères" });
-    }
 
     const utilisateur = await prisma.utilisateurs.findUnique({
       where: { id: req.user.id },
       select: { commune_id: true },
     });
-
-    if (!utilisateur?.commune_id) {
+    if (!utilisateur?.commune_id)
       return res
         .status(400)
         .json({ error: "Utilisateur sans commune associée" });
-    }
 
     const intervention = await prisma.interventions.create({
       data: {
@@ -172,10 +144,9 @@ router.post("/", authMiddleware, requireRole(["commune"]), async (req, res) => {
       },
     });
 
-    res.status(201).json({
-      message: "Intervention créée avec succès",
-      intervention,
-    });
+    res
+      .status(201)
+      .json({ message: "Intervention créée avec succès", intervention });
   } catch (error) {
     console.error("Erreur création intervention:", error);
     res.status(500).json({ error: "Erreur création intervention" });
@@ -190,22 +161,16 @@ router.delete(
   async (req, res) => {
     try {
       const interventionId = parseInt(req.params.id);
-
       const intervention = await prisma.interventions.findUnique({
         where: { id: interventionId },
       });
-
-      if (!intervention) {
+      if (!intervention)
         return res.status(404).json({ error: "Intervention non trouvée" });
-      }
 
       await prisma.piecesJointes.deleteMany({
         where: { intervention_id: interventionId },
       });
-
-      await prisma.interventions.delete({
-        where: { id: interventionId },
-      });
+      await prisma.interventions.delete({ where: { id: interventionId } });
 
       res.json({
         message: "Intervention supprimée avec succès",
@@ -213,11 +178,8 @@ router.delete(
       });
     } catch (error) {
       console.error("Erreur suppression intervention:", error);
-
-      if (error.code === "P2025") {
+      if (error.code === "P2025")
         return res.status(404).json({ error: "Intervention non trouvée" });
-      }
-
       res.status(500).json({
         error: "Erreur suppression intervention",
         details: error.message,
@@ -234,35 +196,24 @@ router.put(
   async (req, res) => {
     try {
       const { reponse, notes } = req.body;
-
-      if (!reponse) {
+      if (!reponse)
         return res.status(400).json({ error: "Réponse obligatoire" });
-      }
 
-      // Vérifier que l'intervention existe
       const interventionExistante = await prisma.interventions.findUnique({
         where: { id: parseInt(req.params.id) },
         include: {
           commune: { select: { nom: true } },
           theme: { select: { designation: true } },
-          demandeur: {
-            select: { nom: true, prenom: true, email: true },
-          },
+          demandeur: { select: { nom: true, prenom: true, email: true } },
         },
       });
-
-      if (!interventionExistante) {
+      if (!interventionExistante)
         return res.status(404).json({ error: "Intervention non trouvée" });
-      }
-
-      // Empêcher la modification si l'intervention a déjà une satisfaction
-      if (interventionExistante.satisfaction) {
+      if (interventionExistante.satisfaction)
         return res.status(400).json({
           error: "Impossible de modifier une intervention déjà notée",
         });
-      }
 
-      // Mettre à jour l'intervention
       const intervention = await prisma.interventions.update({
         where: { id: parseInt(req.params.id) },
         data: {
@@ -274,9 +225,7 @@ router.put(
         include: {
           commune: { select: { nom: true } },
           theme: { select: { designation: true } },
-          demandeur: {
-            select: { nom: true, prenom: true, email: true },
-          },
+          demandeur: { select: { nom: true, prenom: true, email: true } },
           juriste: { select: { nom: true, prenom: true } },
         },
       });
@@ -303,7 +252,6 @@ router.put(
   async (req, res) => {
     try {
       const { satisfaction } = req.body;
-
       if (!satisfaction || satisfaction < 1 || satisfaction > 5) {
         return res
           .status(400)
@@ -313,16 +261,12 @@ router.put(
       const intervention = await prisma.interventions.findUnique({
         where: { id: parseInt(req.params.id) },
       });
-
-      if (!intervention) {
+      if (!intervention)
         return res.status(404).json({ error: "Intervention non trouvée" });
-      }
-
-      if (!intervention.reponse) {
+      if (!intervention.reponse)
         return res
           .status(400)
           .json({ error: "Impossible de noter sans réponse" });
-      }
 
       const updatedIntervention = await prisma.interventions.update({
         where: { id: parseInt(req.params.id) },
@@ -339,5 +283,171 @@ router.put(
     }
   }
 );
+
+// POST /api/interventions/:id/upload - Upload pièces jointes
+router.post(
+  "/:id/upload",
+  authMiddleware,
+  upload.array("files", 5),
+  handleUploadErrors,
+  async (req, res) => {
+    try {
+      const interventionId = parseInt(req.params.id);
+      const result = await uploadService.uploadPiecesJointes(
+        interventionId,
+        req.files,
+        req.user.id,
+        req.user.role
+      );
+      res.json(result);
+    } catch (error) {
+      console.error("Erreur upload:", error);
+      res
+        .status(500)
+        .json({ error: error.message || "Erreur lors de l'upload" });
+    }
+  }
+);
+
+// GET /api/interventions/:id/pieces-jointes - Lister les pièces jointes
+router.get("/:id/pieces-jointes", authMiddleware, async (req, res) => {
+  try {
+    const interventionId = parseInt(req.params.id);
+    const piecesJointes = await uploadService.getPiecesJointes(
+      interventionId,
+      req.user.id,
+      req.user.role
+    );
+    res.json(piecesJointes);
+  } catch (error) {
+    console.error("Erreur liste pièces jointes:", error);
+    res
+      .status(500)
+      .json({ error: error.message || "Erreur récupération pièces jointes" });
+  }
+});
+// GET /api/interventions/pieces-jointes/:id/download - Télécharger une pièce jointe
+router.get("/pieces-jointes/:id/download", authMiddleware, async (req, res) => {
+  try {
+    const pieceId = parseInt(req.params.id);
+
+    const pieceJointe = await prisma.piecesJointes.findUnique({
+      where: { id: pieceId },
+      include: {
+        intervention: {
+          include: {
+            demandeur: true,
+            commune: true,
+          },
+        },
+      },
+    });
+
+    if (!pieceJointe) {
+      return res.status(404).json({ error: "Fichier non trouvé" });
+    }
+
+    // Vérifier les permissions
+    const hasAccess =
+      req.user.role === "admin" ||
+      req.user.role === "juriste" ||
+      (req.user.role === "commune" &&
+        pieceJointe.intervention.demandeur_id === req.user.id);
+
+    if (!hasAccess) {
+      return res.status(403).json({ error: "Accès non autorisé" });
+    }
+
+    if (!fs.existsSync(pieceJointe.chemin)) {
+      return res
+        .status(404)
+        .json({ error: "Fichier introuvable sur le serveur" });
+    }
+
+    // Déterminer le type de contenu
+    const ext = path.extname(pieceJointe.nom_original).toLowerCase();
+    const contentType =
+      {
+        ".pdf": "application/pdf",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+      }[ext] || "application/octet-stream";
+
+    res.setHeader("Content-Type", contentType);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${pieceJointe.nom_original}"`
+    );
+
+    const fileStream = fs.createReadStream(pieceJointe.chemin);
+    fileStream.pipe(res);
+  } catch (error) {
+    console.error("Erreur téléchargement pièce jointe:", error);
+    res.status(500).json({ error: "Erreur lors du téléchargement" });
+  }
+});
+
+// GET /api/interventions/pieces-jointes/:id/preview - Prévisualiser une pièce jointe
+router.get("/pieces-jointes/:id/preview", authMiddleware, async (req, res) => {
+  try {
+    const pieceId = parseInt(req.params.id);
+
+    const pieceJointe = await prisma.piecesJointes.findUnique({
+      where: { id: pieceId },
+      include: {
+        intervention: {
+          include: {
+            demandeur: true,
+            commune: true,
+          },
+        },
+      },
+    });
+
+    if (!pieceJointe) {
+      return res.status(404).json({ error: "Fichier non trouvé" });
+    }
+
+    // Vérifier les permissions
+    const hasAccess =
+      req.user.role === "admin" ||
+      req.user.role === "juriste" ||
+      (req.user.role === "commune" &&
+        pieceJointe.intervention.demandeur_id === req.user.id);
+
+    if (!hasAccess) {
+      return res.status(403).json({ error: "Accès non autorisé" });
+    }
+
+    if (!fs.existsSync(pieceJointe.chemin)) {
+      return res
+        .status(404)
+        .json({ error: "Fichier introuvable sur le serveur" });
+    }
+
+    // Déterminer le type de contenu pour la prévisualisation
+    const ext = path.extname(pieceJointe.nom_original).toLowerCase();
+    const contentType =
+      {
+        ".pdf": "application/pdf",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+      }[ext] || "application/octet-stream";
+
+    res.setHeader("Content-Type", contentType);
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename="${pieceJointe.nom_original}"`
+    );
+
+    const fileStream = fs.createReadStream(pieceJointe.chemin);
+    fileStream.pipe(res);
+  } catch (error) {
+    console.error("Erreur prévisualisation pièce jointe:", error);
+    res.status(500).json({ error: "Erreur lors de la prévisualisation" });
+  }
+});
 
 module.exports = router;
