@@ -596,4 +596,71 @@ router.put(
   }
 );
 
+// GET /api/users/profile/me - Récupérer le profil de l'utilisateur connecté
+router.get("/profile/me", authMiddleware, async (req, res) => {
+  try {
+    const user = await prisma.utilisateurs.findUnique({
+      where: { id: req.user.id },
+      include: {
+        commune: {
+          select: {
+            id: true,
+            nom: true,
+            code_postal: true,
+            population: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "Utilisateur non trouvé" });
+    }
+
+    // Ne pas renvoyer le mot de passe
+    const { mot_de_passe, ...userWithoutPassword } = user;
+
+    res.json(userWithoutPassword);
+  } catch (error) {
+    console.error("Erreur récupération profil:", error);
+    res.status(500).json({ error: "Erreur récupération profil" });
+  }
+});
+
+// PUT /api/users/profile/me - Modifier le profil de l'utilisateur connecté
+router.put("/profile/me", authMiddleware, async (req, res) => {
+  try {
+    const { telephone, poste, preferences_notifications } = req.body;
+
+    const updateData = {};
+    if (telephone !== undefined) updateData.telephone = telephone;
+    if (poste !== undefined) updateData.poste = poste;
+    if (preferences_notifications !== undefined)
+      updateData.preferences_notifications = preferences_notifications;
+
+    const user = await prisma.utilisateurs.update({
+      where: { id: req.user.id },
+      data: updateData,
+      include: {
+        commune: {
+          select: {
+            id: true,
+            nom: true,
+          },
+        },
+      },
+    });
+
+    // Ne pas renvoyer le mot de passe
+    const { mot_de_passe, ...userWithoutPassword } = user;
+
+    res.json({
+      message: "Profil mis à jour avec succès",
+      user: userWithoutPassword,
+    });
+  } catch (error) {
+    console.error("Erreur modification profil:", error);
+    res.status(500).json({ error: "Erreur modification profil" });
+  }
+});
 module.exports = router;

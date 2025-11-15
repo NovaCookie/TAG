@@ -9,6 +9,7 @@ const { upload, handleUploadErrors } = require("../middleware/uploadFiles");
 const router = express.Router();
 const filterService = require("../services/filterService");
 const uploadService = require("../services/uploadService");
+const emailService = require("../services/emailService");
 
 // GET /api/interventions - Liste des interventions non archivées
 router.get("/", authMiddleware, async (req, res) => {
@@ -144,6 +145,45 @@ router.post("/", authMiddleware, requireRole(["commune"]), async (req, res) => {
       },
     });
 
+    try {
+      // Récupérer tous les juristes actifs
+      const juristes = await prisma.utilisateurs.findMany({
+        where: {
+          role: "juriste",
+          actif: true,
+        },
+        select: {
+          nom: true,
+          prenom: true,
+          email: true,
+          preferences_notifications: true,
+        },
+      });
+
+      // Filtrer les juristes qui ont activé les notifications
+      const juristesANotifier = juristes.filter((juriste) => {
+        const preferences = juriste.preferences_notifications;
+        return preferences?.notificationsNouvellesQuestions !== false;
+      });
+
+      if (juristesANotifier.length > 0) {
+        await emailService.sendNewQuestionNotification(
+          juristesANotifier,
+          intervention,
+          intervention.commune
+        );
+        console.log(
+          `Notifications envoyées à ${juristesANotifier.length} juriste(s)`
+        );
+      }
+    } catch (emailError) {
+      console.error(
+        "Erreur envoi email notification nouvelle question:",
+        emailError
+      );
+      // Ne pas bloquer la création si l'email échoue
+    }
+
     res
       .status(201)
       .json({ message: "Intervention créée avec succès", intervention });
@@ -204,9 +244,17 @@ router.put(
         include: {
           commune: { select: { nom: true } },
           theme: { select: { designation: true } },
-          demandeur: { select: { nom: true, prenom: true, email: true } },
+          demandeur: {
+            select: {
+              nom: true,
+              prenom: true,
+              email: true,
+              preferences_notifications: true,
+            },
+          },
         },
       });
+
       if (!interventionExistante)
         return res.status(404).json({ error: "Intervention non trouvée" });
       if (interventionExistante.satisfaction)
@@ -229,6 +277,40 @@ router.put(
           juriste: { select: { nom: true, prenom: true } },
         },
       });
+
+      try {
+        const juriste = await prisma.utilisateurs.findUnique({
+          where: { id: req.user.id },
+          select: { nom: true, prenom: true },
+        });
+
+        // Vérifier si l'utilisateur a activé les notifications
+        const preferences =
+          interventionExistante.demandeur.preferences_notifications;
+        const notificationsActive =
+          preferences?.notificationsReponses !== false;
+
+        if (notificationsActive) {
+          console.log(
+            `[NOTIFICATION] Envoi notification réponse à ${interventionExistante.demandeur.email}...`
+          );
+          await emailService.sendNewResponseNotification(
+            interventionExistante.demandeur,
+            intervention,
+            juriste
+          );
+          console.log(
+            `[NOTIFICATION] Notification envoyée à ${interventionExistante.demandeur.email}`
+          );
+        } else {
+          console.log(
+            `[NOTIFICATION] Notification désactivée pour ${interventionExistante.demandeur.email} (préférences utilisateur)`
+          );
+        }
+      } catch (emailError) {
+        console.error("[NOTIFICATION] Erreur envoi email:", emailError);
+        // Ne pas bloquer la réponse si l'email échoue
+      }
 
       res.json({
         message: interventionExistante.reponse
@@ -260,7 +342,20 @@ router.put(
 
       const intervention = await prisma.interventions.findUnique({
         where: { id: parseInt(req.params.id) },
+        include: {
+          commune: { select: { nom: true } },
+          juriste: {
+            select: {
+              id: true,
+              nom: true,
+              prenom: true,
+              email: true,
+              preferences_notifications: true,
+            },
+          },
+        },
       });
+
       if (!intervention)
         return res.status(404).json({ error: "Intervention non trouvée" });
       if (!intervention.reponse)
@@ -272,6 +367,39 @@ router.put(
         where: { id: parseInt(req.params.id) },
         data: { satisfaction: parseInt(satisfaction) },
       });
+
+      if (intervention.juriste) {
+        try {
+          // Vérifier si le juriste a activé les notifications
+          const preferences = intervention.juriste.preferences_notifications;
+          const notificationsActive =
+            preferences?.notificationsNouvellesQuestions !== false;
+
+          if (notificationsActive) {
+            console.log(
+              `[NOTIFICATION] Envoi notification notation à ${intervention.juriste.email}...`
+            );
+            await emailService.sendNewRatingNotification(
+              intervention.juriste,
+              intervention,
+              intervention.commune,
+              satisfaction
+            );
+            console.log(
+              `[NOTIFICATION] Notification de notation envoyée à ${intervention.juriste.email}`
+            );
+          } else {
+            console.log(
+              `[NOTIFICATION] Notification désactivée pour ${intervention.juriste.email} (préférences utilisateur)`
+            );
+          }
+        } catch (emailError) {
+          console.error(
+            "[NOTIFICATION] Erreur envoi email notification notation:",
+            emailError
+          );
+        }
+      }
 
       res.json({
         message: "Satisfaction enregistrée avec succès",

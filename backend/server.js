@@ -16,6 +16,7 @@ const cronService = require("./services/cronService");
 const testArchivesRoutes = require("./tests/test-archive");
 const retentionRoutes = require("./routes/retention-policies");
 const suggestionRoutes = require("./routes/suggestions");
+const testEmailRoutes = require("./tests/test-email");
 
 // Middleware
 app.use(cors());
@@ -32,6 +33,7 @@ app.use("/api/archives", archiveRoutes);
 app.use("/api/retention-policies", retentionRoutes);
 app.use("/api/suggestions", suggestionRoutes);
 app.use("/api/test", testArchivesRoutes);
+app.use("/api/test", testEmailRoutes);
 
 // ==================== ROUTES PROTÉGÉES ====================
 

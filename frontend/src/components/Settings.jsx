@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import Layout from "./layout/Layout";
 import ToggleSwitch from "./common/ToggleSwitch";
 import AlertMessage from "./common/feedback/AlertMessage";
-import { usersAPI } from "../services/api";
+import { profileAPI, authAPI } from "../services/api";
 
 const FormInput = ({
   label,
@@ -71,14 +71,16 @@ const Settings = () => {
     notificationsReponses: true,
     notificationsUrgentes: true,
     rappelsDelais: true,
+    currentPassword: "", // NOUVEAU: mot de passe actuel
     nouveauMotDePasse: "",
     confirmerMotDePasse: "",
   });
 
+  // Charger les données utilisateur via la route profil
   useEffect(() => {
     const loadUserData = async () => {
       try {
-        const userData = await usersAPI.getById(user.id);
+        const userData = await profileAPI.getMe(); // CHANGEMENT ICI
 
         setFormData((prev) => ({
           ...prev,
@@ -143,6 +145,14 @@ const Settings = () => {
 
   const validateForm = useCallback(() => {
     if (activeSection === "securite") {
+      // Validation pour la section sécurité
+      if (!formData.currentPassword) {
+        setMessage({
+          type: "error",
+          text: "Le mot de passe actuel est requis",
+        });
+        return false;
+      }
       if (formData.nouveauMotDePasse && formData.nouveauMotDePasse.length < 6) {
         setMessage({
           type: "error",
@@ -159,7 +169,7 @@ const Settings = () => {
       }
     }
     return true;
-  }, [activeSection, formData.nouveauMotDePasse, formData.confirmerMotDePasse]);
+  }, [activeSection, formData]);
 
   const handleSave = async () => {
     if (!validateForm()) return;
@@ -200,24 +210,17 @@ const Settings = () => {
   };
 
   const handleSaveProfil = async () => {
-    const response = await usersAPI.updateInfos(user.id, {
+    const response = await profileAPI.updateMe({
       telephone: formData.telephone,
       poste: formData.poste,
     });
 
-    const updatedUserData = await usersAPI.getById(user.id);
-
+    // Mettre à jour le contexte d'authentification
     updateUser({
       ...user,
-      telephone: updatedUserData.telephone,
-      poste: updatedUserData.poste,
+      telephone: formData.telephone,
+      poste: formData.poste,
     });
-
-    setFormData((prev) => ({
-      ...prev,
-      telephone: updatedUserData.telephone || "",
-      poste: updatedUserData.poste || "",
-    }));
 
     return response;
   };
@@ -230,21 +233,10 @@ const Settings = () => {
       rappelsDelais: formData.rappelsDelais,
     };
 
-    const response = await usersAPI.update(user.id, {
+    const response = await profileAPI.updateMe({
+      // CHANGEMENT ICI
       preferences_notifications: preferences,
     });
-
-    const updatedUserData = await usersAPI.getById(user.id);
-
-    setFormData((prev) => ({
-      ...prev,
-      ...(updatedUserData.preferences_notifications || {
-        notificationsNouvellesQuestions: true,
-        notificationsReponses: true,
-        notificationsUrgentes: true,
-        rappelsDelais: true,
-      }),
-    }));
 
     return response;
   };
@@ -258,13 +250,16 @@ const Settings = () => {
       return;
     }
 
-    const response = await usersAPI.updatePassword(user.id, {
-      nouveauMotDePasse: formData.nouveauMotDePasse,
-      envoyerEmail: false,
+    // Utiliser la route de changement de mot de passe avec vérification
+    const response = await authAPI.changePassword({
+      currentPassword: formData.currentPassword,
+      newPassword: formData.nouveauMotDePasse,
     });
 
+    // Réinitialiser les champs mot de passe
     setFormData((prev) => ({
       ...prev,
+      currentPassword: "",
       nouveauMotDePasse: "",
       confirmerMotDePasse: "",
     }));
@@ -275,7 +270,7 @@ const Settings = () => {
   const handleCancel = () => {
     const loadOriginalData = async () => {
       try {
-        const userData = await usersAPI.getById(user.id);
+        const userData = await profileAPI.getMe();
         setFormData((prev) => ({
           ...prev,
           telephone: userData.telephone || "",
@@ -286,6 +281,7 @@ const Settings = () => {
             notificationsUrgentes: true,
             rappelsDelais: true,
           }),
+          currentPassword: "",
           nouveauMotDePasse: "",
           confirmerMotDePasse: "",
         }));
@@ -514,6 +510,14 @@ const Settings = () => {
               <div className="grid grid-cols-1 gap-4 max-w-md">
                 <FormInput
                   type="password"
+                  label="Mot de passe actuel"
+                  value={formData.currentPassword}
+                  onChange={handleInputChange("currentPassword")}
+                  placeholder="Entrez votre mot de passe actuel"
+                  required
+                />
+                <FormInput
+                  type="password"
                   label="Nouveau mot de passe"
                   value={formData.nouveauMotDePasse}
                   onChange={handleInputChange("nouveauMotDePasse")}
@@ -528,7 +532,7 @@ const Settings = () => {
                 />
 
                 <div className="mt-4 p-4 bg-primary-50 dark:bg-primary-900/20 rounded-lg border border-primary-200 dark:border-primary-800">
-                  <p className="text-sm text-primary-700 dark:text-primary-300">
+                  <p className="text-sm text-primary dark:text-primary">
                     <strong>Conseil de sécurité :</strong> Utilisez un mot de
                     passe fort avec des chiffres, des lettres
                     majuscules/minuscules et des caractères spéciaux.

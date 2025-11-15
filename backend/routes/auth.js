@@ -5,6 +5,7 @@ const { PrismaClient } = require("@prisma/client");
 const crypto = require("crypto");
 const emailService = require("../services/emailService");
 const archiveService = require("../services/archiveService"); // IMPORTANT
+const { authMiddleware } = require("../middleware/auth");
 const prisma = new PrismaClient();
 const router = express.Router();
 
@@ -260,6 +261,75 @@ router.post("/reset-password", async (req, res) => {
   } catch (error) {
     console.error("Erreur reset-password:", error);
     res.status(500).json({ error: "Erreur lors de la réinitialisation" });
+  }
+});
+
+// POST /api/auth/change-password - Changer le mot de passe (utilisateur connecté)
+router.post("/change-password", authMiddleware, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        error: "Le mot de passe actuel et le nouveau mot de passe sont requis",
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        error: "Le nouveau mot de passe doit faire au moins 6 caractères",
+      });
+    }
+
+    // Trouver l'utilisateur
+    const user = await prisma.utilisateurs.findUnique({
+      where: { id: req.user.id },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "Utilisateur non trouvé" });
+    }
+
+    // Vérifier si l'utilisateur est archivé
+    const archiveStatus = await archiveService.checkArchiveStatus(
+      "utilisateurs",
+      user.id
+    );
+    if (archiveStatus.archived) {
+      return res.status(410).json({
+        error: "Compte archivé. Modification impossible.",
+      });
+    }
+
+    // Vérifier le mot de passe actuel
+    const validPassword = await bcrypt.compare(
+      currentPassword,
+      user.mot_de_passe
+    );
+
+    if (!validPassword) {
+      return res.status(400).json({ error: "Mot de passe actuel incorrect" });
+    }
+
+    // Hasher le nouveau mot de passe
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+    // Mettre à jour le mot de passe
+    await prisma.utilisateurs.update({
+      where: { id: req.user.id },
+      data: {
+        mot_de_passe: hashedPassword,
+      },
+    });
+
+    res.json({
+      message: "Mot de passe modifié avec succès",
+    });
+  } catch (error) {
+    console.error("Erreur changement mot de passe:", error);
+    res
+      .status(500)
+      .json({ error: "Erreur lors du changement de mot de passe" });
   }
 });
 

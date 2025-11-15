@@ -55,6 +55,7 @@ export const authAPI = {
   register: (userData) => api.post("/auth/register", userData),
   forgotPassword: (data) => api.post("/auth/forgot-password", data),
   resetPassword: (data) => api.post("/auth/reset-password", data),
+  changePassword: (data) => api.post("/auth/change-password", data),
 };
 
 // === Stats ===
@@ -150,6 +151,7 @@ export const themesAPI = {
   delete: (id) => api.delete(`/themes/${id}`),
 };
 
+// === Retention ===
 export const retentionAPI = {
   getByTheme: (themeId) => api.get(`/retention-policies/theme/${themeId}`),
   create: (data) => api.post("/retention-policies", data),
@@ -157,6 +159,7 @@ export const retentionAPI = {
   delete: (id) => api.delete(`/retention-policies/${id}`),
 };
 
+// === Suggestion ===
 export const suggestionsAPI = {
   getSimilar: (interventionId, limit) =>
     api.get(`/suggestions/interventions/${interventionId}/similar`, {
@@ -167,4 +170,11 @@ export const suggestionsAPI = {
   getSimilarForNew: (data) =>
     api.post("/suggestions/interventions/similar", data),
 };
+
+// === Profile (pour l'utilisateur connecté) ===
+export const profileAPI = {
+  getMe: () => api.get("/users/profile/me"),
+  updateMe: (data) => api.put("/users/profile/me", data),
+};
+
 export default api;

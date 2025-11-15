@@ -182,6 +182,200 @@ const emailService = {
       html,
     });
   },
+
+  // Email de notification pour nouvelle réponse (à la commune)
+  async sendNewResponseNotification(user, intervention, juriste) {
+    const interventionLink = `${process.env.FRONTEND_URL}/interventions/${intervention.id}`;
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h1 style="color: #2c5e92;">Votre question a reçu une réponse</h1>
+        <p>Bonjour ${user.prenom},</p>
+        <p>Le juriste <strong>${juriste.prenom} ${
+      juriste.nom
+    }</strong> a répondu à votre question :</p>
+        
+        <div style="background: #f8fafc; padding: 15px; border-radius: 5px; margin: 20px 0;">
+          <h3 style="margin: 0 0 10px 0; color: #2c5e92;">${
+            intervention.titre
+          }</h3>
+          <p style="margin: 0; color: #4a5568;">${
+            intervention.description
+              ? intervention.description.substring(0, 200) + "..."
+              : ""
+          }</p>
+        </div>
+        
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${interventionLink}" 
+             style="background-color: #2c5e92; color: white; padding: 12px 24px; 
+                    text-decoration: none; border-radius: 5px; font-weight: bold;">
+            Voir la réponse complète
+          </a>
+        </div>
+        
+        <p><strong>N'oubliez pas de noter cette réponse</strong> une fois que vous l'avez consultée !</p>
+        
+        <p>Cordialement,<br>L'équipe TAG</p>
+      </div>
+    `;
+
+    const text = `
+      Nouvelle réponse - TAG
+      
+      Bonjour ${user.prenom},
+      
+      Le juriste ${juriste.prenom} ${juriste.nom} a répondu à votre question : "${intervention.titre}"
+      
+      Consultez la réponse ici : ${interventionLink}
+      
+      N'oubliez pas de noter cette réponse !
+      
+      Cordialement,
+      L'équipe TAG
+    `;
+
+    return this.sendEmail({
+      to: user.email,
+      subject: `Réponse reçue - ${intervention.titre}`,
+      html,
+      text,
+    });
+  },
+
+  // Email de notification pour nouvelle notation (au juriste)
+  async sendNewRatingNotification(user, intervention, commune, note) {
+    const interventionLink = `${process.env.FRONTEND_URL}/interventions/${intervention.id}`;
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h1 style="color: #2c5e92;">Votre réponse a été notée</h1>
+        <p>Bonjour ${user.prenom},</p>
+        <p>La commune <strong>${
+          commune.nom
+        }</strong> a évalué votre réponse à la question :</p>
+        
+        <div style="background: #f8fafc; padding: 15px; border-radius: 5px; margin: 20px 0;">
+          <h3 style="margin: 0 0 10px 0; color: #2c5e92;">${
+            intervention.titre
+          }</h3>
+          <div style="display: flex; align-items: center; gap: 5px;">
+            <span>Note :</span>
+            ${this.renderStars(note)}
+            <span style="margin-left: 10px; font-weight: bold;">${note}/5</span>
+          </div>
+        </div>
+        
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${interventionLink}" 
+             style="background-color: #2c5e92; color: white; padding: 12px 24px; 
+                    text-decoration: none; border-radius: 5px; font-weight: bold;">
+            Voir les détails
+          </a>
+        </div>
+        
+        <p>Cordialement,<br>L'équipe TAG</p>
+      </div>
+    `;
+
+    const text = `
+      Nouvelle évaluation - TAG
+      
+      Bonjour ${user.prenom},
+      
+      La commune ${commune.nom} a noté votre réponse à "${intervention.titre}" : ${note}/5
+      
+      Voir les détails : ${interventionLink}
+      
+      Cordialement,
+      L'équipe TAG
+    `;
+
+    return this.sendEmail({
+      to: user.email,
+      subject: `Évaluation reçue - ${note}/5 pour "${intervention.titre}"`,
+      html,
+      text,
+    });
+  },
+
+  // Email de notification pour nouvelle question (aux juristes)
+  async sendNewQuestionNotification(juristes, intervention, commune) {
+    const interventionLink = `${process.env.FRONTEND_URL}/interventions/${intervention.id}`;
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h1 style="color: #2c5e92;">Nouvelle question reçue</h1>
+        <p>Une nouvelle question a été posée par la commune <strong>${
+          commune.nom
+        }</strong> :</p>
+        
+        <div style="background: #f8fafc; padding: 15px; border-radius: 5px; margin: 20px 0;">
+          <h3 style="margin: 0 0 10px 0; color: #2c5e92;">${
+            intervention.titre
+          }</h3>
+          <p style="margin: 0; color: #4a5568;">${
+            intervention.description
+              ? intervention.description.substring(0, 200) + "..."
+              : ""
+          }</p>
+          <p style="margin: 10px 0 0 0; font-size: 14px; color: #718096;">
+            Thème : ${intervention.theme?.designation || "Non spécifié"}
+          </p>
+        </div>
+        
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${interventionLink}" 
+             style="background-color: #2c5e92; color: white; padding: 12px 24px; 
+                    text-decoration: none; border-radius: 5px; font-weight: bold;">
+            Répondre à cette question
+          </a>
+        </div>
+        
+        <p>Cordialement,<br>L'équipe TAG</p>
+      </div>
+    `;
+
+    const text = `
+      Nouvelle question - TAG
+      
+      La commune ${commune.nom} a posé une nouvelle question : "${
+      intervention.titre
+    }"
+      
+      Thème : ${intervention.theme?.designation || "Non spécifié"}
+      
+      Répondre ici : ${interventionLink}
+      
+      Cordialement,
+      L'équipe TAG
+    `;
+
+    // Envoyer à tous les juristes
+    const emailPromises = juristes.map((juriste) =>
+      this.sendEmail({
+        to: juriste.email,
+        subject: `Nouvelle question - ${intervention.titre}`,
+        html,
+        text,
+      })
+    );
+
+    return Promise.all(emailPromises);
+  },
+
+  // Helper pour afficher les étoiles
+  renderStars(note) {
+    let stars = "";
+    for (let i = 1; i <= 5; i++) {
+      if (i <= note) {
+        stars += "⭐";
+      } else {
+        stars += "☆";
+      }
+    }
+    return stars;
+  },
 };
 
 module.exports = emailService;
