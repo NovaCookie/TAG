@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import Layout from "./layout/Layout";
 import StatBlock from "./stats/StatBlock";
-import { formatDate } from "../utils/helpers";
+import InterventionCard from "./interventions/InterventionCard";
 import { interventionsAPI, statsAPI } from "../services/api";
 
 const Dashboard = () => {
@@ -23,7 +23,6 @@ const Dashboard = () => {
 
   const [loading, setLoading] = useState(true);
 
-  // Fallback: charger les statistiques utilisateur
   const loadUserStatistics = useCallback(async () => {
     try {
       let data = {
@@ -62,7 +61,6 @@ const Dashboard = () => {
     }
   }, [user]);
 
-  // Charger les données du tableau de bord principal
   const loadDashboardData = useCallback(async () => {
     try {
       setLoading(true);
@@ -173,7 +171,6 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Cartes principales */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
         <StatBlock
           title={getCardTitle(0)}
@@ -195,7 +192,6 @@ const Dashboard = () => {
         />
       </div>
 
-      {/* Vue d’ensemble admin */}
       {user?.role === "admin" && (
         <div className="mb-10">
           <div className="flex justify-between items-center mb-6">
@@ -258,8 +254,7 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Dernières interventions */}
-      <div className="bg-white rounded-xl shadow-card p-6">
+      <div className="bg-white rounded-xl shadow-card p-6 mb-8">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold text-primary">
             {user?.role === "commune"
@@ -277,38 +272,11 @@ const Dashboard = () => {
         </div>
 
         <div className="space-y-4">
-          {statistics.recentInterventions.map((question) => (
-            <Link
-              key={question.id}
-              to={`/interventions/${question.id}`}
-              className="flex justify-between items-center py-4 border-b border-light-gray last:border-b-0 hover:bg-light/50 rounded-lg px-3 transition-colors cursor-pointer"
-            >
-              <div className="flex-1">
-                <div className="font-medium text-secondary mb-1 line-clamp-2">
-                  {question.titre || "Sans titre"}
-                </div>
-                <div className="flex items-center gap-4 text-sm text-tertiary">
-                  <span>
-                    {question.date_question
-                      ? `Posée ${formatDate(question.date_question)}`
-                      : "Date non précisée"}
-                  </span>
-                  {question.theme && (
-                    <span className="bg-primary/10 text-primary px-2 py-1 rounded text-xs">
-                      {question.theme.designation}
-                    </span>
-                  )}
-                  {!question.reponse && user?.role === "juriste" && (
-                    <span className="bg-warning/10 text-warning px-2 py-1 rounded text-xs">
-                      À traiter
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center hover:bg-primary hover:text-white transition-colors ml-4">
-                <span>→</span>
-              </div>
-            </Link>
+          {statistics.recentInterventions.map((intervention) => (
+            <InterventionCard
+              key={intervention.id}
+              intervention={intervention}
+            />
           ))}
 
           {statistics.recentInterventions.length === 0 && (
@@ -324,7 +292,7 @@ const Dashboard = () => {
       </div>
 
       {user?.role === "commune" && (
-        <div className="mt-6 text-center">
+        <div className="text-center">
           <Link
             to="/interventions/new"
             className="bg-primary text-white rounded-lg px-8 py-4 font-semibold hover:bg-primary-light transition-colors shadow-md hover:shadow-lg inline-block"

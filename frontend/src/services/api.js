@@ -137,4 +137,15 @@ export const retentionAPI = {
   update: (id, data) => api.put(`/retention-policies/${id}`, data),
   delete: (id) => api.delete(`/retention-policies/${id}`),
 };
+
+export const suggestionsAPI = {
+  getSimilar: (interventionId, limit) =>
+    api.get(`/suggestions/interventions/${interventionId}/similar`, {
+      params: { limit },
+    }),
+  getSimilarCount: (interventionId) =>
+    api.get(`/suggestions/interventions/${interventionId}/similar/count`),
+  getSimilarForNew: (data) =>
+    api.post("/suggestions/interventions/similar", data),
+};
 export default api;

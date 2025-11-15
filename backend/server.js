@@ -14,6 +14,7 @@ const archiveRoutes = require("./routes/archives");
 const cronService = require("./services/cronService");
 const testArchivesRoutes = require("./tests/test-archive");
 const retentionRoutes = require("./routes/retention-policies");
+const suggestionRoutes = require("./routes/suggestions");
 
 // Middleware
 app.use(cors()); // Permet à React de communiquer avec Express
@@ -29,6 +30,7 @@ app.use("/api/stats", statsRoutes);
 app.use("/api/archives", archiveRoutes);
 app.use("/api/retention-policies", retentionRoutes);
 app.use("/api/test", testArchivesRoutes);
+app.use("/api/suggestions", suggestionRoutes);
 
 // ==================== ROUTES PROTÉGÉES ====================
 

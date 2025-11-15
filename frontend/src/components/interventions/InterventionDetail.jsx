@@ -4,7 +4,11 @@ import { useAuth } from "../../context/AuthContext";
 import Layout from "../layout/Layout";
 import StatusBadge from "../common/StatusBadge";
 import { formatDate } from "../../utils/helpers";
-import { archivesAPI, interventionsAPI } from "../../services/api";
+import {
+  archivesAPI,
+  interventionsAPI,
+  suggestionsAPI,
+} from "../../services/api";
 import { useNavigation } from "../../hooks/useNavigation";
 
 const InterventionDetail = () => {
@@ -36,7 +40,27 @@ const InterventionDetail = () => {
   const [restoreMessage, setRestoreMessage] = useState("");
   const [showRestoreModal, setShowRestoreModal] = useState(false);
 
-  // Fonction pour vérifier le statut d'archivage
+  const [similarCount, setSimilarCount] = useState(0);
+  const [isLoadingSimilar, setIsLoadingSimilar] = useState(false);
+
+  useEffect(() => {
+    const loadSimilarCount = async () => {
+      try {
+        setIsLoadingSimilar(true);
+        const response = await suggestionsAPI.getSimilarCount(intervention.id);
+        setSimilarCount(response.data.count);
+      } catch (error) {
+        console.error("Erreur chargement compteur similaire:", error);
+      } finally {
+        setIsLoadingSimilar(false);
+      }
+    };
+
+    if (intervention) {
+      loadSimilarCount();
+    }
+  }, [intervention]);
+
   const checkArchiveStatus = useCallback(async (interventionId) => {
     try {
       const response = await archivesAPI.checkStatus(
@@ -55,14 +79,12 @@ const InterventionDetail = () => {
       setLoading(true);
       setError("");
 
-      // Récupérer l'intervention
       const res = await interventionsAPI.getById(id);
 
       if (res?.data) {
         setIntervention(res.data);
         setSatisfactionNote(res.data.satisfaction || 0);
 
-        // Vérifier le statut d'archivage
         const archiveStatus = await checkArchiveStatus(id);
         setArchiveInfo(archiveStatus);
       } else {
@@ -73,7 +95,6 @@ const InterventionDetail = () => {
       else if (err.response?.status === 403)
         setError("Vous n'avez pas accès à cette intervention");
       else if (err.response?.status === 410) {
-        // Entité archivée - récupérer depuis les archives
         try {
           const archiveResponse = await archivesAPI.getAll({
             table_name: "interventions",
@@ -243,7 +264,7 @@ const InterventionDetail = () => {
         msg = "Vous n'avez pas accès à ce fichier";
       else if (err.response?.status === 410)
         msg = "Fichier inaccessible - intervention archivée";
-      else if (err.message === "Fichier vide")
+      else if (err.message === "Fichier vac")
         msg = "Le fichier est vide ou corrompu";
       alert(msg);
     }
@@ -317,7 +338,6 @@ const InterventionDetail = () => {
         "Archivage par l'utilisateur"
       );
 
-      // Recharger les données pour mettre à jour le statut d'archivage
       await fetchIntervention();
 
       setArchiveMessage("Intervention archivée avec succès");
@@ -367,7 +387,6 @@ const InterventionDetail = () => {
     try {
       await archivesAPI.restoreEntity("interventions", intervention.id);
 
-      // Recharger les données pour mettre à jour le statut d'archivage
       await fetchIntervention();
       const timeOut = 0;
 
@@ -459,8 +478,7 @@ const InterventionDetail = () => {
 
         {isArchived && (
           <div className="bg-gray-100 border border-gray-300 p-3 rounded-lg text-sm text-gray-600">
-            ⚠️ L'évaluation n'est pas disponible pour les interventions
-            archivées
+            L'évaluation n'est pas disponible pour les interventions archivées
           </div>
         )}
 
@@ -759,26 +777,8 @@ const InterventionDetail = () => {
 
         <div className="flex justify-between items-start">
           <div>
-            <h1 className="text-2xl font-semibold text-primary mb-2">
+            <h1 className="text-2xl font-semibold text-primary">
               Intervention n°{intervention.id.toString().padStart(4, "0")}
-              {isArchived && (
-                <span className="ml-3 bg-gray-500 text-white text-sm px-3 py-1 rounded-full inline-flex items-center gap-1">
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
-                    />
-                  </svg>
-                  Archivée
-                </span>
-              )}
             </h1>
           </div>
 
@@ -974,6 +974,19 @@ const InterventionDetail = () => {
                   {intervention.theme?.designation}
                 </p>
               </div>
+
+              <div>
+                <label className="block text-sm font-medium text-secondary mb-1">
+                  Questions similaires
+                </label>
+                <p className="text-tertiary">
+                  {isLoadingSimilar
+                    ? "Chargement..."
+                    : `${similarCount} question${
+                        similarCount !== 1 ? "s" : ""
+                      }`}
+                </p>
+              </div>
             </div>
           </div>
 
@@ -1148,7 +1161,16 @@ const InterventionDetail = () => {
                     </Link>
                   )}
 
-                  {user.role === "admin" && (
+                  {intervention.reponse && !intervention.satisfaction && (
+                    <Link
+                      to={`/interventions/${intervention.id}/reply`}
+                      className="block w-full text-center bg-primary text-white py-2 px-4 rounded-lg font-semibold hover:bg-primary/80 transition-colors"
+                    >
+                      Modifier la réponse
+                    </Link>
+                  )}
+
+                  {user.role === "admin" && !intervention.reponse && (
                     <button
                       onClick={handleOpenDeleteModal}
                       className="block w-full text-center bg-danger text-white py-2 px-4 rounded-lg font-semibold hover:bg-red-400 transition-colors"
@@ -1156,10 +1178,19 @@ const InterventionDetail = () => {
                       Supprimer
                     </button>
                   )}
+
+                  {intervention.reponse && intervention.satisfaction && (
+                    <div className="text-center p-3 bg-success/10 text-success rounded-lg border border-success/20">
+                      <p className="font-medium">Intervention terminée</p>
+                      <p className="text-sm mt-1">
+                        Cette intervention a été notée et ne peut plus être
+                        modifiée
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
-
           <DeleteConfirmationModal />
           <ArchiveConfirmationModal />
           <RestoreConfirmationModal />

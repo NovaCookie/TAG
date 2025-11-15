@@ -226,12 +226,11 @@ router.delete(
   }
 );
 
-// PUT /api/interventions/:id/response - Répondre à une intervention
+// PUT /api/interventions/:id/response - Répondre ou modifier une intervention
 router.put(
   "/:id/response",
   authMiddleware,
   requireRole(["juriste", "admin"]),
-  checkArchived("communes"),
   async (req, res) => {
     try {
       const { reponse, notes } = req.body;
@@ -240,6 +239,30 @@ router.put(
         return res.status(400).json({ error: "Réponse obligatoire" });
       }
 
+      // Vérifier que l'intervention existe
+      const interventionExistante = await prisma.interventions.findUnique({
+        where: { id: parseInt(req.params.id) },
+        include: {
+          commune: { select: { nom: true } },
+          theme: { select: { designation: true } },
+          demandeur: {
+            select: { nom: true, prenom: true, email: true },
+          },
+        },
+      });
+
+      if (!interventionExistante) {
+        return res.status(404).json({ error: "Intervention non trouvée" });
+      }
+
+      // Empêcher la modification si l'intervention a déjà une satisfaction
+      if (interventionExistante.satisfaction) {
+        return res.status(400).json({
+          error: "Impossible de modifier une intervention déjà notée",
+        });
+      }
+
+      // Mettre à jour l'intervention
       const intervention = await prisma.interventions.update({
         where: { id: parseInt(req.params.id) },
         data: {
@@ -259,7 +282,9 @@ router.put(
       });
 
       res.json({
-        message: "Réponse enregistrée avec succès",
+        message: interventionExistante.reponse
+          ? "Réponse modifiée avec succès"
+          : "Réponse enregistrée avec succès",
         intervention,
       });
     } catch (error) {
