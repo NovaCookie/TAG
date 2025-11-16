@@ -129,25 +129,6 @@ router.get("/", authMiddleware, async (req, res) => {
   }
 });
 
-// router.get("/users/communes/list", authMiddleware, async (req, res) => {
-//   try {
-//     const communes = await prisma.communes.findMany({
-//       select: {
-//         id: true,
-//         nom: true,
-//         code_postal: true,
-//         population: true,
-//       },
-//       orderBy: { nom: "asc" },
-//     });
-
-//     res.json(communes);
-//   } catch (error) {
-//     console.error("Erreur liste communes users:", error);
-//     res.status(500).json({ error: "Erreur chargement communes" });
-//   }
-// });
-
 // GET /api/communes/users/communes/list - Liste des communes ACTIVES pour les formulaires
 router.get("/users/communes/list", authMiddleware, async (req, res) => {
   try {
