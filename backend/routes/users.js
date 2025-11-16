@@ -97,7 +97,7 @@ router.get("/communes/list", authMiddleware, async (req, res) => {
       (archive) => archive.entity_id
     );
 
-    const where = {};
+    const where = { actif: true };
     if (idsCommunesArchives.length > 0) {
       where.id = { notIn: idsCommunesArchives };
     }

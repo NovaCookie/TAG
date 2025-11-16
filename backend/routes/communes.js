@@ -129,9 +129,36 @@ router.get("/", authMiddleware, async (req, res) => {
   }
 });
 
+// router.get("/users/communes/list", authMiddleware, async (req, res) => {
+//   try {
+//     const communes = await prisma.communes.findMany({
+//       select: {
+//         id: true,
+//         nom: true,
+//         code_postal: true,
+//         population: true,
+//       },
+//       orderBy: { nom: "asc" },
+//     });
+
+//     res.json(communes);
+//   } catch (error) {
+//     console.error("Erreur liste communes users:", error);
+//     res.status(500).json({ error: "Erreur chargement communes" });
+//   }
+// });
+
+// GET /api/communes/users/communes/list - Liste des communes ACTIVES pour les formulaires
 router.get("/users/communes/list", authMiddleware, async (req, res) => {
   try {
+    // Récupérer les IDs des communes archivées
+    const archivedCommuneIds = await archiveService.getArchivedIds("communes");
+
     const communes = await prisma.communes.findMany({
+      where: {
+        actif: true,
+        id: { notIn: archivedCommuneIds },
+      },
       select: {
         id: true,
         nom: true,
@@ -246,7 +273,7 @@ router.put(
     try {
       const { nom, population, code_postal, actif } = req.body;
 
-      // Construire l'objet de mise à jour dynamiquement
+      // Construire l'objet pour mise à jour dynamiquement
       const updateData = {};
 
       if (nom !== undefined) updateData.nom = nom;
@@ -255,7 +282,7 @@ router.put(
       if (code_postal !== undefined) updateData.code_postal = code_postal;
       if (actif !== undefined) updateData.actif = actif;
 
-      // UTILISER updateData dans la requête
+      // Utiliser updateData dans la requête
       const commune = await prisma.communes.update({
         where: { id: parseInt(req.params.id) },
         data: updateData,
