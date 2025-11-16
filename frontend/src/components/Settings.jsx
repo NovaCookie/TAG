@@ -67,11 +67,11 @@ const Settings = () => {
   const [formData, setFormData] = useState({
     telephone: "",
     poste: "",
-    notificationsNouvellesQuestions: true,
-    notificationsReponses: true,
+    newQuestionNotif: true,
+    ResponseNotif: true,
     notificationsUrgentes: true,
     rappelsDelais: true,
-    currentPassword: "", // NOUVEAU: mot de passe actuel
+    currentPassword: "", 
     nouveauMotDePasse: "",
     confirmerMotDePasse: "",
   });
@@ -80,15 +80,15 @@ const Settings = () => {
   useEffect(() => {
     const loadUserData = async () => {
       try {
-        const userData = await profileAPI.getMe(); // CHANGEMENT ICI
+        const userData = await profileAPI.getMe(); 
 
         setFormData((prev) => ({
           ...prev,
           telephone: userData.telephone || "",
           poste: userData.poste || "",
           ...(userData.preferences_notifications || {
-            notificationsNouvellesQuestions: true,
-            notificationsReponses: true,
+            newQuestionNotif: true,
+            ResponseNotif: true,
             notificationsUrgentes: true,
             rappelsDelais: true,
           }),
@@ -227,8 +227,8 @@ const Settings = () => {
 
   const handleSaveNotifications = async () => {
     const preferences = {
-      notificationsNouvellesQuestions: formData.notificationsNouvellesQuestions,
-      notificationsReponses: formData.notificationsReponses,
+      newQuestionNotif: formData.newQuestionNotif,
+      ResponseNotif: formData.ResponseNotif,
       notificationsUrgentes: formData.notificationsUrgentes,
       rappelsDelais: formData.rappelsDelais,
     };
@@ -276,8 +276,8 @@ const Settings = () => {
           telephone: userData.telephone || "",
           poste: userData.poste || "",
           ...(userData.preferences_notifications || {
-            notificationsNouvellesQuestions: true,
-            notificationsReponses: true,
+            newQuestionNotif: true,
+            ResponseNotif: true,
             notificationsUrgentes: true,
             rappelsDelais: true,
           }),
@@ -302,14 +302,14 @@ const Settings = () => {
 
   const notificationToggles = [
     {
-      id: "notificationsNouvellesQuestions",
+      id: "newQuestionNotif",
       title: "Nouvelles questions",
       description:
         "Recevoir des notifications pour les nouvelles questions assignées",
       roles: ["juriste", "admin"],
     },
     {
-      id: "notificationsReponses",
+      id: "ResponseNotif",
       title: "Réponses reçues",
       description: "Alertes lorsque vos questions reçoivent une réponse",
       roles: ["commune"],

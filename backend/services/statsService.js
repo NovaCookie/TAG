@@ -29,21 +29,30 @@ class StatsService {
           where: { id: { notIn: archives.utilisateurs } },
         }),
         prisma.interventions.count({
-          where: { id: { notIn: archives.interventions } },
+          where: {
+            id: { notIn: archives.interventions },
+            est_faq: false, 
+          },
         }),
         prisma.interventions.count({
-          where: { id: { notIn: archives.interventions }, reponse: null },
+          where: {
+            id: { notIn: archives.interventions },
+            reponse: null,
+            est_faq: false, 
+          },
         }),
         prisma.interventions.count({
           where: {
             id: { notIn: archives.interventions },
             reponse: { not: null },
+            est_faq: false, 
           },
         }),
         prisma.interventions.aggregate({
           where: {
             id: { notIn: archives.interventions },
             satisfaction: { not: null },
+            est_faq: false, 
           },
           _avg: { satisfaction: true },
         }),
@@ -117,7 +126,12 @@ class StatsService {
       const communesWithInterventions = await prisma.communes.count({
         where: {
           id: { notIn: archives.communes },
-          interventions: { some: {} },
+          interventions: {
+            some: {
+              id: { notIn: archives.interventions },
+              est_faq: false, 
+            },
+          },
         },
       });
 
@@ -141,7 +155,10 @@ class StatsService {
       const themesWithInterventions = await prisma.themes.count({
         where: {
           interventions: {
-            some: { id: { notIn: archives.interventions } },
+            some: {
+              id: { notIn: archives.interventions },
+              est_faq: false, 
+            },
           },
         },
       });
@@ -163,7 +180,10 @@ class StatsService {
     try {
       const archives = await this._getArchivedIds();
 
-      let whereBase = { id: { notIn: archives.interventions } };
+      let whereBase = {
+        id: { notIn: archives.interventions },
+        est_faq: false, 
+      };
 
       // Si commune, ne voir que ses interventions
       if (userRole === "commune") {
@@ -211,7 +231,7 @@ class StatsService {
     }
   }
 
-  // === MÉTHODE ADVANCED STATS (ANCIENNEMENT DANS themes.js) ===
+  // === MÉTHODE ADVANCED STATS ===
 
   async getAdvancedStats(filters = {}) {
     try {
@@ -221,6 +241,7 @@ class StatsService {
       let whereBase = {
         id: { notIn: archives.interventions },
         commune: { id: { notIn: archives.communes } },
+        est_faq: false, 
       };
 
       // Filtres date
@@ -538,31 +559,6 @@ class StatsService {
       satisfactionGlobale: satisfactionGlobale._avg.satisfaction || 0,
     };
   }
-
-  // async getRetentionStats() {
-  //   const policies = await prisma.retentionPolicy.findMany({
-  //     include: {
-  //       theme: true,
-  //       _count: {
-  //         select: {
-  //           theme: {
-  //             interventions: {
-  //               where: {
-  //                 date_reponse: { not: null },
-  //               },
-  //             },
-  //           },
-  //         },
-  //       },
-  //     },
-  //   });
-
-  //   return policies.map((policy) => ({
-  //     theme: policy.theme.designation,
-  //     duree_mois: policy.duree_mois,
-  //     interventions_concernées: policy._count.theme.interventions,
-  //   }));
-  // }
 }
 
 module.exports = new StatsService();

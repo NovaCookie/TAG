@@ -24,7 +24,7 @@ const Sidebar = ({ isOpen, onToggle }) => {
     communes: "🏠",
     themes: "🏷️",
     settings: "⚙️",
-    support: "❔",
+    Faq: "❔",
   };
 
   return (
@@ -143,11 +143,11 @@ const Sidebar = ({ isOpen, onToggle }) => {
             isActive={isActive("/settings")}
           />
           <SidebarLink
-            to="/support"
-            icon={ICONS.support}
-            title="Support"
+            to="/Faq"
+            icon={ICONS.Faq}
+            title="Faq"
             isOpen={isOpen}
-            isActive={isActive("/support")}
+            isActive={isActive("/Faq")}
           />
         </SidebarSection>
       </div>

@@ -2,8 +2,9 @@
 CREATE TABLE "Communes" (
     "id" SERIAL NOT NULL,
     "nom" TEXT NOT NULL,
-    "code_postal" TEXT NOT NULL,
+    "code_postal" TEXT,
     "population" INTEGER NOT NULL,
+    "actif" BOOLEAN NOT NULL DEFAULT true,
     "date_creation" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Communes_pkey" PRIMARY KEY ("id")
@@ -13,6 +14,7 @@ CREATE TABLE "Communes" (
 CREATE TABLE "Themes" (
     "id" SERIAL NOT NULL,
     "designation" TEXT NOT NULL,
+    "actif" BOOLEAN NOT NULL DEFAULT true,
     "date_creation" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Themes_pkey" PRIMARY KEY ("id")
@@ -26,13 +28,17 @@ CREATE TABLE "Utilisateurs" (
     "prenom" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "mot_de_passe" TEXT NOT NULL,
+    "actif" BOOLEAN NOT NULL DEFAULT true,
     "date_creation" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "telephone" TEXT,
+    "poste" TEXT,
+    "preferences_notifications" JSONB,
     "reset_token" TEXT,
     "reset_token_expiry" TIMESTAMP(3),
     "email_temp" TEXT,
     "email_confirmation_token" TEXT,
     "email_confirmation_expiry" TIMESTAMP(3),
-    "commune_id" INTEGER NOT NULL,
+    "commune_id" INTEGER,
 
     CONSTRAINT "Utilisateurs_pkey" PRIMARY KEY ("id")
 );
@@ -42,16 +48,17 @@ CREATE TABLE "Interventions" (
     "id" SERIAL NOT NULL,
     "titre" TEXT,
     "description" TEXT,
-    "date_question" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "reponse" TEXT,
-    "date_reponse" TIMESTAMP(3),
     "notes" TEXT,
     "satisfaction" INTEGER,
-    "date_creation" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "date_question" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "date_reponse" TIMESTAMP(3),
+    "est_faq" BOOLEAN NOT NULL DEFAULT false,
+    "date_publication_faq" TIMESTAMP(3),
     "commune_id" INTEGER NOT NULL,
     "demandeur_id" INTEGER NOT NULL,
     "juriste_id" INTEGER,
-    "theme_id" INTEGER NOT NULL,
+    "theme_id" INTEGER,
 
     CONSTRAINT "Interventions_pkey" PRIMARY KEY ("id")
 );

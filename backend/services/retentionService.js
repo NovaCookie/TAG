@@ -109,7 +109,7 @@ class RetentionService {
 
   // Méthode pour tester manuellement
   async testAutoArchive() {
-    console.log("🧪 Test manuel de l'archivage automatique...");
+    console.log("Test manuel de l'archivage automatique...");
     return await this.autoArchiveExpiredInterventions();
   }
 

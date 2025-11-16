@@ -103,13 +103,25 @@ const LoginForm = () => {
           </button>
         </form>
 
-        <div className="mt-8 text-sm text-center">
-          <Link
-            to="/auth/forgot-password"
-            className="text-primary hover:text-primary-light hover:underline transition-colors"
-          >
-            Mot de passe oublié ?
-          </Link>
+        <div className="mt-8 space-y-3 text-sm text-center">
+          {/* Lien de création de compte à côté de "Mot de passe oublié" */}
+          <div className="flex justify-between items-center">
+            <Link
+              to="/auth/forgot-password"
+              className="text-primary hover:text-primary-light hover:underline transition-colors"
+            >
+              Mot de passe oublié ?
+            </Link>
+
+            <span className="text-light-gray">•</span>
+
+            <Link
+              to="/auth/register"
+              className="text-primary hover:text-primary-light hover:underline transition-colors"
+            >
+              Pas encore de compte ?
+            </Link>
+          </div>
         </div>
       </div>
     </div>

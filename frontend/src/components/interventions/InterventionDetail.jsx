@@ -4,10 +4,12 @@ import { useAuth } from "../../context/AuthContext";
 import Layout from "../layout/Layout";
 import StatusBadge from "../common/StatusBadge";
 import { formatDate } from "../../utils/helpers";
+import ToggleSwitch from "../common/ToggleSwitch";
 import {
   archivesAPI,
   interventionsAPI,
   suggestionsAPI,
+  faqAPI,
 } from "../../services/api";
 import { useNavigation } from "../../hooks/useNavigation";
 
@@ -42,6 +44,9 @@ const InterventionDetail = () => {
 
   const [similarCount, setSimilarCount] = useState(0);
   const [isLoadingSimilar, setIsLoadingSimilar] = useState(false);
+
+  const [isFAQ, setIsFAQ] = useState(false);
+  const [faqLoading, setFaqLoading] = useState(false);
 
   useEffect(() => {
     const loadSimilarCount = async () => {
@@ -84,6 +89,7 @@ const InterventionDetail = () => {
       if (res?.data) {
         setIntervention(res.data);
         setSatisfactionNote(res.data.satisfaction || 0);
+        setIsFAQ(res.data.est_faq || false); // Correction: utiliser est_faq au lieu de is_faq
 
         const archiveStatus = await checkArchiveStatus(id);
         setArchiveInfo(archiveStatus);
@@ -129,6 +135,27 @@ const InterventionDetail = () => {
       setLoading(false);
     }
   }, [id, fetchIntervention]);
+
+  // FONCTION POUR GÉRER LE TOGGLE Faq
+  const handleFAQToggle = async (checked) => {
+    if (!intervention) return;
+
+    setFaqLoading(true);
+    try {
+      if (checked) {
+        await faqAPI.addToFAQ(intervention.id);
+      } else {
+        await faqAPI.removeFromFAQ(intervention.id);
+      }
+      setIsFAQ(checked);
+    } catch (error) {
+      console.error("Erreur modification Faq:", error);
+      // Revert the toggle on error
+      setIsFAQ(!checked);
+    } finally {
+      setFaqLoading(false);
+    }
+  };
 
   const handleOpenDeleteModal = () => {
     setShowDeleteModal(true);
@@ -724,7 +751,7 @@ const InterventionDetail = () => {
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
             <p className="text-tertiary">Chargement de l'intervention...</p>
-            <p className="text-sm text-tertiary mt-2">ID: {id}</p>
+            <p className="text-sm text-tertiary mt-2">ID : {id}</p>
           </div>
         </div>
       </Layout>
@@ -740,10 +767,10 @@ const InterventionDetail = () => {
           </h2>
           <div className="text-tertiary mb-4 space-y-2">
             <p>
-              ID de l'intervention: <strong>{id}</strong>
+              ID de l'intervention : <strong>{id}</strong>
             </p>
             <p>
-              Rôle utilisateur: <strong>{user?.role}</strong>
+              Rôle utilisateur : <strong>{user?.role}</strong>
             </p>
           </div>
           <Link
@@ -991,7 +1018,7 @@ const InterventionDetail = () => {
 
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-tertiary">Statut:</span>
+                <span className="text-tertiary">Statut :</span>
                 <div className="flex items-center gap-2">
                   <StatusBadge status={status} />
                   {isArchived && (
@@ -1012,7 +1039,7 @@ const InterventionDetail = () => {
               )}
 
               <div className="flex justify-between">
-                <span className="text-tertiary">Date de création:</span>
+                <span className="text-tertiary">Date de création :</span>
                 <span className="text-tertiary">
                   {formatDate(intervention.date_question)}
                 </span>
@@ -1020,7 +1047,7 @@ const InterventionDetail = () => {
 
               {intervention.date_reponse && (
                 <div className="flex justify-between">
-                  <span className="text-tertiary">Date de réponse:</span>
+                  <span className="text-tertiary">Date de réponse :</span>
                   <span className="text-tertiary">
                     {formatDate(intervention.date_reponse)}
                   </span>
@@ -1049,6 +1076,23 @@ const InterventionDetail = () => {
                   </div>
                 </div>
               )}
+
+              {/* TOGGLE Faq DANS LA SECTION STATUT */}
+              {(user?.role === "admin" || user?.role === "juriste") &&
+                intervention.reponse &&
+                !isArchived && (
+                  <div className="flex justify-between items-center pt-2 border-t border-light-gray">
+                    <div>
+                      <span className="text-tertiary">Faq :</span>
+                    </div>
+                    <ToggleSwitch
+                      checked={isFAQ}
+                      onChange={handleFAQToggle}
+                      disabled={faqLoading}
+                      title={isFAQ ? "Retirer de la Faq" : "Ajouter à la Faq"}
+                    />
+                  </div>
+                )}
             </div>
           </div>
 

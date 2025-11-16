@@ -25,6 +25,11 @@ class FilterService {
 
     const where = {};
 
+    // Exclusion des questions faq
+    if (!isArchive) {
+      where.est_faq = false;
+    }
+
     // Filtre par rôle utilisateur
     if (user.role === "commune") {
       where.demandeur_id = user.id;
@@ -235,7 +240,7 @@ class FilterService {
     if (archivedIds.length > 0) {
       where.id = { in: archivedIds };
     } else {
-      where.id = { in: [] }; // Aucune intervention archivée
+      where.id = { in: [] };
     }
 
     return this._findInterventions(where, pagination, include, orderBy);

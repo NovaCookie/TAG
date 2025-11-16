@@ -304,5 +304,34 @@ router.delete(
     }
   }
 );
+// GET /api/communes/public/list - Liste publique des communes actives (pour inscription)
+router.get("/public/list", async (req, res) => {
+  try {
+    const communes = await prisma.communes.findMany({
+      where: {
+        actif: true,
+      },
+      select: {
+        id: true,
+        nom: true,
+        code_postal: true,
+        population: true,
+      },
+      orderBy: { nom: "asc" },
+    });
+
+    res.json({
+      success: true,
+      communes: communes,
+      count: communes.length,
+    });
+  } catch (error) {
+    console.error("Erreur liste publique communes:", error);
+    res.status(500).json({
+      success: false,
+      error: "Erreur chargement communes",
+    });
+  }
+});
 
 module.exports = router;

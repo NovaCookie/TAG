@@ -10,6 +10,7 @@ import { ThemeProvider } from "./context/ThemeContext";
 import { SidebarProvider } from "./context/SidebarContext";
 
 // === Main Pages ===
+import RegisterForm from "./components/auth/RegisterForm";
 import LoginForm from "./components/LoginForm";
 import Dashboard from "./components/Dashboard";
 import AdvancedStats from "./components/stats/AdvancedStats";
@@ -18,7 +19,8 @@ import Users from "./components/Users";
 import Communes from "./components/Communes";
 import Themes from "./components/Themes";
 import Settings from "./components/Settings";
-import Support from "./components/Support";
+import Faq from "./components/Faq";
+import NewFaqQuestion from "./components/faq/NewFaqQuestion";
 
 // === Auth Pages ===
 import PasswordForgot from "./components/auth/PasswordForgot";
@@ -109,6 +111,15 @@ function App() {
             <div className="App">
               <Routes>
                 {/* === Authentication === */}
+
+                <Route
+                  path="/auth/register"
+                  element={
+                    <PublicRoute>
+                      <RegisterForm />
+                    </PublicRoute>
+                  }
+                />
                 <Route
                   path="/auth/login"
                   element={
@@ -274,7 +285,7 @@ function App() {
                   }
                 />
 
-                {/* === Settings & Support === */}
+                {/* === Settings & Faq === */}
                 <Route
                   path="/settings"
                   element={
@@ -284,10 +295,19 @@ function App() {
                   }
                 />
                 <Route
-                  path="/support"
+                  path="/faq"
                   element={
                     <ProtectedRoute>
-                      <Support />
+                      <Faq />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/faq/new"
+                  element={
+                    <ProtectedRoute>
+                      <NewFaqQuestion />
                     </ProtectedRoute>
                   }
                 />

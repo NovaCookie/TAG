@@ -11,6 +11,7 @@ const SelectFieldCommune = ({
   const [listeOuverteCommune, setListeOuverteCommune] = useState(false);
   const [rechercheCommune, setRechercheCommune] = useState("");
   const dropdownRefCommune = useRef(null);
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
@@ -47,6 +48,7 @@ const SelectFieldCommune = ({
     setRechercheCommune("");
   };
 
+  // Fonction pour formater l'affichage de la commune sélectionnée
   const getDisplayText = () => {
     if (!communeSelectionnee) {
       return "Sélectionnez une commune";
@@ -112,9 +114,6 @@ const SelectFieldCommune = ({
             {communesFiltrees.length > 0 ? (
               communesFiltrees.map((commune) => {
                 const estSelectionnee = value === commune.id.toString();
-                const hasActif = commune.actif !== undefined;
-                const isActive = hasActif ? commune.actif : true;
-
                 return (
                   <div
                     key={commune.id}
@@ -175,16 +174,16 @@ const SelectFieldCommune = ({
                           </span>
                         </div>
                       </div>
-                      {hasActif && (
+                      {commune.actif !== undefined && (
                         <div
                           className={`flex-shrink-0 text-xs px-2 py-1 rounded font-semibold
                             ${
-                              isActive
+                              commune.actif
                                 ? "bg-success text-white"
                                 : "bg-warning text-white"
                             }`}
                         >
-                          {isActive ? "active" : "inactive"}
+                          {commune.actif ? "active" : "inactive"}
                         </div>
                       )}
                     </div>

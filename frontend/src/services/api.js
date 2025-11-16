@@ -8,9 +8,30 @@ const api = axios.create({
 });
 
 // === Add JWT Token Automatically ===
+// api.interceptors.request.use((config) => {
+//   const token = localStorage.getItem("token");
+//   if (token) config.headers.Authorization = `Bearer ${token}`;
+//   return config;
+// });
 api.interceptors.request.use((config) => {
+  const publicRoutes = [
+    "/auth/login",
+    "/auth/register/public",
+    "/auth/forgot-password",
+    "/auth/reset-password",
+    "/communes/public/list",
+  ];
+
+  const isPublicRoute = publicRoutes.some((route) =>
+    config.url.includes(route)
+  );
+
   const token = localStorage.getItem("token");
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+
+  if (token && !isPublicRoute) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
   return config;
 });
 
@@ -52,7 +73,8 @@ api.interceptors.response.use(
 // === Auth ===
 export const authAPI = {
   login: (credentials) => api.post("/auth/login", credentials),
-  register: (userData) => api.post("/auth/register", userData),
+  // register: (userData) => api.post("/auth/register", userData),
+  registerPublic: (userData) => api.post("/auth/register/public", userData),
   forgotPassword: (data) => api.post("/auth/forgot-password", data),
   resetPassword: (data) => api.post("/auth/reset-password", data),
   changePassword: (data) => api.post("/auth/change-password", data),
@@ -134,6 +156,7 @@ export const usersAPI = {
 // === Communes ===
 export const communesAPI = {
   getAll: (params) => api.get("/communes", { params }),
+  getPublicList: () => api.get("/communes/public/list"),
   getById: (id) => api.get(`/communes/${id}`),
   create: (data) => api.post("/communes", data),
   update: (id, data) => api.put(`/communes/${id}`, data),
@@ -169,6 +192,15 @@ export const suggestionsAPI = {
     api.get(`/suggestions/interventions/${interventionId}/similar/count`),
   getSimilarForNew: (data) =>
     api.post("/suggestions/interventions/similar", data),
+};
+
+// === Faq ===
+export const faqAPI = {
+  getAll: (params) => api.get("/faq", { params }),
+  createQuestion: (data) => api.post("/faq/questions", data),
+  publish: (id) => api.post(`/faq/${id}/publish`),
+  unpublish: (id) => api.post(`/faq/${id}/unpublish`),
+  getSimilar: (params) => api.get("/faq/similar", { params }),
 };
 
 // === Profile (pour l'utilisateur connecté) ===

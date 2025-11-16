@@ -13,7 +13,7 @@ const Interventions = () => {
   const { user } = useAuth();
   const [interventions, setInterventions] = useState([]);
   const [themes, setThemes] = useState([]);
-  const [communes, setCommunes] = useState([]);
+  const [municipalities, setMunicipalities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -21,7 +21,7 @@ const Interventions = () => {
   const [filters, setFilters] = useState({
     status: "all",
     theme: "all",
-    commune: "all",
+    municipality: "all",
     dateStart: "",
     dateEnd: "",
   });
@@ -34,7 +34,7 @@ const Interventions = () => {
 
   const debouncedSearch = useDebounce(searchInput, 500);
 
-  const canFilterByCommune = useCallback(() => {
+  const canFilterByMunicipality = useCallback(() => {
     return ["admin", "juriste"].includes(user?.role);
   }, [user]);
 
@@ -50,7 +50,7 @@ const Interventions = () => {
 
         if (filters.status !== "all") params.status = filters.status;
         if (filters.theme !== "all") params.theme = filters.theme;
-        if (filters.commune !== "all") params.commune = filters.commune;
+        if (filters.municipality !== "all") params.commune = filters.municipality;
         if (filters.dateStart) params.dateStart = filters.dateStart;
         if (filters.dateEnd) params.dateEnd = filters.dateEnd;
         if (searchTerm.trim() !== "") params.search = searchTerm;
@@ -83,10 +83,10 @@ const Interventions = () => {
     }
   }, []);
 
-  const fetchCommunes = useCallback(async () => {
+  const fetchMunicipalities = useCallback(async () => {
     try {
       const response = await usersAPI.getCommunesList();
-      setCommunes(response.data);
+      setMunicipalities(response.data);
     } catch (error) {
       console.error("Erreur chargement communes:", error);
     }
@@ -98,8 +98,8 @@ const Interventions = () => {
 
   useEffect(() => {
     fetchThemes();
-    if (canFilterByCommune()) fetchCommunes();
-  }, [fetchThemes, fetchCommunes, canFilterByCommune]);
+    if (canFilterByMunicipality()) fetchMunicipalities();
+  }, [fetchThemes, fetchMunicipalities, canFilterByMunicipality]);
 
   useEffect(() => {
     if (debouncedSearch !== undefined) {
@@ -152,11 +152,11 @@ const Interventions = () => {
     })),
   ];
 
-  const communeOptions = [
+  const municipalityOptions = [
     { value: "all", label: "Toutes les communes" },
-    ...communes.map((commune) => ({
-      value: commune.id.toString(),
-      label: commune.nom,
+    ...municipalities.map((municipality) => ({
+      value: municipality.id.toString(),
+      label: municipality.nom,
     })),
   ];
 
@@ -247,15 +247,15 @@ const Interventions = () => {
             />
           </div>
 
-          {canFilterByCommune() && (
+          {canFilterByMunicipality() && (
             <div>
               <label className="block text-sm font-medium text-secondary mb-2">
                 Commune
               </label>
               <SelectField
-                value={filters.commune}
-                onChange={(e) => handleFilterChange("commune", e.target.value)}
-                options={communeOptions}
+                value={filters.municipality}
+                onChange={(e) => handleFilterChange("municipality", e.target.value)}
+                options={municipalityOptions}
                 placeholder="Toutes les communes"
               />
             </div>

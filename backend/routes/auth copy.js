@@ -4,30 +4,15 @@ const jwt = require("jsonwebtoken");
 const { PrismaClient } = require("@prisma/client");
 const crypto = require("crypto");
 const emailService = require("../services/emailService");
-const archiveService = require("../services/archiveService");
+const archiveService = require("../services/archiveService"); // IMPORTANT
 const { authMiddleware } = require("../middleware/auth");
 const prisma = new PrismaClient();
 const router = express.Router();
 
-// Route d'inscription publique pour les communes
-router.post("/register/public", async (req, res) => {
+// Route d'inscription
+router.post("/register", async (req, res) => {
   try {
-    const { nom, prenom, email, mot_de_passe, commune_id } = req.body;
-
-    // Validation des données
-    if (!nom || !prenom || !email || !mot_de_passe || !commune_id) {
-      return res.status(400).json({
-        error: "Tous les champs sont obligatoires",
-      });
-    }
-
-    // Validation de l'email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return res.status(400).json({
-        error: "Format d'email invalide",
-      });
-    }
+    const { nom, prenom, email, mot_de_passe, role, commune_id } = req.body;
 
     // Vérifier si l'utilisateur existe déjà
     const existingUser = await prisma.utilisateurs.findUnique({
@@ -38,41 +23,18 @@ router.post("/register/public", async (req, res) => {
       return res.status(400).json({ error: "Cet email est déjà utilisé" });
     }
 
-    // Vérifier que la commune existe et est active
-    const commune = await prisma.communes.findFirst({
-      where: {
-        id: parseInt(commune_id),
-        actif: true,
-      },
-    });
-
-    if (!commune) {
-      return res.status(400).json({
-        error:
-          "Commune non trouvée ou non adhérente au service TAG. Contactez l'administration si votre commune devrait avoir accès.",
-      });
-    }
-
-    // Vérifier la force du mot de passe
-    if (mot_de_passe.length < 6) {
-      return res.status(400).json({
-        error: "Le mot de passe doit contenir au moins 6 caractères",
-      });
-    }
-
     // Hasher le mot de passe
     const hashedPassword = await bcrypt.hash(mot_de_passe, 12);
 
-    // Créer l'utilisateur avec le rôle "commune"
+    // Créer l'utilisateur
     const user = await prisma.utilisateurs.create({
       data: {
-        nom: nom.trim(),
-        prenom: prenom.trim(),
-        email: email.toLowerCase().trim(),
+        nom,
+        prenom,
+        email,
         mot_de_passe: hashedPassword,
-        role: "commune",
-        commune_id: parseInt(commune_id),
-        actif: true,
+        role,
+        commune_id: role === "commune" ? commune_id : null,
       },
     });
 
@@ -83,123 +45,6 @@ router.post("/register/public", async (req, res) => {
       { expiresIn: "24h" }
     );
 
-    // Email de bienvenue
-    try {
-      await emailService.sendWelcomeEmail(user);
-    } catch (emailError) {
-      console.error("Erreur envoi email bienvenue:", emailError);
-      // Ne pas bloquer l'inscription si l'email échoue
-    }
-
-    res.status(201).json({
-      message: "Compte créé avec succès",
-      token,
-      user: {
-        id: user.id,
-        nom: user.nom,
-        prenom: user.prenom,
-        email: user.email,
-        role: user.role,
-        commune_id: user.commune_id,
-      },
-    });
-  } catch (error) {
-    console.error("Erreur inscription publique:", error);
-
-    // Gestion des erreurs Prisma spécifiques
-    if (error.code === "P2002") {
-      return res.status(400).json({ error: "Cet email est déjà utilisé" });
-    }
-
-    res.status(500).json({
-      error: "Erreur lors de l'inscription. Veuillez réessayer.",
-    });
-  }
-});
-
-// Route d'inscription pour les administrateurs (création manuelle)
-router.post("/register", authMiddleware, async (req, res) => {
-  try {
-    // Seul un admin peut créer des comptes manuellement
-    if (req.user.role !== "admin") {
-      return res.status(403).json({
-        error: "Accès refusé. Seul un administrateur peut créer des comptes.",
-      });
-    }
-
-    const { nom, prenom, email, mot_de_passe, role, commune_id } = req.body;
-
-    // Validation des données
-    if (!nom || !prenom || !email || !mot_de_passe || !role) {
-      return res.status(400).json({
-        error: "Tous les champs obligatoires doivent être remplis",
-      });
-    }
-
-    // Validation du rôle
-    const rolesValides = ["admin", "juriste", "commune"];
-    if (!rolesValides.includes(role)) {
-      return res.status(400).json({
-        error: "Rôle invalide. Rôles autorisés: admin, juriste, commune",
-      });
-    }
-
-    // Si rôle = commune, vérifier la commune
-    if (role === "commune" && !commune_id) {
-      return res.status(400).json({
-        error:
-          "Une commune doit être associée aux utilisateurs de type 'commune'",
-      });
-    }
-
-    if (role === "commune") {
-      const commune = await prisma.communes.findFirst({
-        where: {
-          id: parseInt(commune_id),
-          actif: true,
-        },
-      });
-
-      if (!commune) {
-        return res.status(400).json({
-          error: "Commune non trouvée ou inactive",
-        });
-      }
-    }
-
-    // Vérifier si l'utilisateur existe déjà
-    const existingUser = await prisma.utilisateurs.findUnique({
-      where: { email },
-    });
-
-    if (existingUser) {
-      return res.status(400).json({ error: "Cet email est déjà utilisé" });
-    }
-
-    // Vérifier la force du mot de passe
-    if (mot_de_passe.length < 6) {
-      return res.status(400).json({
-        error: "Le mot de passe doit contenir au moins 6 caractères",
-      });
-    }
-
-    // Hasher le mot de passe
-    const hashedPassword = await bcrypt.hash(mot_de_passe, 12);
-
-    // Créer l'utilisateur
-    const user = await prisma.utilisateurs.create({
-      data: {
-        nom: nom.trim(),
-        prenom: prenom.trim(),
-        email: email.toLowerCase().trim(),
-        mot_de_passe: hashedPassword,
-        role,
-        commune_id: role === "commune" ? parseInt(commune_id) : null,
-        actif: true,
-      },
-    });
-
-    // Email de bienvenue
     try {
       await emailService.sendWelcomeEmail(user);
     } catch (emailError) {
@@ -208,25 +53,18 @@ router.post("/register", authMiddleware, async (req, res) => {
 
     res.status(201).json({
       message: "Utilisateur créé avec succès",
+      token,
       user: {
         id: user.id,
         nom: user.nom,
         prenom: user.prenom,
         email: user.email,
         role: user.role,
-        commune_id: user.commune_id,
       },
     });
   } catch (error) {
-    console.error("Erreur inscription admin:", error);
-
-    if (error.code === "P2002") {
-      return res.status(400).json({ error: "Cet email est déjà utilisé" });
-    }
-
-    res
-      .status(500)
-      .json({ error: "Erreur lors de la création de l'utilisateur" });
+    console.error("Erreur inscription:", error);
+    res.status(500).json({ error: "Erreur lors de l'inscription" });
   }
 });
 
@@ -235,16 +73,9 @@ router.post("/login", async (req, res) => {
   try {
     const { email, mot_de_passe } = req.body;
 
-    // Validation basique
-    if (!email || !mot_de_passe) {
-      return res.status(400).json({
-        error: "L'email et le mot de passe sont requis",
-      });
-    }
-
     // Trouver l'utilisateur
     const user = await prisma.utilisateurs.findUnique({
-      where: { email: email.toLowerCase().trim() },
+      where: { email },
     });
 
     if (!user) {
@@ -313,10 +144,10 @@ router.post("/forgot-password", async (req, res) => {
 
     // Trouver l'utilisateur
     const user = await prisma.utilisateurs.findUnique({
-      where: { email: email.toLowerCase().trim() },
+      where: { email },
     });
 
-    // Ne pas révéler si l'email existe ou non (sécurité)
+    // Ne pas révéler si l'email existe ou non
     if (!user) {
       return res.json({
         message: "Si l'email existe, un lien de réinitialisation a été envoyé",
@@ -329,13 +160,6 @@ router.post("/forgot-password", async (req, res) => {
       user.id
     );
     if (archiveStatus.archived) {
-      return res.json({
-        message: "Si l'email existe, un lien de réinitialisation a été envoyé",
-      });
-    }
-
-    // Vérifier si le compte est actif
-    if (!user.actif) {
       return res.json({
         message: "Si l'email existe, un lien de réinitialisation a été envoyé",
       });
@@ -354,12 +178,14 @@ router.post("/forgot-password", async (req, res) => {
       },
     });
 
-    // Envoyer email avec resend
-    try {
-      await emailService.sendPasswordResetEmail(user, resetToken);
-    } catch (emailError) {
-      console.error("Erreur envoi email réinitialisation:", emailError);
-      // Ne pas révéler l'erreur à l'utilisateur pour des raisons de sécurité
+    // envoie email avec resend
+    const emailResult = await emailService.sendPasswordResetEmail(
+      user,
+      resetToken
+    );
+
+    if (!emailResult.success) {
+      console.error("Erreur envoi email :", emailResult.error);
     }
 
     res.json({
@@ -386,7 +212,7 @@ router.post("/reset-password", async (req, res) => {
 
     if (newPassword.length < 6) {
       return res.status(400).json({
-        error: "Le mot de passe doit contenir au moins 6 caractères",
+        error: "Le mot de passe doit faire au moins 6 caractères",
       });
     }
 
@@ -413,13 +239,6 @@ router.post("/reset-password", async (req, res) => {
     if (archiveStatus.archived) {
       return res.status(410).json({
         error: "Compte archivé. Réinitialisation impossible.",
-      });
-    }
-
-    // Vérifier si le compte est actif
-    if (!user.actif) {
-      return res.status(401).json({
-        error: "Compte désactivé. Réinitialisation impossible.",
       });
     }
 
@@ -458,7 +277,7 @@ router.post("/change-password", authMiddleware, async (req, res) => {
 
     if (newPassword.length < 6) {
       return res.status(400).json({
-        error: "Le nouveau mot de passe doit contenir au moins 6 caractères",
+        error: "Le nouveau mot de passe doit faire au moins 6 caractères",
       });
     }
 
@@ -490,14 +309,6 @@ router.post("/change-password", authMiddleware, async (req, res) => {
 
     if (!validPassword) {
       return res.status(400).json({ error: "Mot de passe actuel incorrect" });
-    }
-
-    // Vérifier que le nouveau mot de passe est différent
-    const samePassword = await bcrypt.compare(newPassword, user.mot_de_passe);
-    if (samePassword) {
-      return res.status(400).json({
-        error: "Le nouveau mot de passe doit être différent de l'actuel",
-      });
     }
 
     // Hasher le nouveau mot de passe

@@ -84,6 +84,9 @@ model Interventions {
   satisfaction    Int?
   date_question   DateTime  @default(now())
   date_reponse    DateTime?
+  
+  est_faq         Boolean   @default(false)
+  date_publication_faq DateTime?
 
   commune_id      Int
   demandeur_id    Int
