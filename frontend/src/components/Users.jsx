@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
-import { useTheme } from "../context/ThemeContext";
 import { useNavigate } from "react-router-dom";
 import Layout from "./layout/Layout";
 import Pagination from "./common/Pagination";
@@ -12,7 +11,6 @@ import { useDebounce } from "../hooks/useDebounce";
 
 const Users = () => {
   const { user } = useAuth();
-  const { isMobile } = useTheme();
   const navigate = useNavigate();
   const { loading, error, callApi, resetError } = useApi();
   const { pagination, updatePagination, goToPage } = usePagination();

@@ -1,11 +1,9 @@
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { useTheme } from "../../context/ThemeContext";
 import ToggleSwitch from "../common/ToggleSwitch";
 
 const ThemeCard = ({ theme, onStatusChange }) => {
   const { user: currentUser } = useAuth();
-  const { isMobile } = useTheme();
   const navigate = useNavigate();
 
   const handleClick = () => {
@@ -101,7 +99,7 @@ const ThemeCard = ({ theme, onStatusChange }) => {
               </div>
             )}
 
-            {/* Affichage statut seulement pour non-admin/juriste */}
+            {/* Affichage statut seulement pour admin/juriste */}
             {!(
               currentUser?.role === "admin" || currentUser?.role === "juriste"
             ) && (
@@ -115,7 +113,6 @@ const ThemeCard = ({ theme, onStatusChange }) => {
             )}
           </div>
 
-          {/* Bloc infos (2 colonnes) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             {/* Colonne gauche - Informations générales */}
             <div className="space-y-2">
@@ -131,7 +128,6 @@ const ThemeCard = ({ theme, onStatusChange }) => {
                     {themeData.interventions_count || 0}
                   </span>
                   <span>
-                    {/* Nombre d'interventions */}
                     intervention
                     {themeData.interventions_count !== 1 ? "s" : ""}
                   </span>

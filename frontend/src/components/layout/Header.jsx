@@ -29,7 +29,8 @@ const Header = () => {
 
       <div className="flex items-center gap-4">
         {/* Toggle du thème */}
-        <button
+        {/* Implémentation non fini, l'enlever ? */}
+        {/* <button
           onClick={toggleTheme}
           className="p-2 transition-all duration-300 bg-light text-secondary hover:bg-light-gray dark:bg-dark-card dark:text-dark-tertiary dark:hover:bg-gray-700"
           title={
@@ -37,7 +38,7 @@ const Header = () => {
           }
         >
           {theme === "dark" ? "☀️" : "🌙"}
-        </button>
+        </button> */}
 
         <div className="text-right hidden sm:block">
           <div className="font-medium text-secondary">

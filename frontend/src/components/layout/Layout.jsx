@@ -4,7 +4,7 @@ import Sidebar from "../sidebar/Sidebar";
 import { SidebarContext } from "../../context/SidebarContext";
 
 const Layout = ({ children }) => {
-  const { isOpen, setIsOpen } = useContext(SidebarContext);
+  const { isOpen } = useContext(SidebarContext);
 
   return (
     <div className="h-screen flex flex-col bg-page font-sans overflow-hidden">

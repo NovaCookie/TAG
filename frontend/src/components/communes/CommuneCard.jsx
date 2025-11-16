@@ -1,12 +1,9 @@
-// components/communes/CommuneCard.jsx
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { useTheme } from "../../context/ThemeContext";
 import ToggleSwitch from "../common/ToggleSwitch";
 
 const CommuneCard = ({ commune, onStatusChange }) => {
   const { user: currentUser } = useAuth();
-  const { isMobile } = useTheme();
   const navigate = useNavigate();
 
   const handleClick = () => {
@@ -93,7 +90,6 @@ const CommuneCard = ({ commune, onStatusChange }) => {
             )}
           </div>
 
-          {/* Bloc infos (2 colonnes) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             {/* Colonne gauche - Informations générales */}
             <div className="space-y-2">

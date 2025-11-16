@@ -63,7 +63,7 @@ const NewCommune = () => {
         population: parseInt(formData.population),
       };
 
-      const response = await communesAPI.create(communeData);
+      await communesAPI.create(communeData);
 
       setSuccessMessage("Commune créée avec succès");
 
@@ -75,11 +75,10 @@ const NewCommune = () => {
           },
         });
       }, 1500);
-    } catch (error) {
-      console.error("Erreur création commune:", error);
+    } catch (err) {
+      console.error("Erreur création commune:", err);
       setError(
-        error.response?.data?.error ||
-          "Erreur lors de la création de la commune"
+        err.response?.data?.error || "Erreur lors de la création de la commune"
       );
     } finally {
       setLoading(false);
@@ -183,7 +182,7 @@ const NewCommune = () => {
                 name="code_postal"
                 value={formData.code_postal}
                 onChange={(e) => {
-                  const value = e.target.value.replace(/[^0-9\-]/g, "");
+                  const value = e.target.value.replace(/[^0-9-]/g, "");
                   if (value.length <= 10) {
                     setFormData((prev) => ({ ...prev, code_postal: value }));
                   }

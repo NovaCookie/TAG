@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import Layout from "../layout/Layout";
@@ -23,11 +23,7 @@ const EditTheme = () => {
 
   const [policyId, setPolicyId] = useState(null);
 
-  useEffect(() => {
-    loadThemeData();
-  }, [id]);
-
-  const loadThemeData = async () => {
+  const loadThemeData = useCallback(async () => {
     try {
       setLoadingData(true);
 
@@ -55,7 +51,11 @@ const EditTheme = () => {
     } finally {
       setLoadingData(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    loadThemeData();
+  }, [loadThemeData]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -337,7 +337,6 @@ const EditTheme = () => {
                 >
                   Annuler
                 </Link>
-                {/* Bouton Supprimer visible uniquement pour l'admin */}
                 {user?.role === "admin" && (
                   <button
                     type="button"
