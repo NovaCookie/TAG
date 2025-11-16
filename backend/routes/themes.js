@@ -1,4 +1,3 @@
-// routes/themes.js
 const express = require("express");
 const { PrismaClient } = require("@prisma/client");
 const { authMiddleware, requireRole } = require("../middleware/auth");
@@ -44,6 +43,13 @@ router.get("/:id", authMiddleware, async (req, res) => {
 
     const theme = await prisma.themes.findUnique({
       where: { id: themeId },
+      include: {
+        _count: {
+          select: {
+            interventions: true,
+          },
+        },
+      },
     });
 
     if (!theme) {
@@ -60,7 +66,7 @@ router.get("/:id", authMiddleware, async (req, res) => {
 // POST /api/themes - Créer un nouveau thème
 router.post("/", authMiddleware, async (req, res) => {
   try {
-    const { designation, actif = true } = req.body; // Ajout de actif avec valeur par défaut
+    const { designation, actif = true } = req.body;
 
     if (!designation || designation.trim() === "") {
       return res.status(400).json({ error: "La désignation est obligatoire" });
@@ -118,7 +124,7 @@ router.delete(
       const themeId = parseInt(req.params.id);
 
       if (isNaN(themeId)) {
-        return res.status(400).json({ error: "ID de thème invalide" });
+        return res.status(400).json({ error: "ID invalide" });
       }
 
       // Vérifier si le thème existe

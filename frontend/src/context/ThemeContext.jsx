@@ -12,25 +12,50 @@ export const useTheme = () => {
 
 export const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState(() => {
-    // Récupère le thème depuis le localStorage ou utilise 'light' par défaut
     const savedTheme = localStorage.getItem("tag-theme");
+    if (
+      !savedTheme &&
+      window.matchMedia &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches
+    ) {
+      return "dark";
+    }
     return savedTheme || "light";
   });
 
-  useEffect(() => {
-    // Sauvegarde le thème dans le localStorage
-    localStorage.setItem("tag-theme", theme);
+  const [screenSize, setScreenSize] = useState({
+    width: window.innerWidth,
+    height: window.innerHeight,
+    isMobile: window.innerWidth < 768,
+    isTablet: window.innerWidth >= 768 && window.innerWidth < 1024,
+    isDesktop: window.innerWidth >= 1024,
+  });
 
-    // Applique le thème au document
+  useEffect(() => {
+    localStorage.setItem("tag-theme", theme);
     document.documentElement.setAttribute("data-theme", theme);
 
-    // Met à jour les classes Tailwind
     if (theme === "dark") {
       document.documentElement.classList.add("dark");
     } else {
       document.documentElement.classList.remove("dark");
     }
   }, [theme]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setScreenSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+        isMobile: window.innerWidth < 768,
+        isTablet: window.innerWidth >= 768 && window.innerWidth < 1024,
+        isDesktop: window.innerWidth >= 1024,
+      });
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const toggleTheme = () => {
     setTheme((prev) => (prev === "light" ? "dark" : "light"));
@@ -40,6 +65,7 @@ export const ThemeProvider = ({ children }) => {
     theme,
     setTheme,
     toggleTheme,
+    ...screenSize,
   };
 
   return (

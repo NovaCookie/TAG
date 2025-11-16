@@ -6,12 +6,12 @@ const UserAvatar = ({
   size = "md",
   className = "",
 }) => {
-  // Gère la taille de l'avatar
+  // Gère la taille de l'avatar - Tailles responsive
   const sizeClasses = {
-    sm: "w-8 h-8 text-xs",
-    md: "w-10 h-10 text-sm",
-    lg: "w-12 h-12 text-base",
-    xl: "w-16 h-16 text-lg",
+    sm: "w-6 h-6 text-xs", // Plus petit pour mobile
+    md: "w-8 h-8 text-xs sm:w-10 sm:h-10 sm:text-sm", // Adaptatif
+    lg: "w-10 h-10 text-sm sm:w-12 sm:h-12 sm:text-base",
+    xl: "w-12 h-12 text-base sm:w-16 sm:h-16 sm:text-lg",
   };
 
   // Génère les initiales
@@ -38,7 +38,7 @@ const UserAvatar = ({
       )}
 
       {online && (
-        <div className="absolute bottom-0 right-0 w-3 h-3 bg-success rounded-full border-2 border-white"></div>
+        <div className="absolute bottom-0 right-0 w-2 h-2 sm:w-3 sm:h-3 bg-success rounded-full border-2 border-white"></div>
       )}
     </div>
   );

@@ -9,6 +9,11 @@ class ThemesService {
         id: true,
         designation: true,
         date_creation: true,
+        _count: {
+          select: {
+            interventions: true,
+          },
+        },
       },
       orderBy: { designation: "asc" },
     });
@@ -21,6 +26,11 @@ class ThemesService {
         designation: true,
         actif: true,
         date_creation: true,
+        _count: {
+          select: {
+            interventions: true,
+          },
+        },
       },
       orderBy: { designation: "asc" },
     });

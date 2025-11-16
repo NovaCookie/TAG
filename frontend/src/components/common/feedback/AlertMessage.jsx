@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 
 const AlertMessage = ({
-  type = "info", // 'success', 'error', 'warning', 'info'
+  type = "info",
   message,
   onClose,
   autoClose = false,
@@ -27,13 +27,15 @@ const AlertMessage = ({
   if (!message) return null;
 
   return (
-    <div className={`p-4 rounded-lg border ${typeClasses[type]} ${className}`}>
+    <div
+      className={`p-3 sm:p-4 rounded-lg border ${typeClasses[type]} ${className} mb-4 sm:mb-6`}
+    >
       <div className="flex justify-between items-center">
-        <span>{message}</span>
+        <span className="text-sm sm:text-base pr-2">{message}</span>
         {onClose && (
           <button
             onClick={onClose}
-            className="ml-4 text-lg hover:opacity-70 transition-opacity"
+            className="ml-2 sm:ml-4 text-lg hover:opacity-70 transition-opacity flex-shrink-0"
           >
             ×
           </button>

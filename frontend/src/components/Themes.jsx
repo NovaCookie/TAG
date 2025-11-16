@@ -2,11 +2,11 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
 import Layout from "./layout/Layout";
 import Pagination from "./common/Pagination";
-import DataTable from "./common/data/DataTable";
 import AlertMessage from "./common/feedback/AlertMessage";
+import ThemeCard from "./themes/ThemeCard";
 import { themesAPI, retentionAPI } from "../services/api";
 import { Link } from "react-router-dom";
-import ToggleSwitch from "./common/ToggleSwitch";
+import { useDebounce } from "../hooks/useDebounce";
 
 const Themes = () => {
   const { user } = useAuth();
@@ -14,13 +14,14 @@ const Themes = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
-  const [filters, setFilters] = useState({
-    search: "",
-  });
+  const [searchInput, setSearchInput] = useState("");
+  const debouncedSearch = useDebounce(searchInput, 500);
+
   const [pagination, setPagination] = useState({
     page: 1,
     totalPages: 1,
     total: 0,
+    limit: 10,
   });
 
   const loadThemes = useCallback(async () => {
@@ -31,6 +32,7 @@ const Themes = () => {
       const response = await themesAPI.getAllIncludingInactive();
 
       if (response.data) {
+        // Charger les politiques RGPD pour chaque thème
         const themesWithPolicies = await Promise.all(
           response.data.map(async (theme) => {
             try {
@@ -52,11 +54,31 @@ const Themes = () => {
           })
         );
 
-        setThemes(themesWithPolicies);
+        // Appliquer la recherche côté client
+        let filteredThemes = themesWithPolicies;
+
+        if (debouncedSearch) {
+          filteredThemes = filteredThemes.filter(
+            (theme) =>
+              theme.designation
+                .toLowerCase()
+                .includes(debouncedSearch.toLowerCase()) ||
+              theme.rgpd_policy?.description
+                ?.toLowerCase()
+                .includes(debouncedSearch.toLowerCase())
+          );
+        }
+
+        // Pagination côté client
+        const startIndex = (pagination.page - 1) * pagination.limit;
+        const endIndex = startIndex + pagination.limit;
+        const paginatedThemes = filteredThemes.slice(startIndex, endIndex);
+
+        setThemes(paginatedThemes);
         setPagination((prev) => ({
           ...prev,
-          total: themesWithPolicies.length,
-          totalPages: Math.ceil(themesWithPolicies.length / 10),
+          total: filteredThemes.length,
+          totalPages: Math.ceil(filteredThemes.length / pagination.limit),
         }));
       }
     } catch (error) {
@@ -65,7 +87,7 @@ const Themes = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [pagination.page, pagination.limit, debouncedSearch]);
 
   useEffect(() => {
     if (user?.role === "commune") {
@@ -75,21 +97,23 @@ const Themes = () => {
     loadThemes();
   }, [loadThemes, user]);
 
-  const handleFilterChange = (key, value) => {
-    setFilters((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
-    setPagination((prev) => ({ ...prev, page: 1 }));
+  const handleSearchChange = (e) => {
+    setSearchInput(e.target.value);
+  };
+
+  const handleSearchReset = () => {
+    setSearchInput("");
   };
 
   const handleThemeStatusChange = async (themeId, newStatus) => {
     try {
+      // Optimistic update
       setThemes((prevThemes) =>
         prevThemes.map((theme) =>
           theme.id === themeId ? { ...theme, actif: newStatus } : theme
         )
       );
+
       await themesAPI.update(themeId, { actif: newStatus });
       setSuccessMessage(
         `Thème ${newStatus ? "activé" : "désactivé"} avec succès`
@@ -97,93 +121,38 @@ const Themes = () => {
     } catch (error) {
       console.error("Error updating theme status:", error);
       setErrorMessage("Erreur lors de la modification du statut du thème");
+
+      // Revert optimistic update on error
+      loadThemes();
     }
   };
 
-  const getDurationDisplay = (theme) => {
-    if (theme.rgpd_policy) {
-      return `${theme.rgpd_policy.duree_mois} mois`;
-    }
-    return "24 mois (défaut)";
-  };
-
-  const getRgpdDescription = (theme) => {
-    if (theme.rgpd_policy?.description) {
-      return theme.rgpd_policy.description;
-    }
-    return "Aucune politique RGPD spécifique";
-  };
-
-  const ThemeRow = ({ theme }) => (
-    <div className="grid grid-cols-12 gap-6 py-4 px-6 border-b border-light last:border-b-0 hover:bg-light/30 transition-colors items-center">
-      <div className="col-span-3 flex items-center gap-3">
-        <span className="font-semibold text-secondary">
-          {theme.designation}
-        </span>
-      </div>
-
-      <div className="col-span-2 flex items-center gap-2">
-        <span className="w-3 h-3 rounded-full bg-primary"></span>
-        <span className="font-medium text-primary">
-          {getDurationDisplay(theme)}
-        </span>
-      </div>
-
-      <div className="col-span-4 flex items-center gap-2">
-        <span className="w-3 h-3 rounded-full bg-warning flex-shrink-0"></span>
-        <span className="font-medium text-warning text-sm">
-          {getRgpdDescription(theme)}
-        </span>
-      </div>
-
-      <div className="col-span-2 flex items-center gap-2">
-        <span
-          className={`w-3 h-3 rounded-full ${
-            theme.actif ? "bg-success" : "bg-secondary"
-          }`}
-        ></span>
-        <span
-          className={`font-medium ${
-            theme.actif ? "text-success" : "text-secondary"
-          }`}
-        >
-          {theme.actif ? "Actif" : "Inactif"}
-        </span>
-      </div>
-
-      {(user?.role === "admin" || user?.role === "juriste") && (
-        <div className="col-span-1 flex justify-center items-center gap-2">
-          {user?.role === "admin" && (
-            <ToggleSwitch
-              checked={theme.actif}
-              onChange={(checked) => handleThemeStatusChange(theme.id, checked)}
-            />
-          )}
-          <Link
-            to={`/themes/edit/${theme.id}`}
-            className="w-8 h-8 rounded-full bg-light text-primary flex items-center justify-center hover:bg-primary hover:text-white transition-colors"
-            title="Modifier le thème"
-          >
-            ✏️
-          </Link>
+  // Squelette de chargement
+  const ThemeCardSkeleton = () => (
+    <div className="card card-rounded p-6 animate-pulse">
+      <div className="flex items-center gap-4">
+        <div className="w-12 h-12 bg-gray-200 rounded-full"></div>
+        <div className="flex-1 space-y-3">
+          <div className="flex justify-between items-center">
+            <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+            <div className="flex gap-2">
+              <div className="h-6 bg-gray-200 rounded w-16"></div>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <div className="h-3 bg-gray-200 rounded w-3/4"></div>
+              <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+            </div>
+            <div className="space-y-2">
+              <div className="h-3 bg-gray-200 rounded w-3/4"></div>
+              <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+            </div>
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
-
-  const filteredThemes = themes.filter((theme) => {
-    if (!filters.search) return true;
-
-    const searchLower = filters.search.toLowerCase();
-    return (
-      theme.designation.toLowerCase().includes(searchLower) ||
-      getRgpdDescription(theme).toLowerCase().includes(searchLower)
-    );
-  });
-
-  const startIndex = (pagination.page - 1) * 10;
-  const endIndex = startIndex + 10;
-  const paginatedThemes = filteredThemes.slice(startIndex, endIndex);
 
   if (user?.role === "commune") {
     return (
@@ -218,78 +187,106 @@ const Themes = () => {
         onClose={() => setErrorMessage("")}
       />
 
-      <div className="flex justify-between items-center mb-8">
-        <div>
+      {/* En-tête de page */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-8">
+        <div className="flex-1">
           <h1 className="text-2xl font-semibold text-primary mb-2">Thèmes</h1>
           <p className="text-tertiary">
-            Gestion des thèmes et politiques de conservation automatique
+            {pagination.total} thème{pagination.total !== 1 ? "s" : ""} au total
           </p>
         </div>
-        {user?.role != "commune" && (
+        {(user?.role === "admin" || user?.role === "juriste") && (
           <Link
             to="/themes/new"
-            className="bg-primary text-white rounded-lg px-6 py-3 font-semibold text-sm hover:bg-primary-light transition-colors"
+            className="bg-primary text-white rounded-lg px-4 sm:px-6 py-3 font-semibold text-sm hover:bg-primary-light transition-colors shadow-md hover:shadow-lg whitespace-nowrap"
           >
-            Nouveau thème
+            + Nouveau thème
           </Link>
         )}
       </div>
 
-      <div className="flex gap-4 mb-8 items-center flex-wrap">
-        <div className="flex-1 min-w-80">
-          <input
-            type="text"
-            placeholder="Rechercher un thème..."
-            value={filters.search}
-            onChange={(e) => handleFilterChange("search", e.target.value)}
-            className="w-full px-4 py-3 border border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light"
-          />
+      {/* Filtres */}
+      <div className="card card-rounded p-6 mb-6">
+        <div className="grid grid-cols-1 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-secondary mb-2">
+              Recherche
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Nom du thème ou description RGPD..."
+                className="w-full px-4 py-3 border border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light text-base"
+                value={searchInput}
+                onChange={handleSearchChange}
+              />
+              {searchInput && (
+                <button
+                  onClick={handleSearchReset}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 text-lg"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="card card-rounded p-6 mb-8">
-        <div className="flex justify-between items-center mb-6">
+      {/* Liste des thèmes en cartes */}
+      <div className="card card-rounded p-4 sm:p-6 mb-8">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
           <h2 className="text-xl font-semibold text-primary">
             Liste des thèmes
-            {filteredThemes.length > 0 && (
-              <span className="ml-2 text-sm font-normal text-tertiary">
-                ({filteredThemes.length} thème
-                {filteredThemes.length !== 1 ? "s" : ""})
-              </span>
-            )}
           </h2>
-          <span className="text-sm text-tertiary">
-            Page {pagination.page} sur {Math.ceil(filteredThemes.length / 10)}
-          </span>
+          <div className="text-sm">
+            <span className="text-tertiary">Page </span>
+            <span className="font-semibold text-primary">
+              {pagination.page}
+            </span>
+            <span className="text-tertiary"> sur </span>
+            <span className="font-semibold text-primary">
+              {pagination.totalPages}
+            </span>
+          </div>
         </div>
 
-        <div className="grid grid-cols-12 gap-6 py-3 px-6 border-b border-light font-semibold text-tertiary text-sm">
-          <div className="col-span-3">Nom du thème</div>
-          <div className="col-span-2">Durée RGPD</div>
-          <div className="col-span-4">Description RGPD</div>
-          <div className="col-span-2">Statut</div>
-          <div className="col-span-1">Actions</div>
-        </div>
-
-        <DataTable
-          data={paginatedThemes}
-          loading={isLoading}
-          emptyMessage={
-            filters.search
-              ? "Aucun thème trouvé avec ces critères"
-              : "Aucun thème dans la base de données"
-          }
-          renderItem={(theme) => <ThemeRow key={theme.id} theme={theme} />}
-        />
+        {isLoading ? (
+          <div className="space-y-4">
+            {[...Array(5)].map((_, i) => (
+              <ThemeCardSkeleton key={i} />
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {themes.length > 0 ? (
+              themes.map((theme) => (
+                <ThemeCard
+                  key={theme.id}
+                  theme={theme}
+                  onStatusChange={handleThemeStatusChange}
+                />
+              ))
+            ) : (
+              <div className="text-center py-12">
+                <div className="text-tertiary text-lg mb-2">
+                  Aucun thème trouvé
+                </div>
+                <p className="text-tertiary text-sm">
+                  {searchInput
+                    ? "Ajustez votre recherche pour voir plus de résultats"
+                    : "Aucun thème dans la base de données"}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {filteredThemes.length > 0 && (
+      {/* Pagination */}
+      {pagination.totalPages > 1 && (
         <Pagination
-          pagination={{
-            page: pagination.page,
-            totalPages: Math.ceil(filteredThemes.length / 10),
-            total: filteredThemes.length,
-          }}
+          pagination={pagination}
           onPageChange={(page) => setPagination((prev) => ({ ...prev, page }))}
         />
       )}

@@ -1,18 +1,20 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
+import { useNavigate } from "react-router-dom";
 import Layout from "./layout/Layout";
-import UserAvatar from "./common/UserAvatar";
 import Pagination from "./common/Pagination";
-import SearchFilter from "./common/SearchFilter";
-import DataTable from "./common/data/DataTable";
 import AlertMessage from "./common/feedback/AlertMessage";
+import UserCard from "./users/UserCard"; 
 import { usersAPI } from "../services/api";
-import { Link } from "react-router-dom";
 import { useApi, usePagination, useFilters } from "../hooks";
+import { useDebounce } from "../hooks/useDebounce";
 
 const Users = () => {
   const { user } = useAuth();
-  const { loading, error, callApi } = useApi();
+  const { isMobile } = useTheme();
+  const navigate = useNavigate();
+  const { loading, error, callApi, resetError } = useApi();
   const { pagination, updatePagination, goToPage } = usePagination();
   const { filters, updateFilter } = useFilters({
     search: "",
@@ -21,96 +23,76 @@ const Users = () => {
 
   const [users, setUsers] = useState([]);
   const [successMessage, setSuccessMessage] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const debouncedSearch = useDebounce(searchInput, 500);
 
-  useEffect(() => {
-    fetchUsers();
-  }, [pagination.page, filters]);
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     if (user?.role !== "admin") return;
 
     await callApi(
       () =>
         usersAPI.getAll({
           page: pagination.page,
-          limit: 10,
-          search: filters.search !== "" ? filters.search : undefined,
+          limit: pagination.limit,
+          search: debouncedSearch !== "" ? debouncedSearch : undefined,
           role: filters.role !== "all" ? filters.role : undefined,
         }),
       {
         onSuccess: (data) => {
           setUsers(data.users);
-          goToPage(data.pagination.page);
           updatePagination({
             page: data.pagination.page,
             totalPages: data.pagination.pages,
             total: data.pagination.total,
-            limit: data.pagination.limit || 10,
+            limit: data.pagination.limit,
           });
         },
       }
     );
+  }, [
+    pagination.page,
+    pagination.limit,
+    filters,
+    debouncedSearch,
+    user,
+    callApi,
+    updatePagination,
+  ]);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
+
+  const handleSearchChange = (e) => {
+    setSearchInput(e.target.value);
   };
 
-  // Rendu d'une ligne utilisateur dans le style des communes
-  const renderUserRow = (utilisateur) => (
-    <div className="flex items-center justify-between py-4 px-4 border-b border-light last:border-b-0 hover:bg-light/30 transition-colors">
-      {/* Informations principales sur une seule ligne */}
-      <div className="flex items-center gap-6 flex-1">
-        {/* Avatar + Nom */}
-        <div className="flex items-center gap-3 min-w-60">
-          <UserAvatar
-            prenom={utilisateur.prenom}
-            nom={utilisateur.nom}
-            size="md"
-          />
-          <div>
-            <div className="font-semibold text-secondary">
-              {utilisateur.prenom} {utilisateur.nom}
-            </div>
-            {/* <div className="text-sm text-tertiary">{utilisateur.email}</div> */}
+  const handleSearchReset = () => {
+    setSearchInput("");
+  };
+
+  const handleFilterChange = (key, value) => {
+    updateFilter(key, value);
+    goToPage(1);
+  };
+
+  // Squelette de chargement
+  const UserCardSkeleton = () => (
+    <div className="card card-rounded p-6 animate-pulse">
+      <div className="flex items-start gap-4">
+        <div className="w-12 h-12 bg-gray-200 rounded-full"></div>
+        <div className="flex-1 space-y-3">
+          <div className="flex justify-between items-center">
+            <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+            <div className="h-6 bg-gray-200 rounded w-16"></div>
+          </div>
+          <div className="space-y-2">
+            <div className="h-3 bg-gray-200 rounded w-3/4"></div>
+            <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+            <div className="h-3 bg-gray-200 rounded w-2/3"></div>
           </div>
         </div>
-
-        {/* Commune */}
-        <div className="flex items-center gap-2 min-w-40">
-          <span className="w-3 h-3 rounded-full bg-primary"></span>
-          <span className="font-medium text-primary">
-            {utilisateur.commune?.nom || "Aucune commune"}
-          </span>
-        </div>
-
-        {/* Rôle */}
-        <div className="flex items-center gap-2 min-w-40">
-          <span className="w-3 h-3 rounded-full bg-success"></span>
-          <span className="font-medium text-success capitalize">
-            {utilisateur.role}
-          </span>
-        </div>
-
-        {/* Date de création */}
-        <div className="flex items-center gap-2 min-w-40">
-          <span className="w-3 h-3 rounded-full bg-warning"></span>
-          <span className="font-medium text-warning">
-            {utilisateur.date_creation
-              ? new Date(utilisateur.date_creation).toLocaleDateString("fr-FR")
-              : "Date inconnue"}
-          </span>
-        </div>
       </div>
-
-      {/* Actions seulement pour admin */}
-      {user?.role === "admin" && (
-        <div className="flex gap-2">
-          <Link
-            to={`/users/edit/${utilisateur.id}`}
-            className="w-8 h-8 rounded-full bg-light text-primary flex items-center justify-center hover:bg-primary hover:text-white transition-colors"
-            title="Modifier"
-          >
-            ✏️
-          </Link>
-        </div>
-      )}
     </div>
   );
 
@@ -139,11 +121,11 @@ const Users = () => {
         autoClose
       />
 
-      <AlertMessage type="error" message={error} onClose={() => {}} />
+      <AlertMessage type="error" message={error} onClose={resetError} />
 
       {/* En-tête de page */}
-      <div className="flex justify-between items-center mb-8">
-        <div>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-8">
+        <div className="flex-1">
           <h1 className="text-2xl font-semibold text-primary mb-2">
             Utilisateurs
           </h1>
@@ -152,57 +134,111 @@ const Users = () => {
             total
           </p>
         </div>
-        <Link
-          to="/users/new"
-          className="bg-primary text-white rounded-lg px-6 py-3 font-semibold text-sm hover:bg-primary-light transition-colors"
+        <button
+          onClick={() => navigate("/users/new")}
+          className="bg-primary text-white rounded-lg px-4 sm:px-6 py-3 font-semibold text-sm hover:bg-primary-light transition-colors shadow-md hover:shadow-lg whitespace-nowrap"
         >
-          Nouvel utilisateur
-        </Link>
+          + Nouvel utilisateur
+        </button>
       </div>
 
       {/* Filtres */}
-      <SearchFilter
-        filters={filters}
-        onFilterChange={updateFilter}
-        searchPlaceholder="Rechercher un utilisateur..."
-        filterConfig={[
-          {
-            key: "role",
-            options: [
-              { value: "all", label: "Tous les rôles" },
-              { value: "admin", label: "Administrateur" },
-              { value: "juriste", label: "Juriste" },
-              { value: "commune", label: "Commune" },
-            ],
-          },
-        ]}
-      />
+      <div className="card card-rounded p-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-secondary mb-2">
+              Recherche
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Nom, prénom, email..."
+                className="w-full px-4 py-3 border border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light text-base"
+                value={searchInput}
+                onChange={handleSearchChange}
+              />
+              {searchInput && (
+                <button
+                  onClick={handleSearchReset}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 text-lg"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-secondary mb-2">
+              Rôle
+            </label>
+            <select
+              value={filters.role}
+              onChange={(e) => handleFilterChange("role", e.target.value)}
+              className="w-full px-4 py-3 border border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light bg-white"
+            >
+              <option value="all">Tous les rôles</option>
+              <option value="admin">Administrateur</option>
+              <option value="juriste">Juriste</option>
+              <option value="commune">Commune</option>
+            </select>
+          </div>
+        </div>
+      </div>
 
       {/* Liste des utilisateurs */}
-      <div className="card card-rounded p-6 mb-8">
-        <div className="flex justify-between items-center mb-6">
+      <div className="card card-rounded p-4 sm:p-6 mb-8">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
           <h2 className="text-xl font-semibold text-primary">
             Liste des utilisateurs
           </h2>
-          <span className="text-sm text-tertiary">
-            Page {pagination.page} sur {pagination.totalPages}
-          </span>
+          <div className="text-sm">
+            <span className="text-tertiary">Page </span>
+            <span className="font-semibold text-primary">
+              {pagination.page}
+            </span>
+            <span className="text-tertiary"> sur </span>
+            <span className="font-semibold text-primary">
+              {pagination.totalPages}
+            </span>
+          </div>
         </div>
 
-        <DataTable
-          data={users}
-          loading={loading}
-          emptyMessage={
-            filters.search || filters.role !== "all"
-              ? "Aucun utilisateur trouvé avec ces critères"
-              : "Aucun utilisateur dans la base de données"
-          }
-          renderItem={renderUserRow}
-        />
+        {loading ? (
+          <div className="space-y-4">
+            {[...Array(5)].map((_, i) => (
+              <UserCardSkeleton key={i} />
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {users.length > 0 ? (
+              users.map((utilisateur) => (
+                <UserCard key={utilisateur.id} user={utilisateur} />
+              ))
+            ) : (
+              <div className="text-center py-12">
+                <div className="text-tertiary text-lg mb-2">
+                  Aucun utilisateur trouvé
+                </div>
+                <p className="text-tertiary text-sm">
+                  {searchInput || filters.role !== "all"
+                    ? "Ajustez vos filtres pour voir plus de résultats"
+                    : "Aucun utilisateur dans la base de données"}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Pagination */}
-      <Pagination pagination={pagination} onPageChange={goToPage} />
+      {pagination.totalPages > 1 && (
+        <Pagination
+          pagination={pagination}
+          onPageChange={(page) => goToPage(page)}
+        />
+      )}
     </Layout>
   );
 };
