@@ -59,7 +59,7 @@ const CommuneCard = ({ commune, onStatusChange }) => {
             <h3 className="text-lg font-semibold text-primary truncate">
               {communeData.nom}
             </h3>
-            
+
             {/* Toggle actif/inactif (seulement pour admin) */}
             {currentUser?.role === "admin" && (
               <div
@@ -71,9 +71,11 @@ const CommuneCard = ({ commune, onStatusChange }) => {
                   onChange={handleStatusToggle}
                   size="sm"
                 />
-                <span className={`text-sm font-medium ${
-                  communeData.actif ? "text-success" : "text-tertiary"
-                }`}>
+                <span
+                  className={`text-sm font-medium ${
+                    communeData.actif ? "text-success" : "text-tertiary"
+                  }`}
+                >
                   {communeData.actif ? "Actif" : "Inactif"}
                 </span>
               </div>
@@ -81,9 +83,11 @@ const CommuneCard = ({ commune, onStatusChange }) => {
 
             {/* Affichage statut seulement pour non-admin */}
             {currentUser?.role !== "admin" && (
-              <span className={`text-sm font-medium ${
-                communeData.actif ? "text-success" : "text-tertiary"
-              }`}>
+              <span
+                className={`text-sm font-medium ${
+                  communeData.actif ? "text-success" : "text-tertiary"
+                }`}
+              >
                 {communeData.actif ? "Actif" : "Inactif"}
               </span>
             )}
@@ -145,8 +149,8 @@ const CommuneCard = ({ commune, onStatusChange }) => {
 
         {/* FLECHE – tout à droite (seulement pour admin et juriste) */}
         {(currentUser?.role === "admin" || currentUser?.role === "juriste") && (
-          <div className="hidden sm:flex items-center text-primary text-xl transform rotate-45 flex-shrink-0">
-            ↗
+          <div className="w-8 h-8 rounded-full bg-light text-primary flex items-center justify-center hover:bg-primary hover:text-white transition-colors">
+            <span className="text-sm">→</span>
           </div>
         )}
       </div>

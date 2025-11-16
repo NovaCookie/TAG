@@ -158,8 +158,8 @@ const ThemeCard = ({ theme, onStatusChange }) => {
 
         {/* FLECHE – tout à droite (seulement pour admin et juriste) */}
         {(currentUser?.role === "admin" || currentUser?.role === "juriste") && (
-          <div className="hidden sm:flex items-center text-primary text-xl transform rotate-45 flex-shrink-0">
-            ↗
+          <div className="w-8 h-8 rounded-full bg-light text-primary flex items-center justify-center hover:bg-primary hover:text-white transition-colors">
+            <span className="text-sm">→</span>
           </div>
         )}
       </div>

@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import Layout from "./layout/Layout";
 import Pagination from "./common/Pagination";
 import AlertMessage from "./common/feedback/AlertMessage";
-import UserCard from "./users/UserCard"; 
+import UserCard from "./users/UserCard";
 import { usersAPI } from "../services/api";
 import { useApi, usePagination, useFilters } from "../hooks";
 import { useDebounce } from "../hooks/useDebounce";
@@ -138,7 +138,7 @@ const Users = () => {
           onClick={() => navigate("/users/new")}
           className="bg-primary text-white rounded-lg px-4 sm:px-6 py-3 font-semibold text-sm hover:bg-primary-light transition-colors shadow-md hover:shadow-lg whitespace-nowrap"
         >
-          + Nouvel utilisateur
+          Nouvel utilisateur
         </button>
       </div>
 

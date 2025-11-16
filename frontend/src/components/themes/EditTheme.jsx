@@ -343,7 +343,7 @@ const EditTheme = () => {
                     type="button"
                     onClick={handleDelete}
                     disabled={loading}
-                    className="w-full text-center px-6 py-4 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-base"
+                    className="w-full text-center px-6 py-4 bg-danger-600 text-white rounded-lg font-semibold hover:bg-danger-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-base"
                   >
                     {loading ? "Suppression..." : "Supprimer"}
                   </button>

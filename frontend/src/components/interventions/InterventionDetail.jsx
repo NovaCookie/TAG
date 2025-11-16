@@ -519,9 +519,9 @@ const InterventionDetail = () => {
       <div className="fixed inset-0 bg-primary bg-opacity-50 flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6">
           <div className="text-center">
-            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-danger-100 mb-4">
               <svg
-                className="h-6 w-6 text-red-600"
+                className="h-6 w-6 text-danger-600"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -566,7 +566,7 @@ const InterventionDetail = () => {
               <button
                 onClick={handleConfirmDelete}
                 disabled={deleting}
-                className="px-6 py-2 bg-danger text-white rounded-lg font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                className="px-6 py-2 bg-danger text-white rounded-lg font-semibold hover:bg-danger-700 transition-colors disabled:opacity-50 flex items-center gap-2"
               >
                 {deleting ? (
                   <>
@@ -1211,7 +1211,7 @@ const InterventionDetail = () => {
                   {user.role === "admin" && !intervention.reponse && (
                     <button
                       onClick={handleOpenDeleteModal}
-                      className="block w-full text-center bg-danger text-white py-2 px-4 rounded-lg font-semibold hover:bg-red-400 transition-colors"
+                      className="block w-full text-center bg-danger text-white py-2 px-4 rounded-lg font-semibold hover:bg-danger-400 transition-colors"
                     >
                       Supprimer
                     </button>

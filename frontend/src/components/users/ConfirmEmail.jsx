@@ -46,7 +46,7 @@ const ConfirmEmail = () => {
 
         {status === "success" && (
           <div className="text-center">
-            <div className="text-green-500 text-4xl mb-4">✓</div>
+            <div className="text-success-500 text-4xl mb-4">✓</div>
             <h2 className="text-xl font-semibold text-gray-800 mb-2">
               Email confirmé !
             </h2>
@@ -62,7 +62,7 @@ const ConfirmEmail = () => {
 
         {status === "error" && (
           <div className="text-center">
-            <div className="text-red-500 text-4xl mb-4">✗</div>
+            <div className="text-danger-500 text-4xl mb-4">✗</div>
             <h2 className="text-xl font-semibold text-gray-800 mb-2">Erreur</h2>
             <p className="text-gray-600 mb-6">{message}</p>
             <button

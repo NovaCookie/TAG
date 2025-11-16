@@ -7,6 +7,8 @@ const SidebarSection = ({ title, isOpen, children }) => {
         </div>
       )}
       <div className="space-y-3">{children}</div>
+
+      {/* Petite séparation uniquement quand sidebar fermée */}
       {!isOpen ? <hr className="mt-4" /> : null}
     </div>
   );

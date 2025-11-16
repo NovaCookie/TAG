@@ -3,23 +3,25 @@ import Header from "./Header";
 import Sidebar from "../sidebar/Sidebar";
 import { SidebarContext } from "../../context/SidebarContext";
 
-const Layout = ({ children, activePage }) => {
+const Layout = ({ children }) => {
   const { isOpen, setIsOpen } = useContext(SidebarContext);
 
-  const toggleSidebar = () => {
-    setIsOpen(!isOpen);
-  };
-
   return (
-    <div className="min-h-screen flex flex-col font-sans bg-page">
+    <div className="h-screen flex flex-col bg-page font-sans overflow-hidden">
+      {/* Header en haut */}
       <Header />
-      <div className="flex flex-1">
-        <Sidebar
-          activePage={activePage}
-          isOpen={isOpen}
-          onToggle={toggleSidebar}
-        />
-        <main className={`flex-1 p-8  ${isOpen ? "ml-0" : ""}`}>
+
+      {/* Contenu principal */}
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar />
+
+        {/* Zone de contenu */}
+        <main
+          className={`
+            flex-1 p-6 md:p-8 overflow-y-auto
+            ${isOpen ? "md:ml-16" : "md:ml-16"} 
+          `}
+        >
           {children}
         </main>
       </div>

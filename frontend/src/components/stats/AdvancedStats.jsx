@@ -182,21 +182,6 @@ const AdvancedStats = () => {
       <div className="card card-rounded p-6 mb-6">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-semibold text-primary">Filtres</h3>
-          <div className="flex gap-2">
-            <button
-              onClick={reinitialiserFiltres}
-              className="text-sm text-tertiary hover:text-secondary transition-colors"
-            >
-              Tout effacer
-            </button>
-            <button
-              onClick={appliquerFiltres}
-              disabled={chargement}
-              className="text-sm bg-primary text-white px-3 py-1 rounded hover:bg-primary-light transition-colors"
-            >
-              Appliquer
-            </button>
-          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

@@ -217,7 +217,7 @@ const NewCommune = () => {
               <button
                 type="button"
                 onClick={resetForm}
-                className="flex-1 text-center px-6 py-3 bg-danger text-white rounded-lg font-semibold hover:bg-red-400 transition-colors"
+                className="flex-1 text-center px-6 py-3 bg-danger text-white rounded-lg font-semibold hover:bg-danger-400 transition-colors"
               >
                 Réinitialiser
               </button>
