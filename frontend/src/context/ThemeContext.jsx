@@ -11,17 +11,10 @@ export const useTheme = () => {
 };
 
 export const ThemeProvider = ({ children }) => {
-  const [theme, setTheme] = useState(() => {
-    const savedTheme = localStorage.getItem("tag-theme");
-    if (
-      !savedTheme &&
-      window.matchMedia &&
-      window.matchMedia("(prefers-color-scheme: dark)").matches
-    ) {
-      return "dark";
-    }
-    return savedTheme || "light";
-  });
+  // ⚠️ DARK MODE DÉSACTIVÉ - Pour réactiver : remplacer "light" par la ligne commentée ci-dessous
+  const [theme, setTheme] = useState("light");
+  // Pour réactiver le dark mode :
+  // const [theme, setTheme] = useState(() => localStorage.getItem("tag-theme") || "light");
 
   const [screenSize, setScreenSize] = useState({
     width: window.innerWidth,
@@ -32,15 +25,13 @@ export const ThemeProvider = ({ children }) => {
   });
 
   useEffect(() => {
-    localStorage.setItem("tag-theme", theme);
-    document.documentElement.setAttribute("data-theme", theme);
+    // ⚠️ DARK MODE DÉSACTIVÉ - Pour réactiver : décommenter la ligne ci-dessous
+    // localStorage.setItem("tag-theme", theme);
 
-    if (theme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  }, [theme]);
+    // Force le light mode dans le DOM
+    document.documentElement.setAttribute("data-theme", "light");
+    document.documentElement.classList.remove("dark");
+  }, []); // S'exécute une fois au démarrage
 
   useEffect(() => {
     const handleResize = () => {
@@ -57,13 +48,22 @@ export const ThemeProvider = ({ children }) => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // ⚠️ DARK MODE DÉSACTIVÉ - Pour réactiver : décommenter la fonction ci-dessous
   const toggleTheme = () => {
-    setTheme((prev) => (prev === "light" ? "dark" : "light"));
+    // Ne rien faire - dark mode désactivé
   };
+  // Pour réactiver le toggle :
+  // const toggleTheme = () => {
+  //   setTheme(prev => {
+  //     const newTheme = prev === "light" ? "dark" : "light";
+  //     localStorage.setItem("tag-theme", newTheme);
+  //     return newTheme;
+  //   });
+  // };
 
   const value = {
-    theme,
-    setTheme,
+    theme: "light", // ⚠️ Toujours "light" - pour réactiver : remplacer par `theme`
+    setTheme, // ⚠️ Fonction inactive - pour réactiver : laisser tel quel
     toggleTheme,
     ...screenSize,
   };
