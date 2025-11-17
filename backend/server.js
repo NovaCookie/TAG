@@ -20,7 +20,19 @@ const testEmailRoutes = require("./tests/test-email");
 const faqRoutes = require("./routes/faq");
 
 // Middleware
-app.use(cors());
+// app.use(cors());
+app.use(
+  cors({
+    origin: [
+      "http://localhost:3000",
+      "https://tag-swart-eta.vercel.app",
+      "https://tag-2jg95qcfn-moranensis-projects.vercel.app",
+    ],
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 app.use(express.json());
 
 // Routes API
