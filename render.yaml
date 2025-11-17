@@ -16,3 +16,5 @@ services:
         value: https://tag-swart-eta.vercel.app
       - key: RESEND_API_KEY
         value: re_W98Qx2m8_HaRbDZz6FPBJL6sfe415tNsb
+      - key: PORT
+        value: 5000
