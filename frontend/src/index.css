@@ -16,6 +16,20 @@
   --color-white: #ffffff;
 }
 
+/* Forcer le mode light */
+body {
+  background-color: white !important;
+  color: black !important;
+}
+
+/* Désactiver le dark mode */
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: white !important;
+    color: black !important;
+  }
+}
+
 /* Dark mode */
 [data-theme="dark"] {
   --color-primary: #4a7db0;
