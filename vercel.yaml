@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: tag-backend
+    env: node
+    plan: free
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        value: postgresql://neondb_owner:npg_HOK8XPavuA2U@ep-royal-river-ad5yvlft-pooler.us-east-1.aws.neon.tech/neondb
+      - key: JWT_SECRET
+        value: 123_S0LE1L
+      - key: FRONTEND_URL
+        value: https://tag-swart-eta.vercel.app
+      - key: RESEND_API_KEY
+        value: re_W98Qx2m8_HaRbDZz6FPBJL6sfe415tNsb
