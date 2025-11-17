@@ -37,6 +37,34 @@ app.use("/api/test", testArchivesRoutes);
 app.use("/api/test", testEmailRoutes);
 app.use("/api/faq", faqRoutes);
 
+// ==================== ROUTE RACINE ====================
+
+// Route de santé - accessible sans authentification
+app.get("/", (req, res) => {
+  res.json({
+    message: "API TAG Backend is running! 🚀",
+    version: "1.0.0",
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || "development",
+  });
+});
+
+// Route de santé API
+app.get("/api", (req, res) => {
+  res.json({
+    message: "Bienvenue sur l'API TAG!",
+    endpoints: {
+      auth: "/api/auth",
+      interventions: "/api/interventions",
+      themes: "/api/themes",
+      users: "/api/users",
+      communes: "/api/communes",
+      stats: "/api/stats",
+    },
+    documentation: "https://votre-doc.com",
+  });
+});
+
 // ==================== ROUTES PROTÉGÉES ====================
 
 // Route test - accessible à tous les utilisateurs authentifiés
