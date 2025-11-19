@@ -1,55 +1,108 @@
 # 🏛️ Application TAG - Gestion des Interventions Juridiques
 
-> Application web pour la gestion mutualisée des interventions juridiques des communes du Groenland
+> Application web complète pour la gestion mutualisée des interventions juridiques des 64 communes du Groenland
 
-## 📋 À Propos
+## 📋 Contexte
 
-**TAG** (Tekniske Agentur Grønland) est une agence juridique qui apporte une aide juridique aux 64 communes du Groenland. Cette application modernise leur système en remplaçant les échanges par email par une plateforme centralisée et sécurisée.
+**TAG** (Tekniske Agentur Grønland) est l'agence technique qui apporte une aide juridique aux communes groenlandaises. Cette application modernise leur système historique basé sur les emails en offrant une plateforme centralisée, sécurisée et conforme RGPD.
+
+## 🎯 Fonctionnalités principales
+
+### Pour les communes
+
+- Création de questions juridiques avec pièces jointes
+- Suivi en temps réel du statut des interventions
+- Notation des réponses (1 à 5 étoiles)
+- Consultation de l'historique
+
+### Pour les juristes TAG
+
+- Gestion centralisée des questions
+- Système de suggestions de questions similaires
+- Réponses enrichies avec pièces jointes
+- Publication en FAQ
+
+### Pour les administrateurs
+
+- Gestion complète des utilisateurs et communes
+- Tableaux de bord statistiques avancés
+- Archivage automatique RGPD
+- Politiques de rétention paramétrables
 
 ## 🛠 Stack Technique
 
-### Backend (Actuel)
+### Frontend
+
+- **React** - Interface utilisateur moderne
+- **Tailwind CSS** - Système de design responsive
+- **Context API** - Gestion d'état globale
+- **Axios** - Client HTTP
+
+### Backend
 
 - **Node.js** - Runtime JavaScript
-- **Express** - Framework web
-- **Prisma** - ORM base de données
-- **PostgreSQL** - Base de données
+- **Express** - Framework web RESTful
+- **Prisma** - ORM type-safe
+- **PostgreSQL** - Base de données relationnelle
 
-### Frontend (À venir)
+### Sécurité & Conformité
 
-- **React** - Interface utilisateur
-- **Tailwind CSS** - Styling
+- **JWT** - Authentification sécurisée
+- **bcrypt** - Hashage des mots de passe
+- **Multer** - Gestion sécurisée des uploads
+- **Cron** - Archivage automatique RGPD
 
-## 🚀 Installation
+## 🚀 Déploiement
 
-### Prérequis
+### Environnements
 
-- Node.js 18+
-- PostgreSQL 15+
+- **Frontend** : Vercel
+- **Backend** : Render
+- **Base de données** : Neon Tech (PostgreSQL)
 
-### 1. Backend
+### Accès démo
 
-```bash
-cd backend
-npm install
-npm run dev
-```
+- Application : [lien-vers-l-application]
+- Documentation : [lien-vers-la-doc]
+- Code source : [lien-vers-github]
 
-### 2. Base de données
+## 📊 Architecture
 
-```bash
-npx prisma migrate dev --name init
-npx prisma generate
-```
+### Modèle de données
 
-### 📁 Structure Actuelle
+7 entités principales : Utilisateurs, Communes, Interventions, Thèmes, Pièces jointes, Archives, Politiques de rétention
 
-```text
-TAG/
-├── backend/
-│ ├── prisma/
-│ │ └── schema.prisma
-│ ├── server.js
-│ └── package.json
-└── README.md
-```
+### API REST
+
+45+ endpoints organisés par domaine métier avec gestion fine des permissions
+
+### Services métier
+
+10 services spécialisés : Archive, Stats, Suggestion, Email, Upload, etc.
+
+## 🔒 Conformité RGPD
+
+- Archivage automatique basé sur politiques de rétention
+- Journalisation complète des actions sensibles
+- Blocage des accès aux données archivées
+- Durées de conservation paramétrables par thème
+
+## 📈 Roadmap
+
+### V1.1 (Prochaine)
+
+- Mode sombre activé
+- Recherche plein texte optimisée
+- Exports PDF améliorés
+
+### V1.2 (Future)
+
+- Notifications temps réel
+- API publique
+- Consentement renforcé
+
+## 👥 Équipe
+
+Moi même :)
+
+Développé dans le cadre du titre CDA (Concepteur Développeur d'Applications)
