@@ -1,4 +1,3 @@
-// components/interventions/InterventionCard.jsx
 import { Link } from "react-router-dom";
 import StatusBadge from "../common/StatusBadge";
 import { useAuth } from "../../context/AuthContext";

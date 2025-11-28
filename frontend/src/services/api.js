@@ -198,9 +198,9 @@ export const suggestionsAPI = {
 // === Faq ===
 export const faqAPI = {
   getAll: (params) => api.get("/faq", { params }),
-  createQuestion: (data) => api.post("/faq/questions", data),
-  publish: (id) => api.post(`/faq/${id}/publish`),
-  unpublish: (id) => api.post(`/faq/${id}/unpublish`),
+  addToFAQ: (id) => api.post(`/faq/${id}/add`),
+  removeFromFAQ: (id) => api.post(`/faq/${id}/remove`),
+  createQuestion: (data) => api.post("/faq/create", data),
   getSimilar: (params) => api.get("/faq/similar", { params }),
 };
 

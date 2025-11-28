@@ -25,11 +25,6 @@ class FilterService {
 
     const where = {};
 
-    // Exclusion des questions faq
-    if (!isArchive) {
-      where.est_faq = false;
-    }
-
     // Filtre par rôle utilisateur
     if (user.role === "commune") {
       where.demandeur_id = user.id;
@@ -107,6 +102,10 @@ class FilterService {
         where.reponse = { not: null };
         where.satisfaction = { not: null };
         break;
+      // A ajouter plus tard : un statut "faq"
+      // case "faq":
+      //   where.est_faq = true;
+      //   break;
       default:
         break;
     }

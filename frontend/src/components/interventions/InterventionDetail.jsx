@@ -136,7 +136,7 @@ const InterventionDetail = () => {
     }
   }, [id, fetchIntervention]);
 
-  // FONCTION POUR GÉRER LE TOGGLE Faq
+  // Fonction pour ajouter à la Faq
   const handleFAQToggle = async (checked) => {
     if (!intervention) return;
 
@@ -148,10 +148,29 @@ const InterventionDetail = () => {
         await faqAPI.removeFromFAQ(intervention.id);
       }
       setIsFAQ(checked);
+
+      // Recharger les données pour avoir les dernières informations
+      await fetchIntervention();
+
+      // Message de succès
+      setSatisfactionMessage(
+        checked
+          ? "Question ajoutée à la FAQ avec succès"
+          : "Question retirée de la FAQ avec succès"
+      );
+      setTimeout(() => setSatisfactionMessage(""), 3000);
     } catch (error) {
       console.error("Erreur modification Faq:", error);
-      // Revert the toggle on error
+
+      // Annuler le toggle en cas d'erreur
       setIsFAQ(!checked);
+
+      // Afficher un message d'erreur à l'utilisateur
+      const errorMessage =
+        error.response?.data?.error ||
+        "Erreur lors de la modification de la FAQ";
+      setSatisfactionMessage(errorMessage);
+      setTimeout(() => setSatisfactionMessage(""), 5000);
     } finally {
       setFaqLoading(false);
     }

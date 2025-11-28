@@ -21,14 +21,67 @@ router.post(
   requireRole(["admin", "juriste"]),
   async (req, res) => {
     try {
-      const intervention = await faqService.addToFaq(req.params.id);
+      const interventionId = parseInt(req.params.id);
+
+      console.log(
+        `[FAQ] Requête d'ajout pour l'intervention ${interventionId} par l'utilisateur ${req.user.id}`
+      );
+
+      if (isNaN(interventionId)) {
+        return res.status(400).json({ error: "ID d'intervention invalide" });
+      }
+
+      const intervention = await faqService.publishAsFaq(
+        interventionId,
+        req.user.id
+      );
+
+      console.log(
+        `[FAQ] Succès - Intervention ${interventionId} ajoutée à la FAQ`
+      );
+
       res.json({
         message: "Question ajoutée à la Faq",
         intervention,
       });
     } catch (error) {
-      console.error("Erreur ajout Faq:", error);
-      res.status(500).json({ error: "Erreur ajout Faq" });
+      console.error("[FAQ] Erreur ajout Faq:", error);
+
+      // Messages d'erreur plus spécifiques
+      if (error.message.includes("non trouvée")) {
+        return res.status(404).json({ error: error.message });
+      }
+      if (error.message.includes("sans réponse")) {
+        return res.status(400).json({ error: error.message });
+      }
+      if (error.message.includes("déjà en FAQ")) {
+        return res.status(400).json({ error: error.message });
+      }
+
+      // Erreur Prisma spécifique
+      if (error.code) {
+        console.error(`[FAQ] Code d'erreur Prisma: ${error.code}`);
+
+        if (error.code === "P2025") {
+          return res.status(404).json({ error: "Intervention non trouvée" });
+        }
+        if (error.code === "P2002") {
+          return res
+            .status(400)
+            .json({ error: "Violation de contrainte unique" });
+        }
+        if (error.code === "P2003") {
+          return res.status(400).json({ error: "Violation de clé étrangère" });
+        }
+      }
+
+      res.status(500).json({
+        error: "Erreur lors de l'ajout à la FAQ",
+        details:
+          process.env.NODE_ENV === "development"
+            ? error.message
+            : "Erreur interne du serveur",
+      });
     }
   }
 );
@@ -40,11 +93,49 @@ router.post(
   requireRole(["admin", "juriste"]),
   async (req, res) => {
     try {
-      await faqService.removeFromFaq(req.params.id);
-      res.json({ message: "Question retirée de la Faq" });
+      const interventionId = parseInt(req.params.id);
+
+      console.log(
+        `[FAQ] Requête de retrait pour l'intervention ${interventionId}`
+      );
+
+      if (isNaN(interventionId)) {
+        return res.status(400).json({ error: "ID d'intervention invalide" });
+      }
+
+      await faqService.unpublishFromFaq(interventionId);
+
+      console.log(
+        `[FAQ] Succès - Intervention ${interventionId} retirée de la FAQ`
+      );
+
+      res.json({
+        message: "Question retirée de la Faq",
+        interventionId,
+      });
     } catch (error) {
-      console.error("Erreur retrait Faq:", error);
-      res.status(500).json({ error: "Erreur retrait Faq" });
+      console.error("[FAQ] Erreur retrait Faq:", error);
+
+      if (error.message.includes("non trouvée")) {
+        return res.status(404).json({ error: error.message });
+      }
+
+      // Erreur Prisma spécifique
+      if (error.code) {
+        console.error(`[FAQ] Code d'erreur Prisma: ${error.code}`);
+
+        if (error.code === "P2025") {
+          return res.status(404).json({ error: "Intervention non trouvée" });
+        }
+      }
+
+      res.status(500).json({
+        error: "Erreur lors du retrait de la FAQ",
+        details:
+          process.env.NODE_ENV === "development"
+            ? error.message
+            : "Erreur interne du serveur",
+      });
     }
   }
 );
@@ -64,16 +155,15 @@ router.post(
         });
       }
 
-      // Utiliser une commune et utilisateur par défaut pour les questions Faq créées directement
-      const faq = await faqService.createFaq({
-        titre,
-        description,
-        reponse,
-        theme_id,
-        commune_id: 1, // ID d'une commune par défaut
-        demandeur_id: req.user.id, // L'utilisateur actuel comme demandeur
-        juriste_id: req.user.id, // L'utilisateur actuel comme juriste
-      });
+      const faq = await faqService.createFaqQuestion(
+        {
+          titre,
+          description,
+          reponse,
+          theme_id,
+        },
+        req.user.id
+      );
 
       res.status(201).json({
         message: "Faq créée avec succès",
@@ -86,42 +176,29 @@ router.post(
   }
 );
 
-// POST /api/faq/questions - Créer une question faq directement
-router.post(
-  "/questions",
-  authMiddleware,
-  requireRole(["admin", "juriste"]),
-  async (req, res) => {
-    try {
-      const { titre, description, reponse, theme_id } = req.body;
+router.get("/test-intervention/:id", authMiddleware, async (req, res) => {
+  try {
+    const interventionId = parseInt(req.params.id);
+    const intervention = await prisma.interventions.findUnique({
+      where: { id: interventionId },
+      include: {
+        theme: true,
+        juriste: true,
+        demandeur: true,
+        commune: true,
+      },
+    });
 
-      if (!titre || !description || !reponse || !theme_id) {
-        return res.status(400).json({
-          error: "Tous les champs sont obligatoires",
-        });
-      }
-
-      const faqQuestion = await faqService.createFaqQuestion(
-        {
-          titre,
-          description,
-          reponse,
-          theme_id,
-        },
-        req.user.id
-      );
-
-      res.status(201).json({
-        message: "Question Faq créée avec succès",
-        question: faqQuestion,
-      });
-    } catch (error) {
-      console.error("Erreur création question Faq:", error);
-      res
-        .status(500)
-        .json({ error: "Erreur lors de la création de la question Faq" });
-    }
+    res.json({
+      intervention,
+      exists: !!intervention,
+      hasResponse: !!intervention?.reponse,
+      hasJuriste: !!intervention?.juriste_id,
+      isAlreadyFAQ: intervention?.est_faq,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
-);
+});
 
 module.exports = router;

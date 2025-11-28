@@ -61,7 +61,7 @@ class FaqService {
         description: data.description,
         reponse: data.reponse,
         theme_id: parseInt(data.theme_id),
-        // Champs sont obligatoires pour prisma mais non utilisés pour les questions
+        // Champs obligatoires pour prisma mais non utilisés pour les questions FAQ
         commune_id: 1, // ID d'une commune par défaut
         demandeur_id: userId, // L'utilisateur qui crée la Faq
         juriste_id: userId,
@@ -83,33 +83,135 @@ class FaqService {
 
   // Publier une intervention existante en Faq
   async publishAsFaq(interventionId, userId) {
-    return await prisma.interventions.update({
-      where: { id: parseInt(interventionId) },
-      data: {
+    try {
+      console.log(`=== DÉBUT publishAsFaq ===`);
+      console.log(`Intervention ID: ${interventionId}`);
+      console.log(`User ID: ${userId}`);
+
+      // D'abord, vérifier que l'intervention existe et a une réponse
+      const intervention = await prisma.interventions.findUnique({
+        where: { id: parseInt(interventionId) },
+        select: {
+          id: true,
+          reponse: true,
+          juriste_id: true,
+          est_faq: true,
+          titre: true,
+        },
+      });
+
+      console.log(`Intervention trouvée:`, intervention);
+
+      if (!intervention) {
+        throw new Error(`Intervention avec ID ${interventionId} non trouvée`);
+      }
+
+      if (!intervention.reponse) {
+        throw new Error(
+          "Impossible d'ajouter à la FAQ une intervention sans réponse"
+        );
+      }
+
+      // Vérifier si l'intervention est déjà en FAQ
+      if (intervention.est_faq) {
+        console.log(`L'intervention ${interventionId} est déjà en FAQ`);
+        return intervention;
+      }
+
+      // Préparer les données de mise à jour
+      const updateData = {
         est_faq: true,
         date_publication_faq: new Date(),
-        juriste_id: userId,
-      },
-      include: {
-        theme: {
-          select: { designation: true },
+      };
+
+      console.log(`Données de mise à jour:`, updateData);
+
+      // Mettre à jour l'intervention
+      const result = await prisma.interventions.update({
+        where: { id: parseInt(interventionId) },
+        data: updateData,
+        include: {
+          theme: {
+            select: { designation: true },
+          },
+          juriste: {
+            select: { nom: true, prenom: true },
+          },
         },
-        juriste: {
-          select: { nom: true, prenom: true },
-        },
-      },
-    });
+      });
+
+      console.log(`Résultat de la mise à jour:`, result);
+      console.log(`=== SUCCÈS publishAsFaq ===`);
+
+      return result;
+    } catch (error) {
+      console.error(`=== ERREUR publishAsFaq ===`);
+      console.error(`Message: ${error.message}`);
+      console.error(`Code: ${error.code}`);
+      console.error(`Stack: ${error.stack}`);
+
+      // Si c'est une erreur Prisma, logger les détails
+      if (error.code) {
+        console.error(`Code d'erreur Prisma: ${error.code}`);
+      }
+
+      if (error.meta) {
+        console.error(`Métadonnées d'erreur:`, error.meta);
+      }
+
+      throw error;
+    }
   }
 
   // Retirer une intervention de la Faq
   async unpublishFromFaq(interventionId) {
-    return await prisma.interventions.update({
-      where: { id: parseInt(interventionId) },
-      data: {
-        est_faq: false,
-        date_publication_faq: null,
-      },
-    });
+    try {
+      console.log(`=== DÉBUT unpublishFromFaq ===`);
+      console.log(`Intervention ID: ${interventionId}`);
+
+      const intervention = await prisma.interventions.findUnique({
+        where: { id: parseInt(interventionId) },
+        select: {
+          id: true,
+          est_faq: true,
+        },
+      });
+
+      console.log(`Intervention trouvée:`, intervention);
+
+      if (!intervention) {
+        throw new Error(`Intervention avec ID ${interventionId} non trouvée`);
+      }
+
+      if (!intervention.est_faq) {
+        console.log(`L'intervention ${interventionId} n'est pas en FAQ`);
+        return intervention;
+      }
+
+      const result = await prisma.interventions.update({
+        where: { id: parseInt(interventionId) },
+        data: {
+          est_faq: false,
+          date_publication_faq: null,
+        },
+      });
+
+      console.log(`Résultat de la mise à jour:`, result);
+      console.log(`=== SUCCÈS unpublishFromFaq ===`);
+
+      return result;
+    } catch (error) {
+      console.error(`=== ERREUR unpublishFromFaq ===`);
+      console.error(`Message: ${error.message}`);
+      console.error(`Code: ${error.code}`);
+      console.error(`Stack: ${error.stack}`);
+
+      if (error.code) {
+        console.error(`Code d'erreur Prisma: ${error.code}`);
+      }
+
+      throw error;
+    }
   }
 
   // Trouver des Faq similaires pour une nouvelle question
